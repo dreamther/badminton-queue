@@ -100,17 +100,11 @@ export default function App() {
   const queue = useMemo(() => {
     const queued = players.filter(p => p.status === 'queued');
     
-    // Sort by joinedAt first
+    // Sort by joinedAt to maintain FIFO order
     const sorted = [...queued].sort((a, b) => a.joinedAt - b.joinedAt);
     
-    // Build ordered list of items (groups and individuals)
-    interface QueueItem {
-      type: 'group' | 'individual';
-      players: Player[];
-      joinTime: number;
-    }
-    
-    const items: QueueItem[] = [];
+    // Process in order, keeping bound groups together
+    const result: Player[] = [];
     const processedIds = new Set<string>();
     const processedGroupIds = new Set<string>();
     
@@ -118,59 +112,18 @@ export default function App() {
       if (processedIds.has(p.id)) continue;
       
       if (p.groupId) {
+        // Skip if this group was already processed
         if (processedGroupIds.has(p.groupId)) continue;
         
+        // Add all members of this bound group together
         const groupMembers = sorted.filter(m => m.groupId === p.groupId);
-        items.push({
-          type: 'group',
-          players: groupMembers,
-          joinTime: Math.min(...groupMembers.map(m => m.joinedAt))
-        });
+        result.push(...groupMembers);
         groupMembers.forEach(m => processedIds.add(m.id));
         processedGroupIds.add(p.groupId);
       } else {
-        items.push({
-          type: 'individual',
-          players: [p],
-          joinTime: p.joinedAt
-        });
+        // Individual player
+        result.push(p);
         processedIds.add(p.id);
-      }
-    }
-    
-    // Sort items by join time
-    items.sort((a, b) => a.joinTime - b.joinTime);
-    
-    // Two-pass approach:
-    // Pass 1: Place groups and early individuals in order
-    // Pass 2: Fill gaps with later individuals
-    
-    const result: Player[] = [];
-    let currentGroupSize = 0;
-    
-    // First, place all groups and individuals in order
-    for (const item of items) {
-      if (item.type === 'group') {
-        // Check if group fits in current slot
-        if (currentGroupSize + item.players.length <= 4) {
-          result.push(...item.players);
-          currentGroupSize += item.players.length;
-          if (currentGroupSize >= 4) {
-            currentGroupSize = 0;
-          }
-        } else {
-          // Start new group
-          currentGroupSize = 0;
-          result.push(...item.players);
-          currentGroupSize = item.players.length >= 4 ? 0 : item.players.length;
-        }
-      } else {
-        // Individual - just add for now
-        result.push(...item.players);
-        currentGroupSize++;
-        if (currentGroupSize >= 4) {
-          currentGroupSize = 0;
-        }
       }
     }
     
