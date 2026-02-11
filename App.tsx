@@ -862,7 +862,7 @@ export default function App() {
                                   onChange={() => togglePlayerSelection(player.id)}
                                   className="sr-only peer"
                                 />
-                                <div className="w-4 h-4 rounded-full border-2 border-purple-500 bg-transparent peer-checked:bg-purple-500 peer-checked:border-purple-500 transition-all flex items-center justify-center">
+                                <div className="w-4 h-4 rounded-full border-2 border-indigo-500 bg-transparent peer-checked:bg-indigo-500 peer-checked:border-indigo-500 transition-all flex items-center justify-center">
                                   {isSelected && (
                                     <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
