@@ -97,7 +97,90 @@ export default function App() {
   }, []);
 
   // --- Derived Lists ---
-  const queue = useMemo(() => players.filter(p => p.status === 'queued').sort((a, b) => a.joinedAt - b.joinedAt), [players]);
+  const queue = useMemo(() => {
+    const queued = players.filter(p => p.status === 'queued');
+
+    // Sort by joinedAt first
+    const sorted = [...queued].sort((a, b) => a.joinedAt - b.joinedAt);
+
+    // Separate bound groups and individuals
+    const boundGroups: Player[][] = [];
+    const individuals: Player[] = [];
+    const processedIds = new Set<string>();
+    const processedGroupIds = new Set<string>();
+
+    for (const p of sorted) {
+      if (processedIds.has(p.id)) continue;
+
+      if (p.groupId) {
+        if (processedGroupIds.has(p.groupId)) continue;
+
+        const groupMembers = sorted.filter(m => m.groupId === p.groupId);
+        boundGroups.push(groupMembers);
+        groupMembers.forEach(m => processedIds.add(m.id));
+        processedGroupIds.add(p.groupId);
+      } else {
+        individuals.push(p);
+        processedIds.add(p.id);
+      }
+    }
+
+    // Smart placement: fill groups efficiently
+    const result: Player[] = [];
+    let currentGroupSize = 0;
+    let boundGroupIndex = 0;
+    let individualIndex = 0;
+
+    while (boundGroupIndex < boundGroups.length || individualIndex < individuals.length) {
+      // Try to add a bound group if it fits
+      if (boundGroupIndex < boundGroups.length) {
+        const group = boundGroups[boundGroupIndex];
+
+        if (currentGroupSize + group.length <= 4) {
+          // Bound group fits in current group
+          result.push(...group);
+          currentGroupSize += group.length;
+          boundGroupIndex++;
+
+          if (currentGroupSize >= 4) {
+            currentGroupSize = 0;
+          }
+          continue;
+        } else if (currentGroupSize === 0) {
+          // Start new group with this bound group
+          result.push(...group);
+          currentGroupSize = group.length >= 4 ? 0 : group.length;
+          boundGroupIndex++;
+          continue;
+        }
+      }
+
+      // Fill remaining slots with individuals
+      if (individualIndex < individuals.length && currentGroupSize < 4) {
+        result.push(individuals[individualIndex]);
+        currentGroupSize++;
+        individualIndex++;
+
+        if (currentGroupSize >= 4) {
+          currentGroupSize = 0;
+        }
+        continue;
+      }
+
+      // Can't fit bound group and no individuals left for this group, start new group
+      if (currentGroupSize > 0 && currentGroupSize < 4) {
+        if (individualIndex < individuals.length) {
+          continue;
+        } else {
+          currentGroupSize = 0;
+        }
+      } else {
+        currentGroupSize = 0;
+      }
+    }
+
+    return result;
+  }, [players]);
   const idlePlayers = useMemo(() => players.filter(p => p.status === 'idle').sort((a, b) => b.joinedAt - a.joinedAt), [players]);
   const totalActivePlayers = useMemo(() => players.filter(p => p.status === 'playing').length, [players]);
   const idleCourtsCount = useMemo(() => courts.filter(c => c.playerIds.length === 0).length, [courts]);
@@ -170,68 +253,69 @@ export default function App() {
 
   // --- Queue Display Logic (Group Handling) ---
   const queueDisplayItems = useMemo(() => {
-    const result: ({ type: 'player', data: Player } | { type: 'empty', groupId: string })[] = [];
-    const processedPlayerIds = new Set<string>();
+    const displayResult: ({ type: 'player', data: Player } | { type: 'empty', groupId: string })[] = [];
+    const processedIds = new Set<string>();
     const processedGroupIds = new Set<string>();
 
-    let currentGroup: ({ type: 'player', data: Player } | { type: 'empty', groupId: string })[] = [];
+    let currentDisplayGroup: ({ type: 'player', data: Player } | { type: 'empty', groupId: string })[] = [];
+    let groupIndex = 0;
 
     for (const p of queue) {
-      // Skip if already processed
-      if (processedPlayerIds.has(p.id)) continue;
+      if (processedIds.has(p.id)) continue;
 
       if (p.groupId) {
-        // Skip if this group was already processed
+        // This is a bound group
         if (processedGroupIds.has(p.groupId)) continue;
 
-        // Find all members of this group
         const groupMembers = queue.filter(m => m.groupId === p.groupId);
 
-        // Check if adding this group would exceed 4 people in current group
-        if (currentGroup.length + groupMembers.length > 4) {
-          // Fill current group with empty slots and start a new group
-          while (currentGroup.length < 4) {
-            currentGroup.push({ type: 'empty', groupId: `filler-${result.length}-${currentGroup.length}` });
+        // Check if this bound group fits in current display group
+        if (currentDisplayGroup.length + groupMembers.length > 4) {
+          // Fill current display group with empty slots
+          while (currentDisplayGroup.length < 4) {
+            currentDisplayGroup.push({ type: 'empty', groupId: `filler-${groupIndex}-${currentDisplayGroup.length}` });
           }
-          result.push(...currentGroup);
-          currentGroup = [];
+          displayResult.push(...currentDisplayGroup);
+          currentDisplayGroup = [];
+          groupIndex++;
         }
 
-        // Add all group members to current group
+        // Add all bound group members to current display group
         groupMembers.forEach(m => {
-          currentGroup.push({ type: 'player', data: m });
-          processedPlayerIds.add(m.id);
+          currentDisplayGroup.push({ type: 'player', data: m });
+          processedIds.add(m.id);
         });
         processedGroupIds.add(p.groupId);
 
       } else {
         // Individual player
-        if (currentGroup.length >= 4) {
-          // Current group is full, push it and start new group
-          result.push(...currentGroup);
-          currentGroup = [];
+        if (currentDisplayGroup.length >= 4) {
+          displayResult.push(...currentDisplayGroup);
+          currentDisplayGroup = [];
+          groupIndex++;
         }
 
-        currentGroup.push({ type: 'player', data: p });
-        processedPlayerIds.add(p.id);
+        currentDisplayGroup.push({ type: 'player', data: p });
+        processedIds.add(p.id);
       }
 
-      // If current group reaches 4, push it
-      if (currentGroup.length === 4) {
-        result.push(...currentGroup);
-        currentGroup = [];
+      // If current display group is full, push it
+      if (currentDisplayGroup.length >= 4) {
+        displayResult.push(...currentDisplayGroup);
+        currentDisplayGroup = [];
+        groupIndex++;
       }
     }
 
-    // Handle remaining players in current group
-    if (currentGroup.length > 0) {
-      while (currentGroup.length < 4) {
-        currentGroup.push({ type: 'empty', groupId: `filler-${result.length}-${currentGroup.length}` });
+    // Handle remaining players in current display group
+    if (currentDisplayGroup.length > 0) {
+      while (currentDisplayGroup.length < 4) {
+        currentDisplayGroup.push({ type: 'empty', groupId: `filler-${groupIndex}-${currentDisplayGroup.length}` });
       }
-      result.push(...currentGroup);
+      displayResult.push(...currentDisplayGroup);
     }
 
-    return result;
+    return displayResult;
   }, [queue]);
 
   // --- Chunked Queue for Collapsed View ---
