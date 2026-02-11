@@ -855,12 +855,21 @@ export default function App() {
                         >
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <div className="flex items-center h-5 shrink-0">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => togglePlayerSelection(player.id)}
-                                className="w-4 h-4 rounded border-purple-500 bg-transparent text-purple-500 focus:ring-purple-500/50 focus:ring-offset-0 cursor-pointer"
-                              />
+                              <label className="relative flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => togglePlayerSelection(player.id)}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-4 h-4 rounded-full border-2 border-purple-500 bg-transparent peer-checked:bg-purple-500 peer-checked:border-purple-500 transition-all flex items-center justify-center">
+                                  {isSelected && (
+                                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  )}
+                                </div>
+                              </label>
                             </div>
                             <div className="flex items-center gap-3 cursor-pointer flex-1 min-w-0" onClick={() => togglePlayerSelection(player.id)}>
                               <PlayerAvatar name={player.name} size="sm" className={isSelected ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-slate-900' : ''} />
