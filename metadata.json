@@ -1,0 +1,5 @@
+{
+  "name": "BadmintonQueue",
+  "description": "A smart queuing system for managing 6 badminton courts and player rotation.",
+  "requestFramePermissions": []
+}
