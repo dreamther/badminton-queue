@@ -170,29 +170,68 @@ export default function App() {
 
   // --- Queue Display Logic (Group Handling) ---
   const queueDisplayItems = useMemo(() => {
-    const list: ({ type: 'player', data: Player } | { type: 'empty', groupId: string })[] = [];
-    let i = 0;
-    while (i < queue.length) {
-      const p = queue[i];
+    const result: ({ type: 'player', data: Player } | { type: 'empty', groupId: string })[] = [];
+    const processedPlayerIds = new Set<string>();
+    const processedGroupIds = new Set<string>();
+
+    let currentGroup: ({ type: 'player', data: Player } | { type: 'empty', groupId: string })[] = [];
+
+    for (const p of queue) {
+      // Skip if already processed
+      if (processedPlayerIds.has(p.id)) continue;
+
       if (p.groupId) {
-        // Found a group, gather all members
+        // Skip if this group was already processed
+        if (processedGroupIds.has(p.groupId)) continue;
+
+        // Find all members of this group
         const groupMembers = queue.filter(m => m.groupId === p.groupId);
 
-        // Add actual members
-        groupMembers.forEach(m => list.push({ type: 'player', data: m }));
-
-        // Skip index by the number of group members found in the original queue
-        let count = 0;
-        while (i + count < queue.length && queue[i + count].groupId === p.groupId) {
-          count++;
+        // Check if adding this group would exceed 4 people in current group
+        if (currentGroup.length + groupMembers.length > 4) {
+          // Fill current group with empty slots and start a new group
+          while (currentGroup.length < 4) {
+            currentGroup.push({ type: 'empty', groupId: `filler-${result.length}-${currentGroup.length}` });
+          }
+          result.push(...currentGroup);
+          currentGroup = [];
         }
-        i += count > 0 ? count : 1;
+
+        // Add all group members to current group
+        groupMembers.forEach(m => {
+          currentGroup.push({ type: 'player', data: m });
+          processedPlayerIds.add(m.id);
+        });
+        processedGroupIds.add(p.groupId);
+
       } else {
-        list.push({ type: 'player', data: p });
-        i++;
+        // Individual player
+        if (currentGroup.length >= 4) {
+          // Current group is full, push it and start new group
+          result.push(...currentGroup);
+          currentGroup = [];
+        }
+
+        currentGroup.push({ type: 'player', data: p });
+        processedPlayerIds.add(p.id);
+      }
+
+      // If current group reaches 4, push it
+      if (currentGroup.length === 4) {
+        result.push(...currentGroup);
+        currentGroup = [];
       }
     }
-    return list;
+
+    // Handle remaining players in current group
+    if (currentGroup.length > 0) {
+      while (currentGroup.length < 4) {
+        currentGroup.push({ type: 'empty', groupId: `filler-${result.length}-${currentGroup.length}` });
+      }
+      result.push(...currentGroup);
+    }
+
+    return result;
   }, [queue]);
 
   // --- Chunked Queue for Collapsed View ---
