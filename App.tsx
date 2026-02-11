@@ -125,57 +125,77 @@ export default function App() {
       }
     }
 
-    // Smart placement: fill groups efficiently
+    // Smart placement: prioritize filling groups to 4
     const result: Player[] = [];
     let currentGroupSize = 0;
-    let boundGroupIndex = 0;
-    let individualIndex = 0;
+    const usedBoundGroups = new Set<number>();
+    const usedIndividuals = new Set<number>();
 
-    while (boundGroupIndex < boundGroups.length || individualIndex < individuals.length) {
-      // Try to add a bound group if it fits
-      if (boundGroupIndex < boundGroups.length) {
-        const group = boundGroups[boundGroupIndex];
+    // Process all players, prioritizing filling current group to 4
+    while (usedBoundGroups.size < boundGroups.length || usedIndividuals.size < individuals.length) {
+      let addedSomething = false;
 
+      // First, try to find a bound group that fills current group to exactly 4
+      for (let i = 0; i < boundGroups.length; i++) {
+        if (usedBoundGroups.has(i)) continue;
+
+        const group = boundGroups[i];
+        if (currentGroupSize + group.length === 4) {
+          result.push(...group);
+          currentGroupSize = 0;
+          usedBoundGroups.add(i);
+          addedSomething = true;
+          break;
+        }
+      }
+
+      if (addedSomething) continue;
+
+      // Try to find a bound group that fits without exceeding 4
+      for (let i = 0; i < boundGroups.length; i++) {
+        if (usedBoundGroups.has(i)) continue;
+
+        const group = boundGroups[i];
         if (currentGroupSize + group.length <= 4) {
-          // Bound group fits in current group
           result.push(...group);
           currentGroupSize += group.length;
-          boundGroupIndex++;
+          usedBoundGroups.add(i);
+          addedSomething = true;
 
           if (currentGroupSize >= 4) {
             currentGroupSize = 0;
           }
-          continue;
-        } else if (currentGroupSize === 0) {
-          // Start new group with this bound group
-          result.push(...group);
-          currentGroupSize = group.length >= 4 ? 0 : group.length;
-          boundGroupIndex++;
-          continue;
+          break;
         }
       }
 
-      // Fill remaining slots with individuals
-      if (individualIndex < individuals.length && currentGroupSize < 4) {
-        result.push(individuals[individualIndex]);
-        currentGroupSize++;
-        individualIndex++;
+      if (addedSomething) continue;
 
-        if (currentGroupSize >= 4) {
-          currentGroupSize = 0;
+      // Fill with individuals
+      if (usedIndividuals.size < individuals.length && currentGroupSize < 4) {
+        for (let i = 0; i < individuals.length; i++) {
+          if (usedIndividuals.has(i)) continue;
+
+          result.push(individuals[i]);
+          currentGroupSize++;
+          usedIndividuals.add(i);
+          addedSomething = true;
+
+          if (currentGroupSize >= 4) {
+            currentGroupSize = 0;
+          }
+          break;
         }
-        continue;
       }
 
-      // Can't fit bound group and no individuals left for this group, start new group
-      if (currentGroupSize > 0 && currentGroupSize < 4) {
-        if (individualIndex < individuals.length) {
-          continue;
-        } else {
-          currentGroupSize = 0;
-        }
-      } else {
+      if (addedSomething) continue;
+
+      // If we can't add anything and current group is not empty, start new group
+      if (currentGroupSize > 0) {
         currentGroupSize = 0;
+      } else {
+        // Nothing left to add, break
+        break;
       }
     }
 
