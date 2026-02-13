@@ -99,27 +99,27 @@ export default function App() {
   // --- Derived Lists ---
   const queue = useMemo(() => {
     const queued = players.filter(p => p.status === 'queued');
-    
+
     // Sort by joinedAt first
     const sorted = [...queued].sort((a, b) => a.joinedAt - b.joinedAt);
-    
+
     // Build items with join time tracking
     interface QueueItem {
       type: 'group' | 'individual';
       players: Player[];
       joinTime: number;
     }
-    
+
     const items: QueueItem[] = [];
     const processedIds = new Set<string>();
     const processedGroupIds = new Set<string>();
-    
+
     for (const p of sorted) {
       if (processedIds.has(p.id)) continue;
-      
+
       if (p.groupId) {
         if (processedGroupIds.has(p.groupId)) continue;
-        
+
         const groupMembers = sorted.filter(m => m.groupId === p.groupId);
         items.push({
           type: 'group',
@@ -137,18 +137,18 @@ export default function App() {
         processedIds.add(p.id);
       }
     }
-    
+
     // Sort by join time
     items.sort((a, b) => a.joinTime - b.joinTime);
-    
+
     // Find the cutoff: last group's join time
     const lastGroupIndex = items.map((item, idx) => item.type === 'group' ? idx : -1).filter(idx => idx >= 0).pop();
     const cutoffTime = lastGroupIndex !== undefined ? items[lastGroupIndex].joinTime : Infinity;
-    
+
     // Separate: early items (before/including last group) and late individuals
     const earlyItems: QueueItem[] = [];
     const lateIndividuals: QueueItem[] = [];
-    
+
     for (const item of items) {
       if (item.joinTime <= cutoffTime) {
         earlyItems.push(item);
@@ -156,25 +156,25 @@ export default function App() {
         lateIndividuals.push(item);
       }
     }
-    
+
     // Build result: process early items and track group boundaries
     const result: Player[] = [];
     const groupBoundaries: number[] = []; // Positions where groups end (multiples of 4)
     let currentPos = 0;
-    
+
     for (const item of earlyItems) {
       if (item.type === 'group') {
         // Check if group fits in current 4-slot
         const currentSlot = Math.floor(currentPos / 4);
         const slotStart = currentSlot * 4;
         const slotRemaining = 4 - (currentPos - slotStart);
-        
+
         if (slotRemaining < item.players.length && currentPos % 4 !== 0) {
           // Group doesn't fit, mark boundary and start new slot
           groupBoundaries.push(slotStart + 4);
           currentPos = slotStart + 4;
         }
-        
+
         result.push(...item.players);
         currentPos += item.players.length;
       } else {
@@ -182,15 +182,15 @@ export default function App() {
         currentPos++;
       }
     }
-    
+
     // Fill gaps with late individuals
     const finalResult: Player[] = [];
     let lateIndex = 0;
-    
+
     for (let i = 0; i < result.length; i += 4) {
       const groupSlice = result.slice(i, Math.min(i + 4, result.length));
       finalResult.push(...groupSlice);
-      
+
       let slotsNeeded = 4 - groupSlice.length;
       while (slotsNeeded > 0 && lateIndex < lateIndividuals.length) {
         finalResult.push(...lateIndividuals[lateIndex].players);
@@ -198,13 +198,13 @@ export default function App() {
         slotsNeeded--;
       }
     }
-    
+
     // Add remaining late individuals
     while (lateIndex < lateIndividuals.length) {
       finalResult.push(...lateIndividuals[lateIndex].players);
       lateIndex++;
     }
-    
+
     return finalResult;
   }, [players]);
   const idlePlayers = useMemo(() => players.filter(p => p.status === 'idle').sort((a, b) => b.joinedAt - a.joinedAt), [players]);
@@ -277,72 +277,41 @@ export default function App() {
     return { checkedInMembers: checkedIn, notCheckedInMembers: notCheckedIn };
   }, [players, filteredMembers]);
 
-  // --- Queue Display Logic (Group Handling) ---
+  // --- Queue Display Logic (Match-Based Grouping) ---
+  // Group players by who will actually play together in matches
   const queueDisplayItems = useMemo(() => {
     const displayResult: ({ type: 'player', data: Player } | { type: 'empty', groupId: string })[] = [];
-    const processedIds = new Set<string>();
-    const processedGroupIds = new Set<string>();
 
-    let currentDisplayGroup: ({ type: 'player', data: Player } | { type: 'empty', groupId: string })[] = [];
+    // Process queue in chunks of 4 (match groups)
+    let remainingQueue = [...queue];
     let groupIndex = 0;
 
-    for (const p of queue) {
-      if (processedIds.has(p.id)) continue;
+    while (remainingQueue.length > 0) {
+      // Get next batch using the same logic as match start
+      const nextBatch = getNextMatchBatch(remainingQueue);
 
-      if (p.groupId) {
-        // This is a bound group
-        if (processedGroupIds.has(p.groupId)) continue;
+      if (nextBatch.length === 0) break; // Safety check
 
-        const groupMembers = queue.filter(m => m.groupId === p.groupId);
+      // Add this batch as a visual group
+      nextBatch.forEach(p => {
+        displayResult.push({ type: 'player', data: p });
+      });
 
-        // Check if this bound group fits in current display group
-        if (currentDisplayGroup.length + groupMembers.length > 4) {
-          // Fill current display group with empty slots
-          while (currentDisplayGroup.length < 4) {
-            currentDisplayGroup.push({ type: 'empty', groupId: `filler-${groupIndex}-${currentDisplayGroup.length}` });
-          }
-          displayResult.push(...currentDisplayGroup);
-          currentDisplayGroup = [];
-          groupIndex++;
-        }
-
-        // Add all bound group members to current display group
-        groupMembers.forEach(m => {
-          currentDisplayGroup.push({ type: 'player', data: m });
-          processedIds.add(m.id);
-        });
-        processedGroupIds.add(p.groupId);
-
-      } else {
-        // Individual player
-        if (currentDisplayGroup.length >= 4) {
-          displayResult.push(...currentDisplayGroup);
-          currentDisplayGroup = [];
-          groupIndex++;
-        }
-
-        currentDisplayGroup.push({ type: 'player', data: p });
-        processedIds.add(p.id);
+      // Fill remaining slots with empty placeholders
+      const slotsToFill = 4 - nextBatch.length;
+      for (let i = 0; i < slotsToFill; i++) {
+        displayResult.push({ type: 'empty', groupId: `filler-${groupIndex}-${i}` });
       }
 
-      // If current display group is full, push it
-      if (currentDisplayGroup.length >= 4) {
-        displayResult.push(...currentDisplayGroup);
-        currentDisplayGroup = [];
-        groupIndex++;
-      }
-    }
+      // Remove processed players from remaining queue
+      const processedIds = new Set(nextBatch.map(p => p.id));
+      remainingQueue = remainingQueue.filter(p => !processedIds.has(p.id));
 
-    // Handle remaining players in current display group
-    if (currentDisplayGroup.length > 0) {
-      while (currentDisplayGroup.length < 4) {
-        currentDisplayGroup.push({ type: 'empty', groupId: `filler-${groupIndex}-${currentDisplayGroup.length}` });
-      }
-      displayResult.push(...currentDisplayGroup);
+      groupIndex++;
     }
 
     return displayResult;
-  }, [queue]);
+  }, [queue, getNextMatchBatch]);
 
   // --- Chunked Queue for Collapsed View ---
   const chunkedQueueItems = useMemo(() => {
