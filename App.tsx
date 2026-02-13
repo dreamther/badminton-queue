@@ -103,7 +103,7 @@ export default function App() {
     // Sort by joinedAt first
     const sorted = [...queued].sort((a, b) => a.joinedAt - b.joinedAt);
     
-    // Build ordered list of items (groups and individuals)
+    // Build items with join time tracking
     interface QueueItem {
       type: 'group' | 'individual';
       players: Player[];
@@ -138,43 +138,74 @@ export default function App() {
       }
     }
     
-    // Sort items by join time
+    // Sort by join time
     items.sort((a, b) => a.joinTime - b.joinTime);
     
-    // Two-pass approach:
-    // Pass 1: Place groups and early individuals in order
-    // Pass 2: Fill gaps with later individuals
+    // Find the cutoff: last group's join time
+    const lastGroupIndex = items.map((item, idx) => item.type === 'group' ? idx : -1).filter(idx => idx >= 0).pop();
+    const cutoffTime = lastGroupIndex !== undefined ? items[lastGroupIndex].joinTime : Infinity;
     
-    const result: Player[] = [];
-    let currentGroupSize = 0;
+    // Separate: early items (before/including last group) and late individuals
+    const earlyItems: QueueItem[] = [];
+    const lateIndividuals: QueueItem[] = [];
     
-    // First, place all groups and individuals in order
     for (const item of items) {
-      if (item.type === 'group') {
-        // Check if group fits in current slot
-        if (currentGroupSize + item.players.length <= 4) {
-          result.push(...item.players);
-          currentGroupSize += item.players.length;
-          if (currentGroupSize >= 4) {
-            currentGroupSize = 0;
-          }
-        } else {
-          // Start new group
-          currentGroupSize = 0;
-          result.push(...item.players);
-          currentGroupSize = item.players.length >= 4 ? 0 : item.players.length;
-        }
-      } else {
-        // Individual - just add for now
-        result.push(...item.players);
-        currentGroupSize++;
-        if (currentGroupSize >= 4) {
-          currentGroupSize = 0;
-        }
+      if (item.joinTime <= cutoffTime) {
+        earlyItems.push(item);
+      } else if (item.type === 'individual') {
+        lateIndividuals.push(item);
       }
     }
     
-    return result;
+    // Build result: process early items and track group boundaries
+    const result: Player[] = [];
+    const groupBoundaries: number[] = []; // Positions where groups end (multiples of 4)
+    let currentPos = 0;
+    
+    for (const item of earlyItems) {
+      if (item.type === 'group') {
+        // Check if group fits in current 4-slot
+        const currentSlot = Math.floor(currentPos / 4);
+        const slotStart = currentSlot * 4;
+        const slotRemaining = 4 - (currentPos - slotStart);
+        
+        if (slotRemaining < item.players.length && currentPos % 4 !== 0) {
+          // Group doesn't fit, mark boundary and start new slot
+          groupBoundaries.push(slotStart + 4);
+          currentPos = slotStart + 4;
+        }
+        
+        result.push(...item.players);
+        currentPos += item.players.length;
+      } else {
+        result.push(...item.players);
+        currentPos++;
+      }
+    }
+    
+    // Fill gaps with late individuals
+    const finalResult: Player[] = [];
+    let lateIndex = 0;
+    
+    for (let i = 0; i < result.length; i += 4) {
+      const groupSlice = result.slice(i, Math.min(i + 4, result.length));
+      finalResult.push(...groupSlice);
+      
+      let slotsNeeded = 4 - groupSlice.length;
+      while (slotsNeeded > 0 && lateIndex < lateIndividuals.length) {
+        finalResult.push(...lateIndividuals[lateIndex].players);
+        lateIndex++;
+        slotsNeeded--;
+      }
+    }
+    
+    // Add remaining late individuals
+    while (lateIndex < lateIndividuals.length) {
+      finalResult.push(...lateIndividuals[lateIndex].players);
+      lateIndex++;
+    }
+    
+    return finalResult;
   }, [players]);
   const idlePlayers = useMemo(() => players.filter(p => p.status === 'idle').sort((a, b) => b.joinedAt - a.joinedAt), [players]);
   const totalActivePlayers = useMemo(() => players.filter(p => p.status === 'playing').length, [players]);
