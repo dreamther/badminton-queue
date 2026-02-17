@@ -575,6 +575,17 @@ export default function App() {
     });
   }, []);
 
+  const renameCourt = useCallback((courtId: number, newName: string) => {
+    const trimmedName = newName.trim();
+    if (!trimmedName) {
+      alert("場地名稱不能為空");
+      return;
+    }
+    setCourts(prev => prev.map(c =>
+      c.id === courtId ? { ...c, name: trimmedName } : c
+    ));
+  }, []);
+
   const startMatch = useCallback((courtId: number) => {
     // Use the consistent match calculation logic
     const playersToStart = getNextMatchBatch(queue);
@@ -1306,6 +1317,7 @@ export default function App() {
                 queueLength={queue.length}
                 onStartMatch={startMatch}
                 onEndMatch={endMatch}
+                onRenameCourt={renameCourt}
                 canStartMatch={isQueueReady}
               />
             ))}
