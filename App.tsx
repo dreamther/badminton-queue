@@ -30,7 +30,7 @@ export default function App() {
 
   // Grouping & Selection State
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set());
-  const [isCheckedInExpanded, setIsCheckedInExpanded] = useState(true);
+  const [isCheckedInExpanded, setIsCheckedInExpanded] = useState(false);
   const [isMemberListExpanded, setIsMemberListExpanded] = useState(true);
 
   // Member UI Collapse State
