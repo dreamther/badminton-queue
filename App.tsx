@@ -1273,8 +1273,8 @@ export default function App() {
                     <div className="flex items-center gap-3 animate-[fadeIn_0.2s_ease-out]">
                       {/* CSV Format Hint with Hover Tooltip - Left Side */}
                       <div className="flex-1 relative group">
-                        <div className="bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-400 cursor-help">
-                          CSV 格式範例：<span className="font-mono text-slate-300">姓名,等級</span>
+                        <div className="h-10 bg-slate-800 border border-slate-700 rounded-lg px-3 flex items-center text-sm text-slate-400 cursor-help">
+                          CSV 格式範例：<span className="font-mono text-slate-300 ml-1">姓名,等級</span>
                         </div>
                         {/* Hover Tooltip */}
                         <div className="absolute left-0 top-full mt-2 w-full bg-slate-900 border border-slate-700 rounded-lg p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-20 shadow-xl">
@@ -1293,10 +1293,10 @@ export default function App() {
                       {/* Upload Button - Right Side */}
                       <button
                         onClick={() => fileInputRef.current?.click()}
-                        className="h-full px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium text-sm transition-colors flex items-center gap-2 shrink-0"
+                        className="h-10 px-3 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg transition-colors hover:bg-indigo-500 flex items-center gap-1 shrink-0"
                       >
                         <Upload className="w-4 h-4" />
-                        批次匯入
+                        匯入
                       </button>
                     </div>
                   )}
