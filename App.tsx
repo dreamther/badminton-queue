@@ -1174,6 +1174,7 @@ export default function App() {
                         setIsSearchExpanded(!isSearchExpanded);
                         if (!isSearchExpanded) {
                           setIsAddMemberExpanded(false);
+                          setIsBatchImportExpanded(false);
                         }
                       }}
                       className={`h-10 p-2 rounded-lg transition-all group
@@ -1281,25 +1282,30 @@ export default function App() {
                   )}
 
                   {isBatchImportExpanded && (
-                    <div className="flex items-start gap-3 animate-[fadeIn_0.2s_ease-out]">
-                      {/* CSV Format Example - Left Side */}
-                      <div className="flex-1 bg-slate-800/50 border border-slate-700 rounded-lg p-3">
-                        <div className="text-xs text-slate-400 mb-2 font-semibold">CSV 格式範例：</div>
-                        <div className="bg-slate-950 rounded p-2 font-mono text-xs text-slate-300">
-                          <div className="text-emerald-400">姓名,等級</div>
-                          <div>張三,初階</div>
-                          <div>李四,中階</div>
-                          <div>王五,高階</div>
+                    <div className="flex items-center gap-3 animate-[fadeIn_0.2s_ease-out]">
+                      {/* CSV Format Hint with Hover Tooltip - Left Side */}
+                      <div className="flex-1 relative group">
+                        <div className="bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-400 cursor-help">
+                          CSV 格式範例：<span className="font-mono text-slate-300">姓名,等級</span>
                         </div>
-                        <div className="text-xs text-slate-500 mt-2">
-                          等級可選：初階 / 中階 / 高階
+                        {/* Hover Tooltip */}
+                        <div className="absolute left-0 top-full mt-2 w-full bg-slate-900 border border-slate-700 rounded-lg p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-20 shadow-xl">
+                          <div className="bg-slate-950 rounded p-2 font-mono text-xs text-slate-300">
+                            <div className="text-emerald-400">姓名,等級</div>
+                            <div>張三,初階</div>
+                            <div>李四,中階</div>
+                            <div>王五,高階</div>
+                          </div>
+                          <div className="text-xs text-slate-500 mt-2">
+                            等級可選：初階 / 中階 / 高階
+                          </div>
                         </div>
                       </div>
 
                       {/* Upload Button - Right Side */}
                       <button
                         onClick={() => fileInputRef.current?.click()}
-                        className="h-full px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium text-sm transition-colors flex items-center gap-2 shrink-0"
+                        className="h-full px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium text-sm transition-colors flex items-center gap-2 shrink-0"
                       >
                         <Upload className="w-4 h-4" />
                         批次匯入
