@@ -1333,6 +1333,7 @@ export default function App() {
                 onEndMatch={endMatch}
                 onRenameCourt={renameCourt}
                 onAnnounce={announceCourtPlayers}
+                isAutoAnnounce={isAutoAnnounce}
                 canStartMatch={isQueueReady}
               />
             ))}

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Court, Player, MAX_PLAYERS_PER_COURT } from '../types';
 import { PlayerAvatar } from './PlayerAvatar';
-import { Clock, Play, LogOut, Users, Zap, Coffee, Edit2, Check, X, Volume2 } from 'lucide-react';
+import { Clock, Play, LogOut, Users, Zap, Coffee, Edit2, Check, X, Volume2, VolumeX } from 'lucide-react';
 
 interface CourtCardProps {
     court: Court;
@@ -11,6 +11,7 @@ interface CourtCardProps {
     onEndMatch: (courtId: number) => void;
     onRenameCourt?: (courtId: number, newName: string) => void;
     onAnnounce?: (courtId: number) => void;
+    isAutoAnnounce?: boolean;
     canStartMatch?: boolean; // New prop
 }
 
@@ -22,6 +23,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
     onEndMatch,
     onRenameCourt,
     onAnnounce,
+    isAutoAnnounce = true,
     canStartMatch = true
 }) => {
     const [elapsed, setElapsed] = useState<string>('00:00');
@@ -153,7 +155,11 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                             className="p-1.5 hover:bg-indigo-500/20 rounded text-indigo-400 hover:text-indigo-300 transition-all"
                             title="手動語音提醒"
                         >
-                            <Volume2 className="w-4 h-4" />
+                            {isAutoAnnounce ? (
+                                <Volume2 className="w-4 h-4" />
+                            ) : (
+                                <VolumeX className="w-4 h-4" />
+                            )}
                         </button>
                     )}
                     {isActive && (
