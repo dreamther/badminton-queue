@@ -411,10 +411,16 @@ export default function App() {
         // Parse skill level
         let level: SkillLevel = 'beginner';
         if (levelIndex !== -1 && values[levelIndex]) {
-          const levelValue = values[levelIndex].toLowerCase();
-          if (levelValue === 'advanced' || levelValue === '進階' || levelValue === '高級') {
+          const levelValue = values[levelIndex].trim().toLowerCase();
+          // Support both English and Chinese skill level names
+          if (levelValue === 'advanced' || levelValue === '進階' || levelValue === '高級' || levelValue === '高階') {
             level = 'advanced';
+          } else if (levelValue === 'intermediate' || levelValue === '中階' || levelValue === '中级') {
+            level = 'intermediate';
+          } else if (levelValue === 'beginner' || levelValue === '初階' || levelValue === '初级') {
+            level = 'beginner';
           }
+          // If none match, default to 'beginner' (already set above)
         }
 
         newMembers.push({
@@ -1281,12 +1287,12 @@ export default function App() {
                         <div className="text-xs text-slate-400 mb-2 font-semibold">CSV 格式範例：</div>
                         <div className="bg-slate-950 rounded p-2 font-mono text-xs text-slate-300">
                           <div className="text-emerald-400">姓名,等級</div>
-                          <div>張三,beginner</div>
-                          <div>李四,advanced</div>
-                          <div>王五,beginner</div>
+                          <div>張三,初階</div>
+                          <div>李四,中階</div>
+                          <div>王五,高階</div>
                         </div>
                         <div className="text-xs text-slate-500 mt-2">
-                          等級可選：beginner / advanced
+                          等級可選：初階 / 中階 / 高階
                         </div>
                       </div>
 
