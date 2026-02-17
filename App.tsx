@@ -1226,7 +1226,7 @@ export default function App() {
 
           {/* Tab Content: Member List */}
           {activeTab === 'members' && (
-            <div className="flex-1 overflow-y-auto flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out] bg-slate-900">
+            <div className="flex-1 overflow-y-auto flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out] bg-slate-950">
               {/* Search / Add - Icons on Right, Toggle Functionality Below */}
               <div className="p-4 sticky top-0 bg-slate-950/95 backdrop-blur z-10 border-b border-slate-800">
                 <div className="space-y-2">
@@ -1392,7 +1392,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="flex-1 p-4 space-y-6">
+              <div className="flex-1 p-4 space-y-6 bg-slate-950">
                 {/* Checked In Section */}
                 {checkedInMembers.length > 0 && (
                   <div>
