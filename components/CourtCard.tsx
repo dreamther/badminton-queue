@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Court, Player, MAX_PLAYERS_PER_COURT } from '../types';
 import { PlayerAvatar } from './PlayerAvatar';
-import { Clock, Play, LogOut, Users, Zap, Coffee, Edit2, Check, X } from 'lucide-react';
+import { Clock, Play, LogOut, Users, Zap, Coffee, Edit2, Check, X, Volume2 } from 'lucide-react';
 
 interface CourtCardProps {
     court: Court;
@@ -10,6 +10,7 @@ interface CourtCardProps {
     onStartMatch: (courtId: number) => void;
     onEndMatch: (courtId: number) => void;
     onRenameCourt?: (courtId: number, newName: string) => void;
+    onAnnounce?: (courtId: number) => void;
     canStartMatch?: boolean; // New prop
 }
 
@@ -20,6 +21,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
     onStartMatch,
     onEndMatch,
     onRenameCourt,
+    onAnnounce,
     canStartMatch = true
 }) => {
     const [elapsed, setElapsed] = useState<string>('00:00');
@@ -144,12 +146,23 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                     </div>
                     {matchTag}
                 </div>
-                {isActive && (
-                    <div className="flex items-center gap-1.5 text-xs font-mono text-indigo-300 bg-indigo-950/50 px-2 py-1 rounded">
-                        <Clock className="w-3 h-3" />
-                        {elapsed}
-                    </div>
-                )}
+                <div className="flex items-center gap-2">
+                    {isActive && onAnnounce && (
+                        <button
+                            onClick={() => onAnnounce(court.id)}
+                            className="p-1.5 hover:bg-indigo-500/20 rounded text-indigo-400 hover:text-indigo-300 transition-all"
+                            title="手動語音提醒"
+                        >
+                            <Volume2 className="w-4 h-4" />
+                        </button>
+                    )}
+                    {isActive && (
+                        <div className="flex items-center gap-1.5 text-xs font-mono text-indigo-300 bg-indigo-950/50 px-2 py-1 rounded">
+                            <Clock className="w-3 h-3" />
+                            {elapsed}
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Body */}

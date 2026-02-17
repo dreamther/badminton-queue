@@ -586,6 +586,20 @@ export default function App() {
     ));
   }, []);
 
+  const announceCourtPlayers = useCallback((courtId: number) => {
+    const court = courts.find(c => c.id === courtId);
+    if (!court || court.playerIds.length === 0) return;
+
+    const playerNames = court.playerIds
+      .map(id => players.find(p => p.id === id)?.name)
+      .filter(Boolean);
+
+    if (playerNames.length > 0) {
+      const announcement = `請 ${playerNames.join('，')}，到${court.name}打球`;
+      speak(announcement);
+    }
+  }, [courts, players, speak]);
+
   const startMatch = useCallback((courtId: number) => {
     // Use the consistent match calculation logic
     const playersToStart = getNextMatchBatch(queue);
@@ -1318,6 +1332,7 @@ export default function App() {
                 onStartMatch={startMatch}
                 onEndMatch={endMatch}
                 onRenameCourt={renameCourt}
+                onAnnounce={announceCourtPlayers}
                 canStartMatch={isQueueReady}
               />
             ))}
