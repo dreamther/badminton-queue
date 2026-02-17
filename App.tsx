@@ -78,6 +78,7 @@ export default function App() {
 
   const [memberSearchTerm, setMemberSearchTerm] = useState('');
   const [newMemberName, setNewMemberName] = useState('');
+  const [newMemberLevel, setNewMemberLevel] = useState<SkillLevel>('beginner');
 
   // --- Persistence ---
   useEffect(() => {
@@ -365,12 +366,13 @@ export default function App() {
     const newMember: Member = {
       id: crypto.randomUUID(),
       name: name,
-      level: 'beginner', // Default level
+      level: newMemberLevel,
       createdAt: Date.now()
     };
     setMembers(prev => [newMember, ...prev]);
     setNewMemberName('');
-  }, [members]);
+    setNewMemberLevel('beginner'); // Reset to default
+  }, [members, newMemberLevel]);
 
   // Batch Import: Parse CSV and create members
   const parseCsvAndImport = useCallback((csvText: string) => {
@@ -1261,7 +1263,7 @@ export default function App() {
                         <input
                           type="text"
                           placeholder="輸入新會員姓名"
-                          className="w-full h-10 pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 placeholder-slate-500 text-sm"
+                          className="w-full h-10 pl-9 pr-20 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 placeholder-slate-500 text-sm"
                           value={newMemberName}
                           onChange={e => setNewMemberName(e.target.value)}
                           onKeyDown={(e) => {
@@ -1272,6 +1274,21 @@ export default function App() {
                           autoFocus
                         />
                         <UserPlus className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                        {/* Skill Level Selector - Inside Input */}
+                        <button
+                          onClick={() => {
+                            const levels: SkillLevel[] = ['beginner', 'intermediate', 'advanced'];
+                            const currentIndex = levels.indexOf(newMemberLevel);
+                            const nextIndex = (currentIndex + 1) % levels.length;
+                            setNewMemberLevel(levels[nextIndex]);
+                          }}
+                          className={`absolute right-2 top-1.5 h-7 px-2 py-0.5 rounded text-[10px] font-bold border transition-all select-none
+                            ${SKILL_LEVELS[newMemberLevel].bg} ${SKILL_LEVELS[newMemberLevel].color} ${SKILL_LEVELS[newMemberLevel].border}
+                            cursor-pointer hover:brightness-110 shadow-sm`}
+                          title="點擊切換程度"
+                        >
+                          {SKILL_LEVELS[newMemberLevel].label}
+                        </button>
                       </div>
                       <button
                         onMouseDown={(e) => {
