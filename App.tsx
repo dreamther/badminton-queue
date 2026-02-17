@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Users, Activity, Coffee, ArrowRight, RotateCcw, Trash2, Trophy, Plus, Minus, Volume2, VolumeX, X, Swords, UserCheck, Search, CheckCircle2, ChevronDown, ChevronRight, Unlink, ArrowUp, PanelLeft, LogOut, UserX, ChevronUp, Zap, UserPlus } from 'lucide-react';
+import { Users, Activity, Coffee, ArrowRight, RotateCcw, Trash2, Trophy, Plus, Minus, Volume2, VolumeX, X, Swords, UserCheck, Search, CheckCircle2, ChevronDown, ChevronRight, Unlink, ArrowUp, PanelLeft, LogOut, UserX, ChevronUp, Zap, UserPlus, Upload } from 'lucide-react';
 import { Player, Court, Member, INITIAL_COURT_COUNT, MAX_PLAYERS_PER_COURT, SkillLevel, SKILL_LEVELS } from './types';
 import { CourtCard } from './components/CourtCard';
 import { PlayerAvatar } from './components/PlayerAvatar';
@@ -36,6 +36,7 @@ export default function App() {
   // Member UI Collapse State
   const [isSearchExpanded, setIsSearchExpanded] = useState(true);
   const [isAddMemberExpanded, setIsAddMemberExpanded] = useState(false);
+  const [isBatchImportExpanded, setIsBatchImportExpanded] = useState(false);
 
   // Queue Display State
   const [isQueueExpanded, setIsQueueExpanded] = useState(true); // New: Collapse state for queue
@@ -367,6 +368,110 @@ export default function App() {
     setMembers(prev => [newMember, ...prev]);
     setNewMemberName('');
   }, [members]);
+
+  // Batch Import: Parse CSV and create members
+  const parseCsvAndImport = useCallback((csvText: string) => {
+    try {
+      const lines = csvText.trim().split('\n');
+      if (lines.length < 2) {
+        alert('CSV 檔案格式錯誤：至少需要標題列和一筆資料');
+        return;
+      }
+
+      const headers = lines[0].split(',').map(h => h.trim());
+
+      // Validate headers
+      const nameIndex = headers.findIndex(h => h === '姓名' || h === 'name' || h === '名稱');
+      if (nameIndex === -1) {
+        alert('CSV 格式錯誤：缺少「姓名」欄位');
+        return;
+      }
+
+      const levelIndex = headers.findIndex(h => h === '等級' || h === 'level' || h === '技能');
+
+      // Process each row
+      const newMembers: Member[] = [];
+      const skippedNames: string[] = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue; // Skip empty lines
+
+        const values = line.split(',').map(v => v.trim());
+        const name = values[nameIndex];
+
+        if (!name) continue; // Skip rows with empty names
+
+        // Check if member already exists
+        if (members.some(m => m.name === name) || newMembers.some(m => m.name === name)) {
+          skippedNames.push(name);
+          continue;
+        }
+
+        // Parse skill level
+        let level: SkillLevel = 'beginner';
+        if (levelIndex !== -1 && values[levelIndex]) {
+          const levelValue = values[levelIndex].toLowerCase();
+          if (levelValue === 'advanced' || levelValue === '進階' || levelValue === '高級') {
+            level = 'advanced';
+          }
+        }
+
+        newMembers.push({
+          id: crypto.randomUUID(),
+          name,
+          level,
+          createdAt: Date.now()
+        });
+      }
+
+      // Add all new members
+      if (newMembers.length > 0) {
+        setMembers(prev => [...newMembers, ...prev]);
+      }
+
+      // Show result
+      let message = `成功匯入 ${newMembers.length} 位會員`;
+      if (skippedNames.length > 0) {
+        message += `\n跳過 ${skippedNames.length} 位重複會員：${skippedNames.join(', ')}`;
+      }
+      alert(message);
+
+    } catch (error) {
+      alert('CSV 檔案解析失敗，請確認檔案格式正確');
+      console.error('CSV parsing error:', error);
+    }
+  }, [members]);
+
+  // Handle file upload
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBatchImport = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.name.endsWith('.csv')) {
+      alert('請上傳 CSV 格式的檔案');
+      return;
+    }
+
+    // Read CSV file
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      parseCsvAndImport(text);
+    };
+    reader.onerror = () => {
+      alert('檔案讀取失敗');
+    };
+    reader.readAsText(file, 'UTF-8');
+
+    // Reset file input
+    if (event.target) {
+      event.target.value = '';
+    }
+  }, [parseCsvAndImport]);
 
   // Update Member Level
   const updateMemberLevel = useCallback((memberId: string, newLevel: SkillLevel) => {
@@ -1079,6 +1184,7 @@ export default function App() {
                         setIsAddMemberExpanded(!isAddMemberExpanded);
                         if (!isAddMemberExpanded) {
                           setIsSearchExpanded(false);
+                          setIsBatchImportExpanded(false);
                         }
                       }}
                       className={`h-10 p-2 rounded-lg transition-all group
@@ -1090,6 +1196,30 @@ export default function App() {
                     >
                       <UserPlus className={`w-4 h-4 transition-colors ${isAddMemberExpanded ? 'text-white' : 'text-slate-400 group-hover:text-indigo-400'}`} />
                     </button>
+                    <button
+                      onClick={() => {
+                        setIsBatchImportExpanded(!isBatchImportExpanded);
+                        if (!isBatchImportExpanded) {
+                          setIsSearchExpanded(false);
+                          setIsAddMemberExpanded(false);
+                        }
+                      }}
+                      className={`h-10 p-2 rounded-lg transition-all group
+                        ${isBatchImportExpanded
+                          ? 'bg-indigo-600 border-indigo-500'
+                          : 'bg-slate-800 hover:bg-slate-700 border-slate-700 hover:border-indigo-500/50'
+                        } border`}
+                      title="批次匯入會員"
+                    >
+                      <Upload className={`w-4 h-4 transition-colors ${isBatchImportExpanded ? 'text-white' : 'text-slate-400 group-hover:text-indigo-400'}`} />
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".csv"
+                      onChange={handleBatchImport}
+                      className="hidden"
+                    />
                   </div>
 
                   {/* Functionality Row - Conditionally Visible */}
@@ -1140,6 +1270,33 @@ export default function App() {
                       >
                         <Plus className="w-4 h-4" />
                         新增
+                      </button>
+                    </div>
+                  )}
+
+                  {isBatchImportExpanded && (
+                    <div className="flex items-start gap-3 animate-[fadeIn_0.2s_ease-out]">
+                      {/* CSV Format Example - Left Side */}
+                      <div className="flex-1 bg-slate-800/50 border border-slate-700 rounded-lg p-3">
+                        <div className="text-xs text-slate-400 mb-2 font-semibold">CSV 格式範例：</div>
+                        <div className="bg-slate-950 rounded p-2 font-mono text-xs text-slate-300">
+                          <div className="text-emerald-400">姓名,等級</div>
+                          <div>張三,beginner</div>
+                          <div>李四,advanced</div>
+                          <div>王五,beginner</div>
+                        </div>
+                        <div className="text-xs text-slate-500 mt-2">
+                          等級可選：beginner / advanced
+                        </div>
+                      </div>
+
+                      {/* Upload Button - Right Side */}
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="h-full px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium text-sm transition-colors flex items-center gap-2 shrink-0"
+                      >
+                        <Upload className="w-4 h-4" />
+                        批次匯入
                       </button>
                     </div>
                   )}
