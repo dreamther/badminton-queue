@@ -827,15 +827,6 @@ export default function App() {
                                 </div>
 
                                 <div className="flex items-center gap-1">
-                                  {isGrouped && (
-                                    <button
-                                      onClick={() => unbindPlayer(player.id)}
-                                      className="text-slate-600 hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-all p-1.5 hover:bg-slate-700 rounded-lg"
-                                      title="取消綁定 (斷開)"
-                                    >
-                                      <Unlink className="w-3.5 h-3.5" />
-                                    </button>
-                                  )}
                                   <button
                                     onClick={() => removeFromQueue(player.id)}
                                     className="text-slate-600 hover:text-amber-500 opacity-0 group-hover:opacity-100 transition-all p-1.5 hover:bg-slate-700 rounded-lg"
