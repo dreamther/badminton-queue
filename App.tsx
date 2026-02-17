@@ -39,7 +39,7 @@ export default function App() {
   const [isBatchImportExpanded, setIsBatchImportExpanded] = useState(false);
 
   // Queue Display State
-  const [isQueueExpanded, setIsQueueExpanded] = useState(true); // New: Collapse state for queue
+  const [isQueueExpanded, setIsQueueExpanded] = useState(false); // New: Collapse state for queue
 
   const [players, setPlayers] = useState<Player[]>(() => {
     const saved = localStorage.getItem('badminton_players');
