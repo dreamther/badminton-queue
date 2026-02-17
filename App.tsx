@@ -38,6 +38,9 @@ export default function App() {
   const [isAddMemberExpanded, setIsAddMemberExpanded] = useState(false);
   const [isBatchImportExpanded, setIsBatchImportExpanded] = useState(false);
 
+  // Check-in Success Notification
+  const [checkInSuccessName, setCheckInSuccessName] = useState<string | null>(null);
+
   // Queue Display State
   const [isQueueExpanded, setIsQueueExpanded] = useState(false); // New: Collapse state for queue
 
@@ -520,6 +523,13 @@ export default function App() {
       joinedAt: Date.now(),
     };
     setPlayers(prev => [...prev, newPlayer]);
+
+    // Show success notification
+    setCheckInSuccessName(member.name);
+    // Auto-hide after 2 seconds
+    setTimeout(() => {
+      setCheckInSuccessName(null);
+    }, 2000);
   }, [players]);
 
   const removeMember = useCallback((memberId: string) => {
@@ -1517,6 +1527,25 @@ export default function App() {
           </div>
         </div>
       </main>
+
+      {/* Check-in Success Modal */}
+      {checkInSuccessName && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+          <div className="bg-slate-900 border-2 border-emerald-500 rounded-xl px-8 py-6 shadow-2xl animate-[fadeIn_0.3s_ease-out] pointer-events-auto">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                <CheckCircle2 className="w-7 h-7 text-emerald-400" />
+              </div>
+              <div>
+                <div className="text-lg font-bold text-white mb-1">報到成功！</div>
+                <div className="text-sm text-slate-300">
+                  <span className="font-semibold text-emerald-400">{checkInSuccessName}</span> 已成功報到
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
