@@ -79,6 +79,8 @@ export default function App() {
   const [memberSearchTerm, setMemberSearchTerm] = useState('');
   const [newMemberName, setNewMemberName] = useState('');
   const [newMemberLevel, setNewMemberLevel] = useState<SkillLevel>('beginner');
+  const [restAreaSearchTerm, setRestAreaSearchTerm] = useState('');
+  const [isRestAreaSearchExpanded, setIsRestAreaSearchExpanded] = useState(false);
 
   // --- Persistence ---
   useEffect(() => {
@@ -213,6 +215,12 @@ export default function App() {
     return finalResult;
   }, [players]);
   const idlePlayers = useMemo(() => players.filter(p => p.status === 'idle').sort((a, b) => b.joinedAt - a.joinedAt), [players]);
+
+  // Filtered idle players based on search term
+  const filteredIdlePlayers = useMemo(() => {
+    if (!restAreaSearchTerm) return idlePlayers;
+    return idlePlayers.filter(p => p.name.toLowerCase().includes(restAreaSearchTerm.toLowerCase()));
+  }, [idlePlayers, restAreaSearchTerm]);
   const totalActivePlayers = useMemo(() => players.filter(p => p.status === 'playing').length, [players]);
   const idleCourtsCount = useMemo(() => courts.filter(c => c.playerIds.length === 0).length, [courts]);
 
@@ -1072,11 +1080,54 @@ export default function App() {
 
               {/* Bench / Idle Section */}
               <div className="p-4 flex-1 flex flex-col">
-                <div className="flex items-center justify-between mb-3 px-1">
-                  <h2 className="text-sm font-semibold text-slate-400 flex items-center gap-2">
-                    <Coffee className="w-3.5 h-3.5" />
-                    休息區 ({idlePlayers.length})
-                  </h2>
+                <div className="space-y-4 mb-3">
+                  {/* Header with Search Icon */}
+                  <div className="flex items-center justify-between px-1">
+                    <h2 className="text-sm font-semibold text-slate-400 flex items-center gap-2">
+                      <Coffee className="w-3.5 h-3.5" />
+                      休息區 ({idlePlayers.length})
+                    </h2>
+                    <button
+                      onClick={() => {
+                        setIsRestAreaSearchExpanded(!isRestAreaSearchExpanded);
+                        if (isRestAreaSearchExpanded) {
+                          setRestAreaSearchTerm('');
+                        }
+                      }}
+                      className="h-8 p-1.5 rounded-lg transition-all"
+                      title="搜尋休息區"
+                    >
+                      <Search className={`w-4 h-4 transition-colors ${isRestAreaSearchExpanded ? 'text-indigo-500' : 'text-slate-500 hover:text-slate-400'}`} />
+                    </button>
+                  </div>
+
+                  {/* Search Input */}
+                  {isRestAreaSearchExpanded && (
+                    <div className="flex items-center gap-2 h-10 animate-[fadeIn_0.2s_ease-out]">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          placeholder="搜尋球員..."
+                          className="w-full h-10 pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 placeholder-slate-500 text-sm"
+                          value={restAreaSearchTerm}
+                          onChange={e => setRestAreaSearchTerm(e.target.value)}
+                          autoFocus
+                        />
+                        <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                      </div>
+                      <button
+                        onClick={() => setRestAreaSearchTerm('')}
+                        className={`h-10 px-3 py-2 border rounded-lg transition-colors flex items-center gap-1 shrink-0 text-xs font-medium
+                          ${restAreaSearchTerm
+                            ? 'bg-indigo-600 hover:bg-indigo-500 border-indigo-500 text-white'
+                            : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-400 hover:text-slate-300'
+                          }`}
+                      >
+                        <X className="w-4 h-4" />
+                        清除
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Batch Action Bar - Moved to Top */}
@@ -1093,13 +1144,13 @@ export default function App() {
                 )}
 
                 <div className="flex-1 overflow-y-auto space-y-2">
-                  {idlePlayers.length === 0 ? (
+                  {filteredIdlePlayers.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-10 text-slate-600 text-xs border border-dashed border-slate-800 rounded-xl">
-                      <p>休息區空空如也</p>
-                      <p className="mt-1">請至「報到區」進行報到</p>
+                      <p>{restAreaSearchTerm ? '沒有符合的球員' : '休息區空空如也'}</p>
+                      {!restAreaSearchTerm && <p className="mt-1">請至「報到區」進行報到</p>}
                     </div>
                   ) : (
-                    idlePlayers.map(player => {
+                    filteredIdlePlayers.map(player => {
                       const isSelected = selectedPlayerIds.has(player.id);
                       return (
                         <div
