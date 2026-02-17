@@ -1053,43 +1053,65 @@ export default function App() {
           {/* Tab Content: Member List */}
           {activeTab === 'members' && (
             <div className="flex-1 overflow-y-auto flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out] bg-slate-900">
-              {/* Search / Add - Single Row with Mutually Exclusive Expansion */}
+              {/* Search / Add - Icons on Right, Toggle Functionality Below */}
               <div className="p-4 sticky top-0 bg-slate-950/95 backdrop-blur z-10 border-b border-slate-800">
-                <div className="flex items-center gap-2 h-10">
-                  {/* Search Section */}
-                  {isSearchExpanded ? (
-                    // Expanded: Show full search input
-                    <div className="relative flex-1 animate-[fadeIn_0.2s_ease-out]">
-                      <input
-                        type="text"
-                        placeholder="搜尋會員..."
-                        className="w-full h-10 pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 placeholder-slate-500 text-sm"
-                        value={memberSearchTerm}
-                        onChange={e => setMemberSearchTerm(e.target.value)}
-                        autoFocus
-                      />
-                      <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                    </div>
-                  ) : (
-                    // Collapsed: Show only icon button
+                <div className="space-y-2">
+                  {/* Icon Row - Always Visible */}
+                  <div className="flex items-center justify-end gap-2">
                     <button
                       onClick={() => {
-                        setIsSearchExpanded(true);
-                        setIsAddMemberExpanded(false);
-                        setNewMemberName('');
+                        setIsSearchExpanded(!isSearchExpanded);
+                        if (!isSearchExpanded) {
+                          setIsAddMemberExpanded(false);
+                        }
                       }}
-                      className="h-10 p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-indigo-500/50 rounded-lg transition-all group shrink-0"
+                      className={`h-10 p-2 rounded-lg transition-all group
+                        ${isSearchExpanded
+                          ? 'bg-indigo-600 border-indigo-500'
+                          : 'bg-slate-800 hover:bg-slate-700 border-slate-700 hover:border-indigo-500/50'
+                        } border`}
                       title="搜尋會員"
                     >
-                      <Search className="w-4 h-4 text-slate-400 group-hover:text-indigo-400 transition-colors" />
+                      <Search className={`w-4 h-4 transition-colors ${isSearchExpanded ? 'text-white' : 'text-slate-400 group-hover:text-indigo-400'}`} />
                     </button>
+                    <button
+                      onClick={() => {
+                        setIsAddMemberExpanded(!isAddMemberExpanded);
+                        if (!isAddMemberExpanded) {
+                          setIsSearchExpanded(false);
+                        }
+                      }}
+                      className={`h-10 p-2 rounded-lg transition-all group
+                        ${isAddMemberExpanded
+                          ? 'bg-indigo-600 border-indigo-500'
+                          : 'bg-slate-800 hover:bg-slate-700 border-slate-700 hover:border-indigo-500/50'
+                        } border`}
+                      title="新增會員"
+                    >
+                      <UserPlus className={`w-4 h-4 transition-colors ${isAddMemberExpanded ? 'text-white' : 'text-slate-400 group-hover:text-indigo-400'}`} />
+                    </button>
+                  </div>
+
+                  {/* Functionality Row - Conditionally Visible */}
+                  {isSearchExpanded && (
+                    <div className="flex items-center gap-2 h-10 animate-[fadeIn_0.2s_ease-out]">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          placeholder="搜尋會員..."
+                          className="w-full h-10 pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 placeholder-slate-500 text-sm"
+                          value={memberSearchTerm}
+                          onChange={e => setMemberSearchTerm(e.target.value)}
+                          autoFocus
+                        />
+                        <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                      </div>
+                    </div>
                   )}
 
-                  {/* Add New Member Section */}
-                  {isAddMemberExpanded ? (
-                    // Expanded: Show full add member input
-                    <>
-                      <div className="relative flex-1 animate-[fadeIn_0.2s_ease-out]">
+                  {isAddMemberExpanded && (
+                    <div className="flex items-center gap-2 h-10 animate-[fadeIn_0.2s_ease-out]">
+                      <div className="relative flex-1">
                         <input
                           type="text"
                           placeholder="輸入新會員姓名"
@@ -1119,20 +1141,7 @@ export default function App() {
                         <Plus className="w-4 h-4" />
                         新增
                       </button>
-                    </>
-                  ) : (
-                    // Collapsed: Show only icon button
-                    <button
-                      onClick={() => {
-                        setIsAddMemberExpanded(true);
-                        setIsSearchExpanded(false);
-                        setMemberSearchTerm('');
-                      }}
-                      className="h-10 p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-indigo-500/50 rounded-lg transition-all group shrink-0"
-                      title="新增會員"
-                    >
-                      <UserPlus className="w-4 h-4 text-slate-400 group-hover:text-indigo-400 transition-colors" />
-                    </button>
+                    </div>
                   )}
                 </div>
               </div>
