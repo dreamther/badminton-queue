@@ -1177,14 +1177,10 @@ export default function App() {
                           setIsBatchImportExpanded(false);
                         }
                       }}
-                      className={`h-10 p-2 rounded-lg transition-all group
-                        ${isSearchExpanded
-                          ? 'bg-indigo-600 border-indigo-500'
-                          : 'bg-slate-800 hover:bg-slate-700 border-slate-700 hover:border-indigo-500/50'
-                        } border`}
+                      className="h-10 p-2 rounded-lg transition-all"
                       title="搜尋會員"
                     >
-                      <Search className={`w-4 h-4 transition-colors ${isSearchExpanded ? 'text-white' : 'text-slate-400 group-hover:text-indigo-400'}`} />
+                      <Search className={`w-4 h-4 transition-colors ${isSearchExpanded ? 'text-indigo-500' : 'text-slate-500 hover:text-slate-400'}`} />
                     </button>
                     <button
                       onClick={() => {
@@ -1194,14 +1190,10 @@ export default function App() {
                           setIsBatchImportExpanded(false);
                         }
                       }}
-                      className={`h-10 p-2 rounded-lg transition-all group
-                        ${isAddMemberExpanded
-                          ? 'bg-indigo-600 border-indigo-500'
-                          : 'bg-slate-800 hover:bg-slate-700 border-slate-700 hover:border-indigo-500/50'
-                        } border`}
+                      className="h-10 p-2 rounded-lg transition-all"
                       title="新增會員"
                     >
-                      <UserPlus className={`w-4 h-4 transition-colors ${isAddMemberExpanded ? 'text-white' : 'text-slate-400 group-hover:text-indigo-400'}`} />
+                      <UserPlus className={`w-4 h-4 transition-colors ${isAddMemberExpanded ? 'text-indigo-500' : 'text-slate-500 hover:text-slate-400'}`} />
                     </button>
                     <button
                       onClick={() => {
@@ -1211,14 +1203,10 @@ export default function App() {
                           setIsAddMemberExpanded(false);
                         }
                       }}
-                      className={`h-10 p-2 rounded-lg transition-all group
-                        ${isBatchImportExpanded
-                          ? 'bg-indigo-600 border-indigo-500'
-                          : 'bg-slate-800 hover:bg-slate-700 border-slate-700 hover:border-indigo-500/50'
-                        } border`}
+                      className="h-10 p-2 rounded-lg transition-all"
                       title="批次匯入會員"
                     >
-                      <Upload className={`w-4 h-4 transition-colors ${isBatchImportExpanded ? 'text-white' : 'text-slate-400 group-hover:text-indigo-400'}`} />
+                      <Upload className={`w-4 h-4 transition-colors ${isBatchImportExpanded ? 'text-indigo-500' : 'text-slate-500 hover:text-slate-400'}`} />
                     </button>
                     <input
                       ref={fileInputRef}
