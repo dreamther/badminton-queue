@@ -1231,6 +1231,17 @@ export default function App() {
                         />
                         <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
                       </div>
+                      <button
+                        onClick={() => setMemberSearchTerm('')}
+                        className={`h-10 px-3 py-2 border rounded-lg transition-colors flex items-center gap-1 shrink-0 text-xs font-medium
+                          ${memberSearchTerm
+                            ? 'bg-indigo-600 hover:bg-indigo-500 border-indigo-500 text-white'
+                            : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-400 hover:text-slate-300'
+                          }`}
+                      >
+                        <X className="w-4 h-4" />
+                        清除
+                      </button>
                     </div>
                   )}
 
