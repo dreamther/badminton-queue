@@ -1228,7 +1228,7 @@ export default function App() {
           {activeTab === 'members' && (
             <div className="flex-1 overflow-y-auto flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out] bg-slate-950">
               {/* Search / Add - Icons on Right, Toggle Functionality Below */}
-              <div className="p-4 sticky top-0 bg-slate-950/95 backdrop-blur z-10 border-b border-slate-800">
+              <div className="p-4 sticky top-0 bg-slate-950/95 backdrop-blur z-10">
                 <div className="space-y-2">
                   {/* Icon Row - Always Visible */}
                   <div className="flex items-center justify-end gap-2">
