@@ -82,6 +82,10 @@ export default function App() {
   const [restAreaSearchTerm, setRestAreaSearchTerm] = useState('');
   const [isRestAreaSearchExpanded, setIsRestAreaSearchExpanded] = useState(false);
 
+  // Drag and drop state
+  const [draggedPlayerId, setDraggedPlayerId] = useState<string | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
   // --- Persistence ---
   useEffect(() => {
     localStorage.setItem('badminton_players', JSON.stringify(players));
@@ -548,6 +552,187 @@ export default function App() {
     }
   }, []);
 
+  // Move queue item (player or group) up in the queue
+  const moveQueueItemUp = useCallback((playerId: string) => {
+    const queuedPlayers = players.filter(p => p.status === 'queued').sort((a, b) => a.joinedAt - b.joinedAt);
+    const playerIndex = queuedPlayers.findIndex(p => p.id === playerId);
+
+    if (playerIndex <= 0) return; // Already at top or not found
+
+    const player = queuedPlayers[playerIndex];
+    const groupId = player.groupId;
+
+    // Get all players in this item (individual or group)
+    const itemPlayers = groupId
+      ? queuedPlayers.filter(p => p.groupId === groupId)
+      : [player];
+
+    // Find the first player in this item
+    const firstItemIndex = queuedPlayers.findIndex(p => itemPlayers.includes(p));
+
+    if (firstItemIndex <= 0) return; // Already at top
+
+    // Find the previous item (player or group)
+    let prevItemIndex = firstItemIndex - 1;
+    const prevPlayer = queuedPlayers[prevItemIndex];
+    const prevGroupId = prevPlayer.groupId;
+
+    const prevItemPlayers = prevGroupId
+      ? queuedPlayers.filter(p => p.groupId === prevGroupId)
+      : [prevPlayer];
+
+    // Find the first player in the previous item
+    const prevFirstIndex = queuedPlayers.findIndex(p => prevItemPlayers.includes(p));
+
+    // Calculate new timestamps
+    const prevItemFirstTime = queuedPlayers[prevFirstIndex].joinedAt;
+    const itemFirstTime = queuedPlayers[firstItemIndex].joinedAt;
+
+    // Swap timestamps between the two items
+    setPlayers(prev => prev.map(p => {
+      if (itemPlayers.find(ip => ip.id === p.id)) {
+        // Move current item to previous item's position
+        const offset = itemPlayers.indexOf(itemPlayers.find(ip => ip.id === p.id)!);
+        return { ...p, joinedAt: prevItemFirstTime + offset };
+      }
+      if (prevItemPlayers.find(pp => pp.id === p.id)) {
+        // Move previous item to current item's position
+        const offset = prevItemPlayers.indexOf(prevItemPlayers.find(pp => pp.id === p.id)!);
+        return { ...p, joinedAt: itemFirstTime + offset };
+      }
+      return p;
+    }));
+  }, [players]);
+
+  // Move queue item (player or group) down in the queue
+  const moveQueueItemDown = useCallback((playerId: string) => {
+    const queuedPlayers = players.filter(p => p.status === 'queued').sort((a, b) => a.joinedAt - b.joinedAt);
+    const playerIndex = queuedPlayers.findIndex(p => p.id === playerId);
+
+    if (playerIndex === -1) return; // Not found
+
+    const player = queuedPlayers[playerIndex];
+    const groupId = player.groupId;
+
+    // Get all players in this item (individual or group)
+    const itemPlayers = groupId
+      ? queuedPlayers.filter(p => p.groupId === groupId)
+      : [player];
+
+    // Find the last player in this item
+    const lastItemIndex = queuedPlayers.findIndex(p => p === itemPlayers[itemPlayers.length - 1]);
+
+    if (lastItemIndex >= queuedPlayers.length - 1) return; // Already at bottom
+
+    // Find the next item (player or group)
+    let nextItemIndex = lastItemIndex + 1;
+    const nextPlayer = queuedPlayers[nextItemIndex];
+    const nextGroupId = nextPlayer.groupId;
+
+    const nextItemPlayers = nextGroupId
+      ? queuedPlayers.filter(p => p.groupId === nextGroupId)
+      : [nextPlayer];
+
+    // Find the first player in the current item
+    const firstItemIndex = queuedPlayers.findIndex(p => itemPlayers.includes(p));
+
+    // Calculate new timestamps
+    const itemFirstTime = queuedPlayers[firstItemIndex].joinedAt;
+    const nextItemFirstTime = queuedPlayers[nextItemIndex].joinedAt;
+
+    // Swap timestamps between the two items
+    setPlayers(prev => prev.map(p => {
+      if (itemPlayers.find(ip => ip.id === p.id)) {
+        // Move current item to next item's position
+        const offset = itemPlayers.indexOf(itemPlayers.find(ip => ip.id === p.id)!);
+        return { ...p, joinedAt: nextItemFirstTime + offset };
+      }
+      if (nextItemPlayers.find(np => np.id === p.id)) {
+        // Move next item to current item's position
+        const offset = nextItemPlayers.indexOf(nextItemPlayers.find(np => np.id === p.id)!);
+        return { ...p, joinedAt: itemFirstTime + offset };
+      }
+      return p;
+    }));
+  }, [players]);
+
+  // Drag and drop handlers for queue reordering
+  const handleDragStart = useCallback((e: React.DragEvent, playerId: string) => {
+    setDraggedPlayerId(playerId);
+    e.dataTransfer.effectAllowed = 'move';
+    // Add a slight delay to allow the drag image to be created
+    setTimeout(() => {
+      (e.target as HTMLElement).style.opacity = '0.5';
+    }, 0);
+  }, []);
+
+  const handleDragEnd = useCallback((e: React.DragEvent) => {
+    (e.target as HTMLElement).style.opacity = '1';
+    setDraggedPlayerId(null);
+    setDragOverIndex(null);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverIndex(targetIndex);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, targetPlayerId: string) => {
+    e.preventDefault();
+
+    if (!draggedPlayerId || draggedPlayerId === targetPlayerId) {
+      setDraggedPlayerId(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    const queuedPlayers = players.filter(p => p.status === 'queued').sort((a, b) => a.joinedAt - b.joinedAt);
+
+    const draggedPlayer = queuedPlayers.find(p => p.id === draggedPlayerId);
+    const targetPlayer = queuedPlayers.find(p => p.id === targetPlayerId);
+
+    if (!draggedPlayer || !targetPlayer) return;
+
+    // Get all players in dragged item (individual or group)
+    const draggedGroupId = draggedPlayer.groupId;
+    const draggedItemPlayers = draggedGroupId
+      ? queuedPlayers.filter(p => p.groupId === draggedGroupId)
+      : [draggedPlayer];
+
+    // Get all players in target item (individual or group)
+    const targetGroupId = targetPlayer.groupId;
+    const targetItemPlayers = targetGroupId
+      ? queuedPlayers.filter(p => p.groupId === targetGroupId)
+      : [targetPlayer];
+
+    // Find indices
+    const draggedFirstIndex = queuedPlayers.findIndex(p => draggedItemPlayers.includes(p));
+    const targetFirstIndex = queuedPlayers.findIndex(p => targetItemPlayers.includes(p));
+
+    if (draggedFirstIndex === targetFirstIndex) return;
+
+    // Get timestamps
+    const draggedFirstTime = queuedPlayers[draggedFirstIndex].joinedAt;
+    const targetFirstTime = queuedPlayers[targetFirstIndex].joinedAt;
+
+    // Swap timestamps
+    setPlayers(prev => prev.map(p => {
+      if (draggedItemPlayers.find(ip => ip.id === p.id)) {
+        const offset = draggedItemPlayers.indexOf(draggedItemPlayers.find(ip => ip.id === p.id)!);
+        return { ...p, joinedAt: targetFirstTime + offset };
+      }
+      if (targetItemPlayers.find(tp => tp.id === p.id)) {
+        const offset = targetItemPlayers.indexOf(targetItemPlayers.find(tp => tp.id === p.id)!);
+        return { ...p, joinedAt: draggedFirstTime + offset };
+      }
+      return p;
+    }));
+
+    setDraggedPlayerId(null);
+    setDragOverIndex(null);
+  }, [draggedPlayerId, players]);
+
   // Toggle Selection for Batch Actions
   const togglePlayerSelection = useCallback((playerId: string) => {
     setSelectedPlayerIds(prev => {
@@ -956,7 +1141,15 @@ export default function App() {
 
                         return (
                           <React.Fragment key={player.id}>
-                            <div className="relative flex group transition-all animate-[fadeIn_0.3s_ease-out]">
+                            <div
+                              className={`relative flex group transition-all animate-[fadeIn_0.3s_ease-out] ${dragOverIndex === idx ? 'scale-105' : ''
+                                }`}
+                              draggable={!isGrouped || !prevSameGroup}
+                              onDragStart={(e) => (!isGrouped || !prevSameGroup) && handleDragStart(e, player.id)}
+                              onDragEnd={handleDragEnd}
+                              onDragOver={(e) => handleDragOver(e, idx)}
+                              onDrop={(e) => handleDrop(e, player.id)}
+                            >
                               {/* Group Indicator Line */}
                               {isGrouped && (
                                 <div className={`absolute left-0 w-1 ${groupColor} rounded-l-sm z-10
@@ -965,11 +1158,21 @@ export default function App() {
                                                         `}></div>
                               )}
 
-                              <div className={`flex-1 flex items-center justify-between p-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl ml-2
+                              <div className={`flex-1 flex items-center justify-between p-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl ml-2 transition-all
                                                         ${isGrouped ? 'border-l-0 rounded-l-none' : ''}
+                                                        ${draggedPlayerId === player.id ? 'opacity-50' : ''}
+                                                        ${dragOverIndex === idx ? 'border-indigo-500 shadow-lg shadow-indigo-500/20' : ''}
+                                                        ${(!isGrouped || !prevSameGroup) ? 'cursor-move' : ''}
                                                     `}>
                                 <div className="flex items-center gap-3 overflow-hidden">
                                   <span className="font-mono text-xs text-slate-500 w-4 text-center shrink-0">{idx + 1}</span>
+                                  {(!isGrouped || !prevSameGroup) && (
+                                    <div className="text-slate-500 group-hover:text-slate-400 transition-colors" title={isGrouped ? "拖曳移動群組" : "拖曳移動"}>
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                                      </svg>
+                                    </div>
+                                  )}
                                   <PlayerAvatar name={player.name} size="sm" />
                                   <div className="flex flex-col min-w-0">
                                     <span className="font-medium text-sm truncate">{player.name}</span>
