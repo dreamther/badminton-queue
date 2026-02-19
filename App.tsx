@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Users, Activity, Coffee, ArrowRight, RotateCcw, Trash2, Trophy, Plus, Minus, Volume2, VolumeX, X, Swords, UserCheck, Search, CheckCircle2, ChevronDown, ChevronRight, Unlink, ArrowUp, PanelLeft, LogOut, UserX, ChevronUp, Zap, UserPlus } from 'lucide-react';
+import { Users, Activity, Coffee, ArrowRight, RotateCcw, Trash2, Trophy, Plus, Minus, Volume2, VolumeX, X, Swords, UserCheck, Search, CheckCircle2, ChevronDown, ChevronRight, Unlink, ArrowUp, PanelLeft, LogOut, UserX, ChevronUp, Zap, UserPlus, Upload } from 'lucide-react';
 import { Player, Court, Member, INITIAL_COURT_COUNT, MAX_PLAYERS_PER_COURT, SkillLevel, SKILL_LEVELS } from './types';
 import { CourtCard } from './components/CourtCard';
 import { PlayerAvatar } from './components/PlayerAvatar';
 
 type Tab = 'queue' | 'members';
+// test3
 
 // Helper to generate consistent colors for groups
 const getGroupColor = (groupId: string) => {
@@ -29,15 +30,19 @@ export default function App() {
 
   // Grouping & Selection State
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set());
-  const [isCheckedInExpanded, setIsCheckedInExpanded] = useState(true);
+  const [isCheckedInExpanded, setIsCheckedInExpanded] = useState(false);
   const [isMemberListExpanded, setIsMemberListExpanded] = useState(true);
 
   // Member UI Collapse State
   const [isSearchExpanded, setIsSearchExpanded] = useState(true);
   const [isAddMemberExpanded, setIsAddMemberExpanded] = useState(false);
+  const [isBatchImportExpanded, setIsBatchImportExpanded] = useState(false);
+
+  // Check-in Success Notification
+  const [checkInSuccessName, setCheckInSuccessName] = useState<string | null>(null);
 
   // Queue Display State
-  const [isQueueExpanded, setIsQueueExpanded] = useState(true); // New: Collapse state for queue
+  const [isQueueExpanded, setIsQueueExpanded] = useState(false); // New: Collapse state for queue
 
   const [players, setPlayers] = useState<Player[]>(() => {
     const saved = localStorage.getItem('badminton_players');
@@ -73,6 +78,13 @@ export default function App() {
 
   const [memberSearchTerm, setMemberSearchTerm] = useState('');
   const [newMemberName, setNewMemberName] = useState('');
+  const [newMemberLevel, setNewMemberLevel] = useState<SkillLevel>('beginner');
+  const [restAreaSearchTerm, setRestAreaSearchTerm] = useState('');
+  const [isRestAreaSearchExpanded, setIsRestAreaSearchExpanded] = useState(false);
+
+  // Drag and drop state
+  const [draggedPlayerId, setDraggedPlayerId] = useState<string | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // --- Persistence ---
   useEffect(() => {
@@ -96,8 +108,123 @@ export default function App() {
   }, []);
 
   // --- Derived Lists ---
-  const queue = useMemo(() => players.filter(p => p.status === 'queued').sort((a, b) => a.joinedAt - b.joinedAt), [players]);
+  const queue = useMemo(() => {
+    const queued = players.filter(p => p.status === 'queued');
+
+    // Sort by joinedAt first
+    const sorted = [...queued].sort((a, b) => a.joinedAt - b.joinedAt);
+
+    // Build items with join time tracking
+    interface QueueItem {
+      type: 'group' | 'individual';
+      players: Player[];
+      joinTime: number;
+    }
+
+    const items: QueueItem[] = [];
+    const processedIds = new Set<string>();
+    const processedGroupIds = new Set<string>();
+
+    for (const p of sorted) {
+      if (processedIds.has(p.id)) continue;
+
+      if (p.groupId) {
+        if (processedGroupIds.has(p.groupId)) continue;
+
+        const groupMembers = sorted.filter(m => m.groupId === p.groupId);
+        items.push({
+          type: 'group',
+          players: groupMembers,
+          joinTime: Math.min(...groupMembers.map(m => m.joinedAt))
+        });
+        groupMembers.forEach(m => processedIds.add(m.id));
+        processedGroupIds.add(p.groupId);
+      } else {
+        items.push({
+          type: 'individual',
+          players: [p],
+          joinTime: p.joinedAt
+        });
+        processedIds.add(p.id);
+      }
+    }
+
+    // Sort by join time
+    items.sort((a, b) => a.joinTime - b.joinTime);
+
+    // Find the cutoff: last group's join time
+    const lastGroupIndex = items.map((item, idx) => item.type === 'group' ? idx : -1).filter(idx => idx >= 0).pop();
+    const cutoffTime = lastGroupIndex !== undefined ? items[lastGroupIndex].joinTime : Infinity;
+
+    // Separate: early items (before/including last group) and late individuals
+    const earlyItems: QueueItem[] = [];
+    const lateIndividuals: QueueItem[] = [];
+
+    for (const item of items) {
+      if (item.joinTime <= cutoffTime) {
+        earlyItems.push(item);
+      } else if (item.type === 'individual') {
+        lateIndividuals.push(item);
+      }
+    }
+
+    // Build result: process early items and track group boundaries
+    const result: Player[] = [];
+    const groupBoundaries: number[] = []; // Positions where groups end (multiples of 4)
+    let currentPos = 0;
+
+    for (const item of earlyItems) {
+      if (item.type === 'group') {
+        // Check if group fits in current 4-slot
+        const currentSlot = Math.floor(currentPos / 4);
+        const slotStart = currentSlot * 4;
+        const slotRemaining = 4 - (currentPos - slotStart);
+
+        if (slotRemaining < item.players.length && currentPos % 4 !== 0) {
+          // Group doesn't fit, mark boundary and start new slot
+          groupBoundaries.push(slotStart + 4);
+          currentPos = slotStart + 4;
+        }
+
+        result.push(...item.players);
+        currentPos += item.players.length;
+      } else {
+        result.push(...item.players);
+        currentPos++;
+      }
+    }
+
+    // Fill gaps with late individuals
+    const finalResult: Player[] = [];
+    let lateIndex = 0;
+
+    for (let i = 0; i < result.length; i += 4) {
+      const groupSlice = result.slice(i, Math.min(i + 4, result.length));
+      finalResult.push(...groupSlice);
+
+      let slotsNeeded = 4 - groupSlice.length;
+      while (slotsNeeded > 0 && lateIndex < lateIndividuals.length) {
+        finalResult.push(...lateIndividuals[lateIndex].players);
+        lateIndex++;
+        slotsNeeded--;
+      }
+    }
+
+    // Add remaining late individuals
+    while (lateIndex < lateIndividuals.length) {
+      finalResult.push(...lateIndividuals[lateIndex].players);
+      lateIndex++;
+    }
+
+    return finalResult;
+  }, [players]);
   const idlePlayers = useMemo(() => players.filter(p => p.status === 'idle').sort((a, b) => b.joinedAt - a.joinedAt), [players]);
+
+  // Filtered idle players based on search term
+  const filteredIdlePlayers = useMemo(() => {
+    if (!restAreaSearchTerm) return idlePlayers;
+    return idlePlayers.filter(p => p.name.toLowerCase().includes(restAreaSearchTerm.toLowerCase()));
+  }, [idlePlayers, restAreaSearchTerm]);
   const totalActivePlayers = useMemo(() => players.filter(p => p.status === 'playing').length, [players]);
   const idleCourtsCount = useMemo(() => courts.filter(c => c.playerIds.length === 0).length, [courts]);
 
@@ -167,32 +294,41 @@ export default function App() {
     return { checkedInMembers: checkedIn, notCheckedInMembers: notCheckedIn };
   }, [players, filteredMembers]);
 
-  // --- Queue Display Logic (Group Handling) ---
+  // --- Queue Display Logic (Match-Based Grouping) ---
+  // Group players by who will actually play together in matches
   const queueDisplayItems = useMemo(() => {
-    const list: ({ type: 'player', data: Player } | { type: 'empty', groupId: string })[] = [];
-    let i = 0;
-    while (i < queue.length) {
-      const p = queue[i];
-      if (p.groupId) {
-        // Found a group, gather all members
-        const groupMembers = queue.filter(m => m.groupId === p.groupId);
+    const displayResult: ({ type: 'player', data: Player } | { type: 'empty', groupId: string })[] = [];
 
-        // Add actual members
-        groupMembers.forEach(m => list.push({ type: 'player', data: m }));
+    // Process queue in chunks of 4 (match groups)
+    let remainingQueue = [...queue];
+    let groupIndex = 0;
 
-        // Skip index by the number of group members found in the original queue
-        let count = 0;
-        while (i + count < queue.length && queue[i + count].groupId === p.groupId) {
-          count++;
-        }
-        i += count > 0 ? count : 1;
-      } else {
-        list.push({ type: 'player', data: p });
-        i++;
+    while (remainingQueue.length > 0) {
+      // Get next batch using the same logic as match start
+      const nextBatch = getNextMatchBatch(remainingQueue);
+
+      if (nextBatch.length === 0) break; // Safety check
+
+      // Add this batch as a visual group
+      nextBatch.forEach(p => {
+        displayResult.push({ type: 'player', data: p });
+      });
+
+      // Fill remaining slots with empty placeholders
+      const slotsToFill = 4 - nextBatch.length;
+      for (let i = 0; i < slotsToFill; i++) {
+        displayResult.push({ type: 'empty', groupId: `filler-${groupIndex}-${i}` });
       }
+
+      // Remove processed players from remaining queue
+      const processedIds = new Set(nextBatch.map(p => p.id));
+      remainingQueue = remainingQueue.filter(p => !processedIds.has(p.id));
+
+      groupIndex++;
     }
-    return list;
-  }, [queue]);
+
+    return displayResult;
+  }, [queue, getNextMatchBatch]);
 
   // --- Chunked Queue for Collapsed View ---
   const chunkedQueueItems = useMemo(() => {
@@ -242,12 +378,123 @@ export default function App() {
     const newMember: Member = {
       id: crypto.randomUUID(),
       name: name,
-      level: 'beginner', // Default level
+      level: newMemberLevel,
       createdAt: Date.now()
     };
     setMembers(prev => [newMember, ...prev]);
     setNewMemberName('');
+    setNewMemberLevel('beginner'); // Reset to default
+  }, [members, newMemberLevel]);
+
+  // Batch Import: Parse CSV and create members
+  const parseCsvAndImport = useCallback((csvText: string) => {
+    try {
+      const lines = csvText.trim().split('\n');
+      if (lines.length < 2) {
+        alert('CSV 檔案格式錯誤：至少需要標題列和一筆資料');
+        return;
+      }
+
+      const headers = lines[0].split(',').map(h => h.trim());
+
+      // Validate headers
+      const nameIndex = headers.findIndex(h => h === '姓名' || h === 'name' || h === '名稱');
+      if (nameIndex === -1) {
+        alert('CSV 格式錯誤：缺少「姓名」欄位');
+        return;
+      }
+
+      const levelIndex = headers.findIndex(h => h === '等級' || h === 'level' || h === '技能');
+
+      // Process each row
+      const newMembers: Member[] = [];
+      const skippedNames: string[] = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue; // Skip empty lines
+
+        const values = line.split(',').map(v => v.trim());
+        const name = values[nameIndex];
+
+        if (!name) continue; // Skip rows with empty names
+
+        // Check if member already exists
+        if (members.some(m => m.name === name) || newMembers.some(m => m.name === name)) {
+          skippedNames.push(name);
+          continue;
+        }
+
+        // Parse skill level
+        let level: SkillLevel = 'beginner';
+        if (levelIndex !== -1 && values[levelIndex]) {
+          const levelValue = values[levelIndex].trim().toLowerCase();
+          // Support both English and Chinese skill level names
+          if (levelValue === 'advanced' || levelValue === '進階' || levelValue === '高級' || levelValue === '高階') {
+            level = 'advanced';
+          } else if (levelValue === 'intermediate' || levelValue === '中階' || levelValue === '中级') {
+            level = 'intermediate';
+          } else if (levelValue === 'beginner' || levelValue === '初階' || levelValue === '初级') {
+            level = 'beginner';
+          }
+          // If none match, default to 'beginner' (already set above)
+        }
+
+        newMembers.push({
+          id: crypto.randomUUID(),
+          name,
+          level,
+          createdAt: Date.now()
+        });
+      }
+
+      // Add all new members
+      if (newMembers.length > 0) {
+        setMembers(prev => [...newMembers, ...prev]);
+      }
+
+      // Show result
+      let message = `成功匯入 ${newMembers.length} 位會員`;
+      if (skippedNames.length > 0) {
+        message += `\n跳過 ${skippedNames.length} 位重複會員：${skippedNames.join(', ')}`;
+      }
+      alert(message);
+
+    } catch (error) {
+      alert('CSV 檔案解析失敗，請確認檔案格式正確');
+      console.error('CSV parsing error:', error);
+    }
   }, [members]);
+
+  // Handle file upload
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBatchImport = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.name.endsWith('.csv')) {
+      alert('請上傳 CSV 格式的檔案');
+      return;
+    }
+
+    // Read CSV file
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      parseCsvAndImport(text);
+    };
+    reader.onerror = () => {
+      alert('檔案讀取失敗');
+    };
+    reader.readAsText(file, 'UTF-8');
+
+    // Reset file input
+    if (event.target) {
+      event.target.value = '';
+    }
+  }, [parseCsvAndImport]);
 
   // Update Member Level
   const updateMemberLevel = useCallback((memberId: string, newLevel: SkillLevel) => {
@@ -290,6 +537,13 @@ export default function App() {
       joinedAt: Date.now(),
     };
     setPlayers(prev => [...prev, newPlayer]);
+
+    // Show success notification
+    setCheckInSuccessName(member.name);
+    // Auto-hide after 2 seconds
+    setTimeout(() => {
+      setCheckInSuccessName(null);
+    }, 2000);
   }, [players]);
 
   const removeMember = useCallback((memberId: string) => {
@@ -297,6 +551,187 @@ export default function App() {
       setMembers(prev => prev.filter(m => m.id !== memberId));
     }
   }, []);
+
+  // Move queue item (player or group) up in the queue
+  const moveQueueItemUp = useCallback((playerId: string) => {
+    const queuedPlayers = players.filter(p => p.status === 'queued').sort((a, b) => a.joinedAt - b.joinedAt);
+    const playerIndex = queuedPlayers.findIndex(p => p.id === playerId);
+
+    if (playerIndex <= 0) return; // Already at top or not found
+
+    const player = queuedPlayers[playerIndex];
+    const groupId = player.groupId;
+
+    // Get all players in this item (individual or group)
+    const itemPlayers = groupId
+      ? queuedPlayers.filter(p => p.groupId === groupId)
+      : [player];
+
+    // Find the first player in this item
+    const firstItemIndex = queuedPlayers.findIndex(p => itemPlayers.includes(p));
+
+    if (firstItemIndex <= 0) return; // Already at top
+
+    // Find the previous item (player or group)
+    let prevItemIndex = firstItemIndex - 1;
+    const prevPlayer = queuedPlayers[prevItemIndex];
+    const prevGroupId = prevPlayer.groupId;
+
+    const prevItemPlayers = prevGroupId
+      ? queuedPlayers.filter(p => p.groupId === prevGroupId)
+      : [prevPlayer];
+
+    // Find the first player in the previous item
+    const prevFirstIndex = queuedPlayers.findIndex(p => prevItemPlayers.includes(p));
+
+    // Calculate new timestamps
+    const prevItemFirstTime = queuedPlayers[prevFirstIndex].joinedAt;
+    const itemFirstTime = queuedPlayers[firstItemIndex].joinedAt;
+
+    // Swap timestamps between the two items
+    setPlayers(prev => prev.map(p => {
+      if (itemPlayers.find(ip => ip.id === p.id)) {
+        // Move current item to previous item's position
+        const offset = itemPlayers.indexOf(itemPlayers.find(ip => ip.id === p.id)!);
+        return { ...p, joinedAt: prevItemFirstTime + offset };
+      }
+      if (prevItemPlayers.find(pp => pp.id === p.id)) {
+        // Move previous item to current item's position
+        const offset = prevItemPlayers.indexOf(prevItemPlayers.find(pp => pp.id === p.id)!);
+        return { ...p, joinedAt: itemFirstTime + offset };
+      }
+      return p;
+    }));
+  }, [players]);
+
+  // Move queue item (player or group) down in the queue
+  const moveQueueItemDown = useCallback((playerId: string) => {
+    const queuedPlayers = players.filter(p => p.status === 'queued').sort((a, b) => a.joinedAt - b.joinedAt);
+    const playerIndex = queuedPlayers.findIndex(p => p.id === playerId);
+
+    if (playerIndex === -1) return; // Not found
+
+    const player = queuedPlayers[playerIndex];
+    const groupId = player.groupId;
+
+    // Get all players in this item (individual or group)
+    const itemPlayers = groupId
+      ? queuedPlayers.filter(p => p.groupId === groupId)
+      : [player];
+
+    // Find the last player in this item
+    const lastItemIndex = queuedPlayers.findIndex(p => p === itemPlayers[itemPlayers.length - 1]);
+
+    if (lastItemIndex >= queuedPlayers.length - 1) return; // Already at bottom
+
+    // Find the next item (player or group)
+    let nextItemIndex = lastItemIndex + 1;
+    const nextPlayer = queuedPlayers[nextItemIndex];
+    const nextGroupId = nextPlayer.groupId;
+
+    const nextItemPlayers = nextGroupId
+      ? queuedPlayers.filter(p => p.groupId === nextGroupId)
+      : [nextPlayer];
+
+    // Find the first player in the current item
+    const firstItemIndex = queuedPlayers.findIndex(p => itemPlayers.includes(p));
+
+    // Calculate new timestamps
+    const itemFirstTime = queuedPlayers[firstItemIndex].joinedAt;
+    const nextItemFirstTime = queuedPlayers[nextItemIndex].joinedAt;
+
+    // Swap timestamps between the two items
+    setPlayers(prev => prev.map(p => {
+      if (itemPlayers.find(ip => ip.id === p.id)) {
+        // Move current item to next item's position
+        const offset = itemPlayers.indexOf(itemPlayers.find(ip => ip.id === p.id)!);
+        return { ...p, joinedAt: nextItemFirstTime + offset };
+      }
+      if (nextItemPlayers.find(np => np.id === p.id)) {
+        // Move next item to current item's position
+        const offset = nextItemPlayers.indexOf(nextItemPlayers.find(np => np.id === p.id)!);
+        return { ...p, joinedAt: itemFirstTime + offset };
+      }
+      return p;
+    }));
+  }, [players]);
+
+  // Drag and drop handlers for queue reordering
+  const handleDragStart = useCallback((e: React.DragEvent, playerId: string) => {
+    setDraggedPlayerId(playerId);
+    e.dataTransfer.effectAllowed = 'move';
+    // Add a slight delay to allow the drag image to be created
+    setTimeout(() => {
+      (e.target as HTMLElement).style.opacity = '0.5';
+    }, 0);
+  }, []);
+
+  const handleDragEnd = useCallback((e: React.DragEvent) => {
+    (e.target as HTMLElement).style.opacity = '1';
+    setDraggedPlayerId(null);
+    setDragOverIndex(null);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverIndex(targetIndex);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, targetPlayerId: string) => {
+    e.preventDefault();
+
+    if (!draggedPlayerId || draggedPlayerId === targetPlayerId) {
+      setDraggedPlayerId(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    const queuedPlayers = players.filter(p => p.status === 'queued').sort((a, b) => a.joinedAt - b.joinedAt);
+
+    const draggedPlayer = queuedPlayers.find(p => p.id === draggedPlayerId);
+    const targetPlayer = queuedPlayers.find(p => p.id === targetPlayerId);
+
+    if (!draggedPlayer || !targetPlayer) return;
+
+    // Get all players in dragged item (individual or group)
+    const draggedGroupId = draggedPlayer.groupId;
+    const draggedItemPlayers = draggedGroupId
+      ? queuedPlayers.filter(p => p.groupId === draggedGroupId)
+      : [draggedPlayer];
+
+    // Get all players in target item (individual or group)
+    const targetGroupId = targetPlayer.groupId;
+    const targetItemPlayers = targetGroupId
+      ? queuedPlayers.filter(p => p.groupId === targetGroupId)
+      : [targetPlayer];
+
+    // Find indices
+    const draggedFirstIndex = queuedPlayers.findIndex(p => draggedItemPlayers.includes(p));
+    const targetFirstIndex = queuedPlayers.findIndex(p => targetItemPlayers.includes(p));
+
+    if (draggedFirstIndex === targetFirstIndex) return;
+
+    // Get timestamps
+    const draggedFirstTime = queuedPlayers[draggedFirstIndex].joinedAt;
+    const targetFirstTime = queuedPlayers[targetFirstIndex].joinedAt;
+
+    // Swap timestamps
+    setPlayers(prev => prev.map(p => {
+      if (draggedItemPlayers.find(ip => ip.id === p.id)) {
+        const offset = draggedItemPlayers.indexOf(draggedItemPlayers.find(ip => ip.id === p.id)!);
+        return { ...p, joinedAt: targetFirstTime + offset };
+      }
+      if (targetItemPlayers.find(tp => tp.id === p.id)) {
+        const offset = targetItemPlayers.indexOf(targetItemPlayers.find(tp => tp.id === p.id)!);
+        return { ...p, joinedAt: draggedFirstTime + offset };
+      }
+      return p;
+    }));
+
+    setDraggedPlayerId(null);
+    setDragOverIndex(null);
+  }, [draggedPlayerId, players]);
 
   // Toggle Selection for Batch Actions
   const togglePlayerSelection = useCallback((playerId: string) => {
@@ -455,6 +890,31 @@ export default function App() {
       return prev.slice(0, -1);
     });
   }, []);
+
+  const renameCourt = useCallback((courtId: number, newName: string) => {
+    const trimmedName = newName.trim();
+    if (!trimmedName) {
+      alert("場地名稱不能為空");
+      return;
+    }
+    setCourts(prev => prev.map(c =>
+      c.id === courtId ? { ...c, name: trimmedName } : c
+    ));
+  }, []);
+
+  const announceCourtPlayers = useCallback((courtId: number) => {
+    const court = courts.find(c => c.id === courtId);
+    if (!court || court.playerIds.length === 0) return;
+
+    const playerNames = court.playerIds
+      .map(id => players.find(p => p.id === id)?.name)
+      .filter(Boolean);
+
+    if (playerNames.length > 0) {
+      const announcement = `請 ${playerNames.join('，')}，到${court.name}打球`;
+      speak(announcement);
+    }
+  }, [courts, players, speak]);
 
   const startMatch = useCallback((courtId: number) => {
     // Use the consistent match calculation logic
@@ -681,7 +1141,15 @@ export default function App() {
 
                         return (
                           <React.Fragment key={player.id}>
-                            <div className="relative flex group transition-all animate-[fadeIn_0.3s_ease-out]">
+                            <div
+                              className={`relative flex group transition-all animate-[fadeIn_0.3s_ease-out] ${dragOverIndex === idx ? 'scale-105' : ''
+                                }`}
+                              draggable={!isGrouped || !prevSameGroup}
+                              onDragStart={(e) => (!isGrouped || !prevSameGroup) && handleDragStart(e, player.id)}
+                              onDragEnd={handleDragEnd}
+                              onDragOver={(e) => handleDragOver(e, idx)}
+                              onDrop={(e) => handleDrop(e, player.id)}
+                            >
                               {/* Group Indicator Line */}
                               {isGrouped && (
                                 <div className={`absolute left-0 w-1 ${groupColor} rounded-l-sm z-10
@@ -690,8 +1158,11 @@ export default function App() {
                                                         `}></div>
                               )}
 
-                              <div className={`flex-1 flex items-center justify-between p-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl ml-2
+                              <div className={`flex-1 flex items-center justify-between p-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl ml-2 transition-all
                                                         ${isGrouped ? 'border-l-0 rounded-l-none' : ''}
+                                                        ${draggedPlayerId === player.id ? 'opacity-50' : ''}
+                                                        ${dragOverIndex === idx ? 'border-indigo-500 shadow-lg shadow-indigo-500/20' : ''}
+                                                        ${(!isGrouped || !prevSameGroup) ? 'cursor-move' : ''}
                                                     `}>
                                 <div className="flex items-center gap-3 overflow-hidden">
                                   <span className="font-mono text-xs text-slate-500 w-4 text-center shrink-0">{idx + 1}</span>
@@ -708,15 +1179,6 @@ export default function App() {
                                 </div>
 
                                 <div className="flex items-center gap-1">
-                                  {isGrouped && (
-                                    <button
-                                      onClick={() => unbindPlayer(player.id)}
-                                      className="text-slate-600 hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-all p-1.5 hover:bg-slate-700 rounded-lg"
-                                      title="取消綁定 (斷開)"
-                                    >
-                                      <Unlink className="w-3.5 h-3.5" />
-                                    </button>
-                                  )}
                                   <button
                                     onClick={() => removeFromQueue(player.id)}
                                     className="text-slate-600 hover:text-amber-500 opacity-0 group-hover:opacity-100 transition-all p-1.5 hover:bg-slate-700 rounded-lg"
@@ -814,11 +1276,54 @@ export default function App() {
 
               {/* Bench / Idle Section */}
               <div className="p-4 flex-1 flex flex-col">
-                <div className="flex items-center justify-between mb-3 px-1">
-                  <h2 className="text-sm font-semibold text-slate-400 flex items-center gap-2">
-                    <Coffee className="w-3.5 h-3.5" />
-                    休息區 ({idlePlayers.length})
-                  </h2>
+                <div className="space-y-4 mb-3">
+                  {/* Header with Search Icon */}
+                  <div className="flex items-center justify-between px-1">
+                    <h2 className="text-sm font-semibold text-slate-400 flex items-center gap-2">
+                      <Coffee className="w-3.5 h-3.5" />
+                      休息區 ({idlePlayers.length})
+                    </h2>
+                    <button
+                      onClick={() => {
+                        setIsRestAreaSearchExpanded(!isRestAreaSearchExpanded);
+                        if (isRestAreaSearchExpanded) {
+                          setRestAreaSearchTerm('');
+                        }
+                      }}
+                      className="h-8 p-1.5 rounded-lg transition-all"
+                      title="搜尋休息區"
+                    >
+                      <Search className={`w-4 h-4 transition-colors ${isRestAreaSearchExpanded ? 'text-indigo-500' : 'text-slate-500 hover:text-slate-400'}`} />
+                    </button>
+                  </div>
+
+                  {/* Search Input */}
+                  {isRestAreaSearchExpanded && (
+                    <div className="flex items-center gap-2 h-10 animate-[fadeIn_0.2s_ease-out]">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          placeholder="搜尋球員..."
+                          className="w-full h-10 pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 placeholder-slate-500 text-sm"
+                          value={restAreaSearchTerm}
+                          onChange={e => setRestAreaSearchTerm(e.target.value)}
+                          autoFocus
+                        />
+                        <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                      </div>
+                      <button
+                        onClick={() => setRestAreaSearchTerm('')}
+                        className={`h-10 px-3 py-2 border rounded-lg transition-colors flex items-center gap-1 shrink-0 text-xs font-medium
+                          ${restAreaSearchTerm
+                            ? 'bg-indigo-600 hover:bg-indigo-500 border-indigo-500 text-white'
+                            : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-400 hover:text-slate-300'
+                          }`}
+                      >
+                        <X className="w-4 h-4" />
+                        清除
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Batch Action Bar - Moved to Top */}
@@ -835,13 +1340,13 @@ export default function App() {
                 )}
 
                 <div className="flex-1 overflow-y-auto space-y-2">
-                  {idlePlayers.length === 0 ? (
+                  {filteredIdlePlayers.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-10 text-slate-600 text-xs border border-dashed border-slate-800 rounded-xl">
-                      <p>休息區空空如也</p>
-                      <p className="mt-1">請至「報到區」進行報到</p>
+                      <p>{restAreaSearchTerm ? '沒有符合的球員' : '休息區空空如也'}</p>
+                      {!restAreaSearchTerm && <p className="mt-1">請至「報到區」進行報到</p>}
                     </div>
                   ) : (
-                    idlePlayers.map(player => {
+                    filteredIdlePlayers.map(player => {
                       const isSelected = selectedPlayerIds.has(player.id);
                       return (
                         <div
@@ -854,12 +1359,21 @@ export default function App() {
                         >
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <div className="flex items-center h-5 shrink-0">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => togglePlayerSelection(player.id)}
-                                className="w-4 h-4 rounded border-purple-500 bg-transparent text-purple-500 focus:ring-purple-500/50 focus:ring-offset-0 cursor-pointer"
-                              />
+                              <label className="relative flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => togglePlayerSelection(player.id)}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-4 h-4 rounded-full border-2 border-indigo-500 bg-transparent peer-checked:bg-indigo-500 peer-checked:border-indigo-500 transition-all flex items-center justify-center">
+                                  {isSelected && (
+                                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  )}
+                                </div>
+                              </label>
                             </div>
                             <div className="flex items-center gap-3 cursor-pointer flex-1 min-w-0" onClick={() => togglePlayerSelection(player.id)}>
                               <PlayerAvatar name={player.name} size="sm" className={isSelected ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-slate-900' : ''} />
@@ -908,48 +1422,95 @@ export default function App() {
 
           {/* Tab Content: Member List */}
           {activeTab === 'members' && (
-            <div className="flex-1 overflow-y-auto flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out] bg-slate-900">
-              {/* Search / Add - Single Row with Mutually Exclusive Expansion */}
-              <div className="p-4 sticky top-0 bg-slate-950/95 backdrop-blur z-10 border-b border-slate-800">
-                <div className="flex items-center gap-2 h-10">
-                  {/* Search Section */}
-                  {isSearchExpanded ? (
-                    // Expanded: Show full search input
-                    <div className="relative flex-1 animate-[fadeIn_0.2s_ease-out]">
-                      <input
-                        type="text"
-                        placeholder="搜尋會員..."
-                        className="w-full h-10 pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 placeholder-slate-500 text-sm"
-                        value={memberSearchTerm}
-                        onChange={e => setMemberSearchTerm(e.target.value)}
-                        autoFocus
-                      />
-                      <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                    </div>
-                  ) : (
-                    // Collapsed: Show only icon button
+            <div className="flex-1 overflow-y-auto flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out] bg-slate-950">
+              {/* Search / Add - Icons on Right, Toggle Functionality Below */}
+              <div className="p-4 sticky top-0 bg-slate-950/95 backdrop-blur z-10">
+                <div className="space-y-2">
+                  {/* Icon Row - Always Visible */}
+                  <div className="flex items-center justify-end gap-2">
                     <button
                       onClick={() => {
-                        setIsSearchExpanded(true);
-                        setIsAddMemberExpanded(false);
-                        setNewMemberName('');
+                        setIsSearchExpanded(!isSearchExpanded);
+                        if (!isSearchExpanded) {
+                          setIsAddMemberExpanded(false);
+                          setIsBatchImportExpanded(false);
+                        }
                       }}
-                      className="h-10 p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-indigo-500/50 rounded-lg transition-all group shrink-0"
+                      className="h-10 p-2 rounded-lg transition-all"
                       title="搜尋會員"
                     >
-                      <Search className="w-4 h-4 text-slate-400 group-hover:text-indigo-400 transition-colors" />
+                      <Search className={`w-4 h-4 transition-colors ${isSearchExpanded ? 'text-indigo-500' : 'text-slate-500 hover:text-slate-400'}`} />
                     </button>
+                    <button
+                      onClick={() => {
+                        setIsAddMemberExpanded(!isAddMemberExpanded);
+                        if (!isAddMemberExpanded) {
+                          setIsSearchExpanded(false);
+                          setIsBatchImportExpanded(false);
+                        }
+                      }}
+                      className="h-10 p-2 rounded-lg transition-all"
+                      title="新增會員"
+                    >
+                      <UserPlus className={`w-4 h-4 transition-colors ${isAddMemberExpanded ? 'text-indigo-500' : 'text-slate-500 hover:text-slate-400'}`} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsBatchImportExpanded(!isBatchImportExpanded);
+                        if (!isBatchImportExpanded) {
+                          setIsSearchExpanded(false);
+                          setIsAddMemberExpanded(false);
+                        }
+                      }}
+                      className="h-10 p-2 rounded-lg transition-all"
+                      title="批次匯入會員"
+                    >
+                      <Upload className={`w-4 h-4 transition-colors ${isBatchImportExpanded ? 'text-indigo-500' : 'text-slate-500 hover:text-slate-400'}`} />
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".csv"
+                      onChange={handleBatchImport}
+                      className="hidden"
+                    />
+                  </div>
+
+                  {/* Functionality Row - Conditionally Visible */}
+                  {isSearchExpanded && (
+                    <div className="flex items-center gap-2 h-10 animate-[fadeIn_0.2s_ease-out]">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          placeholder="搜尋會員..."
+                          className="w-full h-10 pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 placeholder-slate-500 text-sm"
+                          value={memberSearchTerm}
+                          onChange={e => setMemberSearchTerm(e.target.value)}
+                          autoFocus
+                        />
+                        <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                      </div>
+                      <button
+                        onClick={() => setMemberSearchTerm('')}
+                        className={`h-10 px-3 py-2 border rounded-lg transition-colors flex items-center gap-1 shrink-0 text-xs font-medium
+                          ${memberSearchTerm
+                            ? 'bg-indigo-600 hover:bg-indigo-500 border-indigo-500 text-white'
+                            : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-400 hover:text-slate-300'
+                          }`}
+                      >
+                        <X className="w-4 h-4" />
+                        清除
+                      </button>
+                    </div>
                   )}
 
-                  {/* Add New Member Section */}
-                  {isAddMemberExpanded ? (
-                    // Expanded: Show full add member input
-                    <>
-                      <div className="relative flex-1 animate-[fadeIn_0.2s_ease-out]">
+                  {isAddMemberExpanded && (
+                    <div className="flex items-center gap-2 h-10 animate-[fadeIn_0.2s_ease-out]">
+                      <div className="relative flex-1">
                         <input
                           type="text"
                           placeholder="輸入新會員姓名"
-                          className="w-full h-10 pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 placeholder-slate-500 text-sm"
+                          className="w-full h-10 pl-9 pr-20 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 placeholder-slate-500 text-sm"
                           value={newMemberName}
                           onChange={e => setNewMemberName(e.target.value)}
                           onKeyDown={(e) => {
@@ -960,6 +1521,21 @@ export default function App() {
                           autoFocus
                         />
                         <UserPlus className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                        {/* Skill Level Selector - Inside Input */}
+                        <button
+                          onClick={() => {
+                            const levels: SkillLevel[] = ['beginner', 'intermediate', 'advanced'];
+                            const currentIndex = levels.indexOf(newMemberLevel);
+                            const nextIndex = (currentIndex + 1) % levels.length;
+                            setNewMemberLevel(levels[nextIndex]);
+                          }}
+                          className={`absolute right-2 top-1.5 h-7 px-2 py-0.5 rounded text-[10px] font-bold border transition-all select-none
+                            ${SKILL_LEVELS[newMemberLevel].bg} ${SKILL_LEVELS[newMemberLevel].color} ${SKILL_LEVELS[newMemberLevel].border}
+                            cursor-pointer hover:brightness-110 shadow-sm`}
+                          title="點擊切換程度"
+                        >
+                          {SKILL_LEVELS[newMemberLevel].label}
+                        </button>
                       </div>
                       <button
                         onMouseDown={(e) => {
@@ -975,25 +1551,44 @@ export default function App() {
                         <Plus className="w-4 h-4" />
                         新增
                       </button>
-                    </>
-                  ) : (
-                    // Collapsed: Show only icon button
-                    <button
-                      onClick={() => {
-                        setIsAddMemberExpanded(true);
-                        setIsSearchExpanded(false);
-                        setMemberSearchTerm('');
-                      }}
-                      className="h-10 p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-indigo-500/50 rounded-lg transition-all group shrink-0"
-                      title="新增會員"
-                    >
-                      <UserPlus className="w-4 h-4 text-slate-400 group-hover:text-indigo-400 transition-colors" />
-                    </button>
+                    </div>
+                  )}
+
+                  {isBatchImportExpanded && (
+                    <div className="flex items-center gap-3 animate-[fadeIn_0.2s_ease-out]">
+                      {/* CSV Format Hint with Hover Tooltip - Left Side */}
+                      <div className="flex-1 relative group">
+                        <div className="h-10 bg-slate-800 border border-slate-700 rounded-lg px-3 flex items-center text-sm text-slate-400 cursor-help">
+                          CSV 格式範例：<span className="font-mono text-slate-300 ml-1">姓名,等級</span>
+                        </div>
+                        {/* Hover Tooltip */}
+                        <div className="absolute left-0 top-full mt-2 w-full bg-slate-900 border border-slate-700 rounded-lg p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-20 shadow-xl">
+                          <div className="bg-slate-950 rounded p-2 font-mono text-xs text-slate-300">
+                            <div className="text-emerald-400">姓名,等級</div>
+                            <div>張三,初階</div>
+                            <div>李四,中階</div>
+                            <div>王五,高階</div>
+                          </div>
+                          <div className="text-xs text-slate-500 mt-2">
+                            等級可選：初階 / 中階 / 高階
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Upload Button - Right Side */}
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="h-10 px-3 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg transition-colors hover:bg-indigo-500 flex items-center gap-1 shrink-0"
+                      >
+                        <Upload className="w-4 h-4" />
+                        匯入
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
 
-              <div className="flex-1 p-4 space-y-6">
+              <div className="flex-1 p-4 space-y-6 bg-slate-950">
                 {/* Checked In Section */}
                 {checkedInMembers.length > 0 && (
                   <div>
@@ -1187,12 +1782,34 @@ export default function App() {
                 queueLength={queue.length}
                 onStartMatch={startMatch}
                 onEndMatch={endMatch}
+                onRenameCourt={renameCourt}
+                onAnnounce={announceCourtPlayers}
+                isAutoAnnounce={isAutoAnnounce}
                 canStartMatch={isQueueReady}
               />
             ))}
           </div>
         </div>
       </main>
+
+      {/* Check-in Success Modal */}
+      {checkInSuccessName && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+          <div className="bg-slate-900 border-2 border-emerald-500 rounded-xl px-8 py-6 shadow-2xl animate-[fadeIn_0.3s_ease-out] pointer-events-auto">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                <CheckCircle2 className="w-7 h-7 text-emerald-400" />
+              </div>
+              <div>
+                <div className="text-lg font-bold text-white mb-1">報到成功！</div>
+                <div className="text-sm text-slate-300">
+                  <span className="font-semibold text-emerald-400">{checkInSuccessName}</span> 已成功報到
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
