@@ -1423,39 +1423,15 @@ export default function App() {
           {/* Tab Content: Member List */}
           {activeTab === 'members' && (
             <div className="flex-1 overflow-y-auto flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out] bg-slate-950">
-              {/* Search Bar - Sticky at top */}
-              <div className="p-4 pb-3 sticky top-0 bg-slate-950/95 backdrop-blur z-10 space-y-2">
-                {/* Search Bar - Always Visible */}
-                <div className="flex items-center gap-2 h-10">
-                  <div className="relative flex-1">
-                    <input
-                      type="text"
-                      placeholder="搜尋會員..."
-                      className="w-full h-10 pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 placeholder-slate-500 text-sm"
-                      value={memberSearchTerm}
-                      onChange={e => setMemberSearchTerm(e.target.value)}
-                    />
-                    <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                  </div>
-                  <button
-                    onClick={() => setMemberSearchTerm('')}
-                    className={`h-10 px-3 py-2 border rounded-lg transition-colors flex items-center gap-1 shrink-0 text-xs font-medium
-                      ${memberSearchTerm
-                        ? 'bg-indigo-600 hover:bg-indigo-500 border-indigo-500 text-white'
-                        : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-400 hover:text-slate-300'
-                      }`}
-                  >
-                    <X className="w-4 h-4" />
-                    清除
-                  </button>
-                </div>
+              {/* Add Member & Import - Sticky at top */}
+              <div className="p-4 sticky top-0 bg-slate-950/95 backdrop-blur z-10">
                 {/* Add Member Form & Batch Import */}
                 <div className="flex items-center gap-2 h-10">
                   <div className="relative flex-1">
                     <input
                       type="text"
                       placeholder="輸入姓名"
-                      className="w-full h-10 pl-9 pr-20 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 placeholder-slate-500 text-sm"
+                      className="w-full h-10 pl-9 pr-20 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 placeholder-slate-500 text-sm"
                       value={newMemberName}
                       onChange={e => setNewMemberName(e.target.value)}
                       onKeyDown={(e) => {
@@ -1491,7 +1467,7 @@ export default function App() {
                   <div className="relative group shrink-0">
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="h-10 px-3 py-2 bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-300 hover:border-slate-600 text-xs font-medium rounded-lg transition-all"
+                      className="h-10 px-3 py-2 bg-emerald-800 hover:bg-emerald-600 border border-emerald-700 hover:border-emerald-500 text-emerald-200 hover:text-white text-xs font-medium rounded-lg transition-all"
                     >
                       匯入
                     </button>
@@ -1522,57 +1498,86 @@ export default function App() {
 
                 {/* Member List Section */}
                 <div>
-                  <button
-                    onClick={() => setIsMemberListExpanded(!isMemberListExpanded)}
-                    className="w-full flex items-center justify-between text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wider hover:bg-slate-800/50 p-1 rounded transition-colors"
-                  >
-                    <div className="flex items-center gap-1.5">
+                  {/* Header with Search Icon */}
+                  <div className="flex items-center justify-between px-1 mb-2">
+                    <h2 className="text-sm font-semibold text-slate-400 flex items-center gap-2">
                       <Users className="w-3.5 h-3.5" />
                       會員列表 ({notCheckedInMembers.length})
-                    </div>
-                    {isMemberListExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                  </button>
+                    </h2>
+                    <button
+                      onClick={() => {
+                        setIsSearchExpanded(!isSearchExpanded);
+                        if (isSearchExpanded) {
+                          setMemberSearchTerm('');
+                        }
+                      }}
+                      className="h-8 p-1.5 rounded-lg transition-all"
+                      title="搜尋會員"
+                    >
+                      <Search className={`w-4 h-4 transition-colors ${isSearchExpanded ? 'text-indigo-500' : 'text-slate-500 hover:text-slate-400'}`} />
+                    </button>
+                  </div>
 
-
-
-                  {isMemberListExpanded && (
-                    notCheckedInMembers.length === 0 ? (
-                      <div className="text-center py-8 text-slate-600 text-sm animate-[fadeIn_0.2s_ease-out]">
-                        {memberSearchTerm ? '找不到符合的會員' : '尚未新增會員'}
+                  {/* Search Input */}
+                  {isSearchExpanded && (
+                    <div className="flex items-center gap-2 h-10 mb-3 animate-[fadeIn_0.2s_ease-out]">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          placeholder="搜尋會員..."
+                          className="w-full h-10 pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 placeholder-slate-500 text-sm"
+                          value={memberSearchTerm}
+                          onChange={e => setMemberSearchTerm(e.target.value)}
+                          autoFocus
+                        />
+                        <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
                       </div>
-                    ) : (
-                      <div className="grid grid-cols-1 gap-2 animate-[fadeIn_0.2s_ease-out]">
-                        {notCheckedInMembers.map(member => (
-                          <div key={member.id} className="flex items-center justify-between p-2.5 rounded-lg border border-transparent">
-                            <div className="flex items-center gap-3">
-                              <PlayerAvatar name={member.name} size="sm" />
-                              <span className="text-sm text-slate-300">{member.name}</span>
-                              <div className="scale-90 origin-left">
-                                <span className={`px-2 py-1 rounded text-[10px] font-bold border ${SKILL_LEVELS[member.level].bg} ${SKILL_LEVELS[member.level].color} ${SKILL_LEVELS[member.level].border}`}>
-                                  {SKILL_LEVELS[member.level].label}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => checkInMember(member)}
-                                className="px-3 py-1.5 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded-md text-xs font-medium transition-all flex items-center gap-1.5"
-                              >
-                                <UserCheck className="w-3.5 h-3.5" />
-                                報到
-                              </button>
-                              <button
-                                onClick={() => removeMember(member.id)}
-                                className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all"
-                                title="刪除會員"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                      {memberSearchTerm && (
+                        <button
+                          onClick={() => setMemberSearchTerm('')}
+                          className="h-10 px-3 py-2 border rounded-lg transition-colors flex items-center gap-1 shrink-0 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 border-indigo-500 text-white"
+                        >
+                          <X className="w-4 h-4" />
+                          清除
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {notCheckedInMembers.length === 0 ? (
+                    <div className="text-center py-8 text-slate-600 text-sm animate-[fadeIn_0.2s_ease-out]">
+                      {memberSearchTerm ? '找不到符合的會員' : '尚未新增會員'}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-2 animate-[fadeIn_0.2s_ease-out]">
+                      {notCheckedInMembers.map(member => (
+                        <div key={member.id} className="flex items-center justify-between p-2.5 rounded-lg border border-transparent">
+                          <div className="flex items-center gap-3">
+                            <PlayerAvatar name={member.name} size="sm" />
+                            <span className="text-sm text-slate-300">{member.name}</span>
+                            <div className="scale-90 origin-left">
+                              <span className={`px-2 py-1 rounded text-[10px] font-bold border ${SKILL_LEVELS[member.level].bg} ${SKILL_LEVELS[member.level].color} ${SKILL_LEVELS[member.level].border}`}>
+                                {SKILL_LEVELS[member.level].label}
+                              </span>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    )
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => checkInMember(member)}
+                              className="px-3 py-1.5 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded-md text-xs font-medium transition-all"
+                            >
+                              報到
+                            </button>
+                            <button
+                              onClick={() => removeMember(member.id)}
+                              className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all"
+                              title="刪除會員"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
