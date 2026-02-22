@@ -741,7 +741,7 @@ export default function App() {
         next.delete(playerId);
       } else {
         if (next.size >= MAX_PLAYERS_PER_COURT) {
-          alert(`最多只能選擇 ${MAX_PLAYERS_PER_COURT} 人一起排隊`);
+          alert(`最多只能選擇 ${MAX_PLAYERS_PER_COURT} 人組成搭檔`);
           return prev;
         }
         next.add(playerId);
@@ -1334,7 +1334,7 @@ export default function App() {
                       className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium text-sm shadow-lg shadow-indigo-900/20 flex items-center justify-center gap-2 transition-all animate-[slideUp_0.2s_ease-out]"
                     >
                       <ArrowUp className="w-4 h-4" />
-                      將選擇的 {selectedPlayerIds.size} 人一起排隊
+                      將選擇的 {selectedPlayerIds.size} 人組成搭檔
                     </button>
                   </div>
                 )}
@@ -1526,7 +1526,7 @@ export default function App() {
                       <div className="relative flex-1">
                         <input
                           type="text"
-                          placeholder="輸入新會員姓名"
+                          placeholder="輸入姓名"
                           className="w-full h-10 pl-9 pr-20 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 placeholder-slate-500 text-sm"
                           value={newMemberName}
                           onChange={e => setNewMemberName(e.target.value)}
