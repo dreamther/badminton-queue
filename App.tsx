@@ -1423,170 +1423,40 @@ export default function App() {
           {/* Tab Content: Member List */}
           {activeTab === 'members' && (
             <div className="flex-1 overflow-y-auto flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out] bg-slate-950">
-              {/* Search / Add - Icons on Right, Toggle Functionality Below */}
+              {/* Search Bar - Sticky at top */}
               <div className="p-4 sticky top-0 bg-slate-950/95 backdrop-blur z-10">
-                <div className="space-y-2">
-                  {/* Icon Row - Always Visible */}
-                  <div className="flex items-center justify-end gap-2">
-                    <button
-                      onClick={() => {
-                        setIsSearchExpanded(!isSearchExpanded);
-                        if (!isSearchExpanded) {
-                          setIsAddMemberExpanded(false);
-                          setIsBatchImportExpanded(false);
-                        }
-                      }}
-                      className="h-10 p-2 rounded-lg transition-all"
-                      title="搜尋會員"
-                    >
-                      <Search className={`w-4 h-4 transition-colors ${isSearchExpanded ? 'text-indigo-500' : 'text-slate-500 hover:text-slate-400'}`} />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsAddMemberExpanded(!isAddMemberExpanded);
-                        if (!isAddMemberExpanded) {
-                          setIsSearchExpanded(false);
-                          setIsBatchImportExpanded(false);
-                        }
-                      }}
-                      className="h-10 p-2 rounded-lg transition-all"
-                      title="新增會員"
-                    >
-                      <UserPlus className={`w-4 h-4 transition-colors ${isAddMemberExpanded ? 'text-indigo-500' : 'text-slate-500 hover:text-slate-400'}`} />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsBatchImportExpanded(!isBatchImportExpanded);
-                        if (!isBatchImportExpanded) {
-                          setIsSearchExpanded(false);
-                          setIsAddMemberExpanded(false);
-                        }
-                      }}
-                      className="h-10 p-2 rounded-lg transition-all"
-                      title="批次匯入會員"
-                    >
-                      <Upload className={`w-4 h-4 transition-colors ${isBatchImportExpanded ? 'text-indigo-500' : 'text-slate-500 hover:text-slate-400'}`} />
-                    </button>
+                {/* Search Bar - Always Visible */}
+                <div className="flex items-center gap-2 h-10">
+                  <div className="relative flex-1">
                     <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".csv"
-                      onChange={handleBatchImport}
-                      className="hidden"
+                      type="text"
+                      placeholder="搜尋會員..."
+                      className="w-full h-10 pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 placeholder-slate-500 text-sm"
+                      value={memberSearchTerm}
+                      onChange={e => setMemberSearchTerm(e.target.value)}
                     />
+                    <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
                   </div>
-
-                  {/* Functionality Row - Conditionally Visible */}
-                  {isSearchExpanded && (
-                    <div className="flex items-center gap-2 h-10 animate-[fadeIn_0.2s_ease-out]">
-                      <div className="relative flex-1">
-                        <input
-                          type="text"
-                          placeholder="搜尋會員..."
-                          className="w-full h-10 pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 placeholder-slate-500 text-sm"
-                          value={memberSearchTerm}
-                          onChange={e => setMemberSearchTerm(e.target.value)}
-                          autoFocus
-                        />
-                        <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                      </div>
-                      <button
-                        onClick={() => setMemberSearchTerm('')}
-                        className={`h-10 px-3 py-2 border rounded-lg transition-colors flex items-center gap-1 shrink-0 text-xs font-medium
-                          ${memberSearchTerm
-                            ? 'bg-indigo-600 hover:bg-indigo-500 border-indigo-500 text-white'
-                            : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-400 hover:text-slate-300'
-                          }`}
-                      >
-                        <X className="w-4 h-4" />
-                        清除
-                      </button>
-                    </div>
-                  )}
-
-                  {isAddMemberExpanded && (
-                    <div className="flex items-center gap-2 h-10 animate-[fadeIn_0.2s_ease-out]">
-                      <div className="relative flex-1">
-                        <input
-                          type="text"
-                          placeholder="輸入新會員姓名"
-                          className="w-full h-10 pl-9 pr-20 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 placeholder-slate-500 text-sm"
-                          value={newMemberName}
-                          onChange={e => setNewMemberName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && newMemberName) {
-                              createMember(newMemberName);
-                            }
-                          }}
-                          autoFocus
-                        />
-                        <UserPlus className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                        {/* Skill Level Selector - Inside Input */}
-                        <button
-                          onClick={() => {
-                            const levels: SkillLevel[] = ['beginner', 'intermediate', 'advanced'];
-                            const currentIndex = levels.indexOf(newMemberLevel);
-                            const nextIndex = (currentIndex + 1) % levels.length;
-                            setNewMemberLevel(levels[nextIndex]);
-                          }}
-                          className={`absolute right-2 top-1.5 h-7 px-2 py-0.5 rounded text-[10px] font-bold border transition-all select-none
-                            ${SKILL_LEVELS[newMemberLevel].bg} ${SKILL_LEVELS[newMemberLevel].color} ${SKILL_LEVELS[newMemberLevel].border}
-                            cursor-pointer hover:brightness-110 shadow-sm`}
-                          title="點擊切換程度"
-                        >
-                          {SKILL_LEVELS[newMemberLevel].label}
-                        </button>
-                      </div>
-                      <button
-                        onMouseDown={(e) => {
-                          // Prevent blur event from firing on input
-                          e.preventDefault();
-                        }}
-                        onClick={() => createMember(newMemberName)}
-                        disabled={!newMemberName}
-                        className={`h-10 px-3 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1 shrink-0
-                                ${!newMemberName ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-500'}
-                            `}
-                      >
-                        <Plus className="w-4 h-4" />
-                        新增
-                      </button>
-                    </div>
-                  )}
-
-                  {isBatchImportExpanded && (
-                    <div className="flex items-center gap-3 animate-[fadeIn_0.2s_ease-out]">
-                      {/* CSV Format Hint with Hover Tooltip - Left Side */}
-                      <div className="flex-1 relative group">
-                        <div className="h-10 bg-slate-800 border border-slate-700 rounded-lg px-3 flex items-center text-sm text-slate-400 cursor-help">
-                          CSV 格式範例：<span className="font-mono text-slate-300 ml-1">姓名,等級</span>
-                        </div>
-                        {/* Hover Tooltip */}
-                        <div className="absolute left-0 top-full mt-2 w-full bg-slate-900 border border-slate-700 rounded-lg p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-20 shadow-xl">
-                          <div className="bg-slate-950 rounded p-2 font-mono text-xs text-slate-300">
-                            <div className="text-emerald-400">姓名,等級</div>
-                            <div>張三,初階</div>
-                            <div>李四,中階</div>
-                            <div>王五,高階</div>
-                          </div>
-                          <div className="text-xs text-slate-500 mt-2">
-                            等級可選：初階 / 中階 / 高階
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Upload Button - Right Side */}
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="h-10 px-3 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg transition-colors hover:bg-indigo-500 flex items-center gap-1 shrink-0"
-                      >
-                        <Upload className="w-4 h-4" />
-                        匯入
-                      </button>
-                    </div>
-                  )}
+                  <button
+                    onClick={() => setMemberSearchTerm('')}
+                    className={`h-10 px-3 py-2 border rounded-lg transition-colors flex items-center gap-1 shrink-0 text-xs font-medium
+                      ${memberSearchTerm
+                        ? 'bg-indigo-600 hover:bg-indigo-500 border-indigo-500 text-white'
+                        : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-400 hover:text-slate-300'
+                      }`}
+                  >
+                    <X className="w-4 h-4" />
+                    清除
+                  </button>
                 </div>
               </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                onChange={handleBatchImport}
+                className="hidden"
+              />
 
               <div className="flex-1 p-4 space-y-6 bg-slate-950">
                 {/* Checked In Section */}
@@ -1647,6 +1517,111 @@ export default function App() {
                     {isMemberListExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                   </button>
 
+                  {/* Add Member & Batch Import - Below Section Header */}
+                  <div className="space-y-2 mb-3">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setIsAddMemberExpanded(!isAddMemberExpanded);
+                          if (!isAddMemberExpanded) setIsBatchImportExpanded(false);
+                        }}
+                        className={`flex-1 h-9 flex items-center justify-center gap-2 rounded-lg border text-xs font-medium transition-all
+                          ${isAddMemberExpanded
+                            ? 'bg-indigo-600 border-indigo-500 text-white'
+                            : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-300 hover:border-slate-600'
+                          }`}
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        新增會員
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsBatchImportExpanded(!isBatchImportExpanded);
+                          if (!isBatchImportExpanded) setIsAddMemberExpanded(false);
+                        }}
+                        className={`flex-1 h-9 flex items-center justify-center gap-2 rounded-lg border text-xs font-medium transition-all
+                          ${isBatchImportExpanded
+                            ? 'bg-indigo-600 border-indigo-500 text-white'
+                            : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-300 hover:border-slate-600'
+                          }`}
+                      >
+                        <Upload className="w-4 h-4" />
+                        批次匯入
+                      </button>
+                    </div>
+
+                    {isAddMemberExpanded && (
+                      <div className="flex items-center gap-2 h-10 animate-[fadeIn_0.2s_ease-out]">
+                        <div className="relative flex-1">
+                          <input
+                            type="text"
+                            placeholder="輸入新會員姓名"
+                            className="w-full h-10 pl-9 pr-20 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 placeholder-slate-500 text-sm"
+                            value={newMemberName}
+                            onChange={e => setNewMemberName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && newMemberName) {
+                                createMember(newMemberName);
+                              }
+                            }}
+                            autoFocus
+                          />
+                          <UserPlus className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                          <button
+                            onClick={() => {
+                              const levels: SkillLevel[] = ['beginner', 'intermediate', 'advanced'];
+                              const currentIndex = levels.indexOf(newMemberLevel);
+                              const nextIndex = (currentIndex + 1) % levels.length;
+                              setNewMemberLevel(levels[nextIndex]);
+                            }}
+                            className={`absolute right-2 top-1.5 h-7 px-2 py-0.5 rounded text-[10px] font-bold border transition-all select-none
+                              ${SKILL_LEVELS[newMemberLevel].bg} ${SKILL_LEVELS[newMemberLevel].color} ${SKILL_LEVELS[newMemberLevel].border}
+                              cursor-pointer hover:brightness-110 shadow-sm`}
+                            title="點擊切換程度"
+                          >
+                            {SKILL_LEVELS[newMemberLevel].label}
+                          </button>
+                        </div>
+                        <button
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => createMember(newMemberName)}
+                          disabled={!newMemberName}
+                          className={`h-10 px-3 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1 shrink-0
+                            ${!newMemberName ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-500'}`}
+                        >
+                          <Plus className="w-4 h-4" />
+                          新增
+                        </button>
+                      </div>
+                    )}
+
+                    {isBatchImportExpanded && (
+                      <div className="flex items-center gap-3 animate-[fadeIn_0.2s_ease-out]">
+                        <div className="flex-1 relative group">
+                          <div className="h-10 bg-slate-800 border border-slate-700 rounded-lg px-3 flex items-center text-sm text-slate-400 cursor-help">
+                            CSV 格式範例：<span className="font-mono text-slate-300 ml-1">姓名,等級</span>
+                          </div>
+                          <div className="absolute left-0 top-full mt-2 w-full bg-slate-900 border border-slate-700 rounded-lg p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-20 shadow-xl">
+                            <div className="bg-slate-950 rounded p-2 font-mono text-xs text-slate-300">
+                              <div className="text-emerald-400">姓名,等級</div>
+                              <div>張三,初階</div>
+                              <div>李四,中階</div>
+                              <div>王五,高階</div>
+                            </div>
+                            <div className="text-xs text-slate-500 mt-2">等級可選：初階 / 中階 / 高階</div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className="h-10 px-3 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg transition-colors hover:bg-indigo-500 flex items-center gap-1 shrink-0"
+                        >
+                          <Upload className="w-4 h-4" />
+                          匯入
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
                   {isMemberListExpanded && (
                     notCheckedInMembers.length === 0 ? (
                       <div className="text-center py-8 text-slate-600 text-sm animate-[fadeIn_0.2s_ease-out]">
@@ -1655,10 +1630,10 @@ export default function App() {
                     ) : (
                       <div className="grid grid-cols-1 gap-2 animate-[fadeIn_0.2s_ease-out]">
                         {notCheckedInMembers.map(member => (
-                          <div key={member.id} className="group flex items-center justify-between p-2.5 hover:bg-slate-800 rounded-lg transition-colors border border-transparent hover:border-slate-700">
+                          <div key={member.id} className="flex items-center justify-between p-2.5 hover:bg-slate-800 rounded-lg transition-colors border border-transparent hover:border-slate-700">
                             <div className="flex items-center gap-3">
-                              <PlayerAvatar name={member.name} size="sm" className="grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all" />
-                              <span className="text-sm text-slate-300 group-hover:text-white">{member.name}</span>
+                              <PlayerAvatar name={member.name} size="sm" />
+                              <span className="text-sm text-slate-300">{member.name}</span>
                               <div className="scale-90 origin-left">
                                 <LevelSelector level={member.level} onChange={(l) => updateMemberLevel(member.id, l)} />
                               </div>
@@ -1673,7 +1648,7 @@ export default function App() {
                               </button>
                               <button
                                 onClick={() => removeMember(member.id)}
-                                className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-md opacity-0 group-hover:opacity-100 transition-all"
+                                className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all"
                                 title="刪除會員"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
