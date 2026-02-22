@@ -1482,23 +1482,21 @@ export default function App() {
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => createMember(newMemberName)}
                     disabled={!newMemberName}
-                    className={`h-10 px-3 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1 shrink-0
+                    className={`h-10 px-3 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg transition-colors shrink-0
                       ${!newMemberName ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-500'}`}
                   >
-                    <Plus className="w-4 h-4" />
                     新增
                   </button>
                   {/* Batch Import - with Hover Tooltip */}
                   <div className="relative group shrink-0">
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="h-10 px-3 py-2 bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-300 hover:border-slate-600 text-xs font-medium rounded-lg transition-all flex items-center gap-1"
+                      className="h-10 px-3 py-2 bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-300 hover:border-slate-600 text-xs font-medium rounded-lg transition-all"
                     >
-                      <Upload className="w-4 h-4" />
                       匯入
                     </button>
                     {/* Hover Tooltip */}
-                    <div className="absolute right-0 bottom-full mb-2 w-48 bg-slate-900 border border-slate-700 rounded-lg p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-20 shadow-xl pointer-events-none">
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-slate-900 border border-slate-700 rounded-lg p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-20 shadow-xl pointer-events-none">
                       <div className="text-xs text-slate-400 mb-1.5">CSV 格式範例：</div>
                       <div className="bg-slate-950 rounded p-2 font-mono text-xs text-slate-300">
                         <div className="text-emerald-400">姓名,等級</div>
