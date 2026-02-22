@@ -1067,14 +1067,15 @@ export default function App() {
               {/* Waiting Queue */}
               <div className="p-4">
                 <div className="flex items-center justify-between mb-3 px-1">
+                  <h2 className="text-sm font-semibold text-slate-400">
+                    等待上場 ({queue.length})
+                  </h2>
                   <button
                     onClick={() => setIsQueueExpanded(!isQueueExpanded)}
-                    className="flex items-center gap-2 text-sm font-semibold text-slate-400 hover:text-slate-300 transition-colors group"
+                    className="h-8 px-2 rounded-lg transition-all text-xs text-slate-500 hover:text-slate-400"
                   >
-                    等待上場 ({queue.length})
-                    {isQueueExpanded ? <ChevronDown className="w-4 h-4 text-slate-400/70 group-hover:text-slate-300" /> : <ChevronUp className="w-4 h-4 text-slate-400/70 group-hover:text-slate-300" />}
+                    {isQueueExpanded ? '收合' : '展開'}
                   </button>
-
                 </div>
 
                 <div className="space-y-2">
