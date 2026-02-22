@@ -1302,24 +1302,22 @@ export default function App() {
                         <input
                           type="text"
                           placeholder="搜尋球員..."
-                          className="w-full h-10 pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 placeholder-slate-500 text-sm"
+                          className="w-full h-10 pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 placeholder-slate-500 text-sm"
                           value={restAreaSearchTerm}
                           onChange={e => setRestAreaSearchTerm(e.target.value)}
                           autoFocus
                         />
                         <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
                       </div>
-                      <button
-                        onClick={() => setRestAreaSearchTerm('')}
-                        className={`h-10 px-3 py-2 border rounded-lg transition-colors flex items-center gap-1 shrink-0 text-xs font-medium
-                          ${restAreaSearchTerm
-                            ? 'bg-indigo-600 hover:bg-indigo-500 border-indigo-500 text-white'
-                            : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-400 hover:text-slate-300'
-                          }`}
-                      >
-                        <X className="w-4 h-4" />
-                        清除
-                      </button>
+                      {restAreaSearchTerm && (
+                        <button
+                          onClick={() => setRestAreaSearchTerm('')}
+                          className="h-10 px-3 py-2 border rounded-lg transition-colors flex items-center gap-1 shrink-0 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 border-indigo-500 text-white"
+                        >
+                          <X className="w-4 h-4" />
+                          清除
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
