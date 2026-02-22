@@ -1224,14 +1224,12 @@ export default function App() {
                         if (advancedCount >= 3) {
                           matchTag = (
                             <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-rose-500/20 border border-rose-500/30 text-rose-300 text-[10px] font-bold animate-pulse ml-auto shrink-0">
-                              <Zap className="w-3 h-3 fill-current" />
                               激鬥場
                             </div>
                           );
                         } else if (beginnerCount >= 3) {
                           matchTag = (
                             <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold ml-auto shrink-0">
-                              <Coffee className="w-3 h-3" />
                               休閒場
                             </div>
                           );
@@ -1364,7 +1362,7 @@ export default function App() {
                                     onChange={() => togglePlayerSelection(player.id)}
                                     className="sr-only peer"
                                   />
-                                  <div className="w-4 h-4 rounded-full border border-indigo-500 bg-transparent peer-checked:bg-indigo-500 peer-checked:border-indigo-500 transition-all flex items-center justify-center">
+                                  <div className="w-4 h-4 rounded-md border border-slate-600 hover:border-indigo-500 bg-transparent peer-checked:bg-indigo-500 peer-checked:border-indigo-500 transition-all flex items-center justify-center">
                                     {isSelected && (
                                       <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />

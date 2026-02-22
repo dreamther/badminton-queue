@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Court, Player, MAX_PLAYERS_PER_COURT } from '../types';
 import { PlayerAvatar } from './PlayerAvatar';
-import { Clock, Play, LogOut, Users, Zap, Coffee, Edit2, Check, X, Volume2, VolumeX } from 'lucide-react';
+import { Clock, Play, LogOut, Users, Zap, Coffee, Edit2, Check, X, Bell, BellOff } from 'lucide-react';
 
 interface CourtCardProps {
     court: Court;
@@ -44,14 +44,12 @@ export const CourtCard: React.FC<CourtCardProps> = ({
         if (advancedCount >= 3) {
             matchTag = (
                 <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-bold animate-pulse">
-                    <Zap className="w-3 h-3 fill-current" />
                     激鬥場
                 </div>
             );
         } else if (beginnerCount >= 3) {
             matchTag = (
                 <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold">
-                    <Coffee className="w-3 h-3" />
                     休閒場
                 </div>
             );
@@ -59,8 +57,11 @@ export const CourtCard: React.FC<CourtCardProps> = ({
     }
 
     const handleSaveRename = () => {
-        if (onRenameCourt && editName.trim()) {
-            onRenameCourt(court.id, editName);
+        if (onRenameCourt) {
+            const trimmed = editName.trim();
+            const finalName = trimmed || `場地 ${court.id}`;
+            onRenameCourt(court.id, finalName);
+            setEditName(finalName);
             setIsEditing(false);
         }
     };
@@ -156,9 +157,9 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                             title="手動語音提醒"
                         >
                             {isAutoAnnounce ? (
-                                <Volume2 className="w-4 h-4" />
+                                <Bell className="w-4 h-4" />
                             ) : (
-                                <VolumeX className="w-4 h-4" />
+                                <BellOff className="w-4 h-4" />
                             )}
                         </button>
                     )}
