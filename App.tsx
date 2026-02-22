@@ -1696,6 +1696,7 @@ export default function App() {
                 <div className="text-sm text-slate-300">
                   <span className="font-semibold text-emerald-400">{checkInSuccessName}</span> 已成功報到
                 </div>
+                <div className="text-xs text-slate-500 mt-1">請至排隊區加入等待</div>
               </div>
             </div>
           </div>
