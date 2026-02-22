@@ -78,7 +78,7 @@ export default function App() {
 
   const [memberSearchTerm, setMemberSearchTerm] = useState('');
   const [newMemberName, setNewMemberName] = useState('');
-  const [newMemberLevel, setNewMemberLevel] = useState<SkillLevel>('beginner');
+  const [newMemberLevel, setNewMemberLevel] = useState<SkillLevel>('intermediate');
   const [restAreaSearchTerm, setRestAreaSearchTerm] = useState('');
   const [isRestAreaSearchExpanded, setIsRestAreaSearchExpanded] = useState(false);
 
@@ -432,7 +432,7 @@ export default function App() {
           // Support both English and Chinese skill level names
           if (levelValue === 'advanced' || levelValue === '進階' || levelValue === '高級' || levelValue === '高階') {
             level = 'advanced';
-          } else if (levelValue === 'intermediate' || levelValue === '中階' || levelValue === '中级') {
+          } else if (levelValue === 'intermediate' || levelValue === '一般' || levelValue === '中階' || levelValue === '中级') {
             level = 'intermediate';
           } else if (levelValue === 'beginner' || levelValue === '初階' || levelValue === '初级') {
             level = 'beginner';
@@ -1494,7 +1494,7 @@ export default function App() {
                         ${SKILL_LEVELS[newMemberLevel].bg} ${SKILL_LEVELS[newMemberLevel].color} ${SKILL_LEVELS[newMemberLevel].border}`}
                     >
                       <option value="beginner">初階</option>
-                      <option value="intermediate">中階</option>
+                      <option value="intermediate">一般</option>
                       <option value="advanced">高階</option>
                     </select>
                   </div>
@@ -1521,10 +1521,10 @@ export default function App() {
                       <div className="bg-slate-950 rounded p-2 font-mono text-xs text-slate-300">
                         <div className="text-emerald-400">姓名,等級</div>
                         <div>張三,初階</div>
-                        <div>李四,中階</div>
+                        <div>李四,一般</div>
                         <div>王五,高階</div>
                       </div>
-                      <div className="text-xs text-slate-500 mt-2">等級可選：初階 / 中階 / 高階</div>
+                      <div className="text-xs text-slate-500 mt-2">等級可選：初階 / 一般 / 高階</div>
                     </div>
                   </div>
                 </div>
@@ -1559,16 +1559,16 @@ export default function App() {
                               </span>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 shrink-0">
                             <button
                               onClick={() => checkInMember(member)}
-                              className="px-3 py-1.5 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded-md text-xs font-medium transition-all"
+                              className="h-10 px-3 py-2 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded-lg text-xs font-medium transition-all shrink-0"
                             >
                               報到
                             </button>
                             <button
                               onClick={() => removeMember(member.id)}
-                              className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all opacity-0 group-hover:opacity-100"
+                              className="h-10 px-3 py-2 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100 shrink-0"
                               title="刪除會員"
                             >
                               <X className="w-3.5 h-3.5" />
