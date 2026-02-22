@@ -1069,11 +1069,10 @@ export default function App() {
                 <div className="flex items-center justify-between mb-3 px-1">
                   <button
                     onClick={() => setIsQueueExpanded(!isQueueExpanded)}
-                    className="flex items-center gap-2 text-sm font-semibold text-indigo-400 hover:text-indigo-300 transition-colors group"
+                    className="flex items-center gap-2 text-sm font-semibold text-slate-400 hover:text-slate-300 transition-colors group"
                   >
-                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)]"></div>
                     等待上場 ({queue.length})
-                    {isQueueExpanded ? <ChevronDown className="w-4 h-4 text-indigo-400/70 group-hover:text-indigo-300" /> : <ChevronUp className="w-4 h-4 text-indigo-400/70 group-hover:text-indigo-300" />}
+                    {isQueueExpanded ? <ChevronDown className="w-4 h-4 text-slate-400/70 group-hover:text-slate-300" /> : <ChevronUp className="w-4 h-4 text-slate-400/70 group-hover:text-slate-300" />}
                   </button>
 
                 </div>
@@ -1279,8 +1278,7 @@ export default function App() {
                 <div className="space-y-4 mb-3">
                   {/* Header with Search Icon */}
                   <div className="flex items-center justify-between px-1">
-                    <h2 className="text-sm font-semibold text-slate-400 flex items-center gap-2">
-                      <Coffee className="w-3.5 h-3.5" />
+                    <h2 className="text-sm font-semibold text-slate-400">
                       休息區 ({idlePlayers.length})
                     </h2>
                     <button
@@ -1423,8 +1421,53 @@ export default function App() {
           {/* Tab Content: Member List */}
           {activeTab === 'members' && (
             <div className="flex-1 overflow-y-auto flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out] bg-slate-950">
-              {/* Add Member & Import - Sticky at top */}
-              <div className="p-4 sticky top-0 bg-slate-950/95 backdrop-blur z-10">
+              {/* Sticky header: member list title + search + add/import */}
+              <div className="p-4 pb-3 sticky top-0 bg-slate-950/95 backdrop-blur z-10 space-y-2">
+                {/* Member List Header with Search Icon */}
+                <div className="flex items-center justify-between px-1">
+                  <h2 className="text-sm font-semibold text-slate-400">
+                    會員列表 ({notCheckedInMembers.length})
+                  </h2>
+                  <button
+                    onClick={() => {
+                      setIsSearchExpanded(!isSearchExpanded);
+                      if (isSearchExpanded) {
+                        setMemberSearchTerm('');
+                      }
+                    }}
+                    className="h-8 p-1.5 rounded-lg transition-all"
+                    title="搜尋會員"
+                  >
+                    <Search className={`w-4 h-4 transition-colors ${isSearchExpanded ? 'text-indigo-500' : 'text-slate-500 hover:text-slate-400'}`} />
+                  </button>
+                </div>
+
+                {/* Search Input - expands when toggled */}
+                {isSearchExpanded && (
+                  <div className="flex items-center gap-2 h-10 animate-[fadeIn_0.2s_ease-out]">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        placeholder="搜尋會員..."
+                        className="w-full h-10 pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 placeholder-slate-500 text-sm"
+                        value={memberSearchTerm}
+                        onChange={e => setMemberSearchTerm(e.target.value)}
+                        autoFocus
+                      />
+                      <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                    </div>
+                    {memberSearchTerm && (
+                      <button
+                        onClick={() => setMemberSearchTerm('')}
+                        className="h-10 px-3 py-2 border rounded-lg transition-colors flex items-center gap-1 shrink-0 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 border-indigo-500 text-white"
+                      >
+                        <X className="w-4 h-4" />
+                        清除
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* Add Member Form & Batch Import */}
                 <div className="flex items-center gap-2 h-10">
                   <div className="relative flex-1">
@@ -1498,51 +1541,6 @@ export default function App() {
 
                 {/* Member List Section */}
                 <div>
-                  {/* Header with Search Icon */}
-                  <div className="flex items-center justify-between px-1 mb-2">
-                    <h2 className="text-sm font-semibold text-slate-400 flex items-center gap-2">
-                      <Users className="w-3.5 h-3.5" />
-                      會員列表 ({notCheckedInMembers.length})
-                    </h2>
-                    <button
-                      onClick={() => {
-                        setIsSearchExpanded(!isSearchExpanded);
-                        if (isSearchExpanded) {
-                          setMemberSearchTerm('');
-                        }
-                      }}
-                      className="h-8 p-1.5 rounded-lg transition-all"
-                      title="搜尋會員"
-                    >
-                      <Search className={`w-4 h-4 transition-colors ${isSearchExpanded ? 'text-indigo-500' : 'text-slate-500 hover:text-slate-400'}`} />
-                    </button>
-                  </div>
-
-                  {/* Search Input */}
-                  {isSearchExpanded && (
-                    <div className="flex items-center gap-2 h-10 mb-3 animate-[fadeIn_0.2s_ease-out]">
-                      <div className="relative flex-1">
-                        <input
-                          type="text"
-                          placeholder="搜尋會員..."
-                          className="w-full h-10 pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 placeholder-slate-500 text-sm"
-                          value={memberSearchTerm}
-                          onChange={e => setMemberSearchTerm(e.target.value)}
-                          autoFocus
-                        />
-                        <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                      </div>
-                      {memberSearchTerm && (
-                        <button
-                          onClick={() => setMemberSearchTerm('')}
-                          className="h-10 px-3 py-2 border rounded-lg transition-colors flex items-center gap-1 shrink-0 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 border-indigo-500 text-white"
-                        >
-                          <X className="w-4 h-4" />
-                          清除
-                        </button>
-                      )}
-                    </div>
-                  )}
                   {notCheckedInMembers.length === 0 ? (
                     <div className="text-center py-8 text-slate-600 text-sm animate-[fadeIn_0.2s_ease-out]">
                       {memberSearchTerm ? '找不到符合的會員' : '尚未新增會員'}
