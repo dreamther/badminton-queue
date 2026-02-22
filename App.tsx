@@ -1547,7 +1547,7 @@ export default function App() {
                   ) : (
                     <div className="grid grid-cols-1 gap-2 animate-[fadeIn_0.2s_ease-out]">
                       {notCheckedInMembers.map(member => (
-                        <div key={member.id} className="flex items-center justify-between p-2.5 rounded-lg border border-transparent">
+                        <div key={member.id} className="group flex items-center justify-between p-2.5 rounded-lg border border-transparent">
                           <div className="flex items-center gap-3">
                             <PlayerAvatar name={member.name} size="sm" />
                             <span className="text-sm text-slate-300">{member.name}</span>
@@ -1566,10 +1566,10 @@ export default function App() {
                             </button>
                             <button
                               onClick={() => removeMember(member.id)}
-                              className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all"
+                              className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all opacity-0 group-hover:opacity-100"
                               title="刪除會員"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <X className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </div>
