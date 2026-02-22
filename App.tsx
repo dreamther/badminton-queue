@@ -1484,7 +1484,9 @@ export default function App() {
                                 <PlayerAvatar name={member.name} size="sm" />
                                 <span className="text-sm font-medium text-green-100">{member.name}</span>
                                 <div className="scale-90 origin-left">
-                                  <LevelSelector level={member.level} onChange={(l) => updateMemberLevel(member.id, l)} />
+                                  <span className={`px-2 py-1 rounded text-[10px] font-bold border ${SKILL_LEVELS[member.level].bg} ${SKILL_LEVELS[member.level].color} ${SKILL_LEVELS[member.level].border}`}>
+                                    {SKILL_LEVELS[member.level].label}
+                                  </span>
                                 </div>
                               </div>
                               {activePlayer && (
@@ -1519,26 +1521,51 @@ export default function App() {
 
                   {/* Add Member & Batch Import - Below Section Header */}
                   <div className="space-y-2 mb-3">
+                    {/* Add Member Form - Always Visible */}
+                    <div className="flex items-center gap-2 h-10">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          placeholder="輸入新會員姓名"
+                          className="w-full h-10 pl-9 pr-20 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 placeholder-slate-500 text-sm"
+                          value={newMemberName}
+                          onChange={e => setNewMemberName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && newMemberName) {
+                              createMember(newMemberName);
+                            }
+                          }}
+                        />
+                        <UserPlus className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                        {/* Skill Level Dropdown */}
+                        <select
+                          value={newMemberLevel}
+                          onChange={e => setNewMemberLevel(e.target.value as SkillLevel)}
+                          onClick={e => e.stopPropagation()}
+                          className={`absolute right-2 top-1.5 h-7 px-1.5 rounded text-[10px] font-bold border transition-all appearance-none cursor-pointer
+                            ${SKILL_LEVELS[newMemberLevel].bg} ${SKILL_LEVELS[newMemberLevel].color} ${SKILL_LEVELS[newMemberLevel].border}`}
+                        >
+                          <option value="beginner">初階</option>
+                          <option value="intermediate">中階</option>
+                          <option value="advanced">高階</option>
+                        </select>
+                      </div>
+                      <button
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => createMember(newMemberName)}
+                        disabled={!newMemberName}
+                        className={`h-10 px-3 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1 shrink-0
+                          ${!newMemberName ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-500'}`}
+                      >
+                        <Plus className="w-4 h-4" />
+                        新增
+                      </button>
+                    </div>
+
+                    {/* Batch Import Toggle */}
                     <div className="flex gap-2">
                       <button
-                        onClick={() => {
-                          setIsAddMemberExpanded(!isAddMemberExpanded);
-                          if (!isAddMemberExpanded) setIsBatchImportExpanded(false);
-                        }}
-                        className={`flex-1 h-9 flex items-center justify-center gap-2 rounded-lg border text-xs font-medium transition-all
-                          ${isAddMemberExpanded
-                            ? 'bg-indigo-600 border-indigo-500 text-white'
-                            : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-300 hover:border-slate-600'
-                          }`}
-                      >
-                        <UserPlus className="w-4 h-4" />
-                        新增會員
-                      </button>
-                      <button
-                        onClick={() => {
-                          setIsBatchImportExpanded(!isBatchImportExpanded);
-                          if (!isBatchImportExpanded) setIsAddMemberExpanded(false);
-                        }}
+                        onClick={() => setIsBatchImportExpanded(!isBatchImportExpanded)}
                         className={`flex-1 h-9 flex items-center justify-center gap-2 rounded-lg border text-xs font-medium transition-all
                           ${isBatchImportExpanded
                             ? 'bg-indigo-600 border-indigo-500 text-white'
@@ -1549,51 +1576,6 @@ export default function App() {
                         批次匯入
                       </button>
                     </div>
-
-                    {isAddMemberExpanded && (
-                      <div className="flex items-center gap-2 h-10 animate-[fadeIn_0.2s_ease-out]">
-                        <div className="relative flex-1">
-                          <input
-                            type="text"
-                            placeholder="輸入新會員姓名"
-                            className="w-full h-10 pl-9 pr-20 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 placeholder-slate-500 text-sm"
-                            value={newMemberName}
-                            onChange={e => setNewMemberName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && newMemberName) {
-                                createMember(newMemberName);
-                              }
-                            }}
-                            autoFocus
-                          />
-                          <UserPlus className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                          <button
-                            onClick={() => {
-                              const levels: SkillLevel[] = ['beginner', 'intermediate', 'advanced'];
-                              const currentIndex = levels.indexOf(newMemberLevel);
-                              const nextIndex = (currentIndex + 1) % levels.length;
-                              setNewMemberLevel(levels[nextIndex]);
-                            }}
-                            className={`absolute right-2 top-1.5 h-7 px-2 py-0.5 rounded text-[10px] font-bold border transition-all select-none
-                              ${SKILL_LEVELS[newMemberLevel].bg} ${SKILL_LEVELS[newMemberLevel].color} ${SKILL_LEVELS[newMemberLevel].border}
-                              cursor-pointer hover:brightness-110 shadow-sm`}
-                            title="點擊切換程度"
-                          >
-                            {SKILL_LEVELS[newMemberLevel].label}
-                          </button>
-                        </div>
-                        <button
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => createMember(newMemberName)}
-                          disabled={!newMemberName}
-                          className={`h-10 px-3 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1 shrink-0
-                            ${!newMemberName ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-500'}`}
-                        >
-                          <Plus className="w-4 h-4" />
-                          新增
-                        </button>
-                      </div>
-                    )}
 
                     {isBatchImportExpanded && (
                       <div className="flex items-center gap-3 animate-[fadeIn_0.2s_ease-out]">
@@ -1630,12 +1612,14 @@ export default function App() {
                     ) : (
                       <div className="grid grid-cols-1 gap-2 animate-[fadeIn_0.2s_ease-out]">
                         {notCheckedInMembers.map(member => (
-                          <div key={member.id} className="flex items-center justify-between p-2.5 hover:bg-slate-800 rounded-lg transition-colors border border-transparent hover:border-slate-700">
+                          <div key={member.id} className="flex items-center justify-between p-2.5 rounded-lg border border-transparent">
                             <div className="flex items-center gap-3">
                               <PlayerAvatar name={member.name} size="sm" />
                               <span className="text-sm text-slate-300">{member.name}</span>
                               <div className="scale-90 origin-left">
-                                <LevelSelector level={member.level} onChange={(l) => updateMemberLevel(member.id, l)} />
+                                <span className={`px-2 py-1 rounded text-[10px] font-bold border ${SKILL_LEVELS[member.level].bg} ${SKILL_LEVELS[member.level].color} ${SKILL_LEVELS[member.level].border}`}>
+                                  {SKILL_LEVELS[member.level].label}
+                                </span>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
