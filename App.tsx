@@ -1356,21 +1356,25 @@ export default function App() {
                         >
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <div className="flex items-center h-5 shrink-0">
-                              <label className="relative flex items-center cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={() => togglePlayerSelection(player.id)}
-                                  className="sr-only peer"
-                                />
-                                <div className="w-4 h-4 rounded-full border-2 border-indigo-500 bg-transparent peer-checked:bg-indigo-500 peer-checked:border-indigo-500 transition-all flex items-center justify-center">
-                                  {isSelected && (
-                                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                  )}
-                                </div>
-                              </label>
+                              {(isSelected || selectedPlayerIds.size < MAX_PLAYERS_PER_COURT) ? (
+                                <label className="relative flex items-center cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => togglePlayerSelection(player.id)}
+                                    className="sr-only peer"
+                                  />
+                                  <div className="w-4 h-4 rounded-full border border-indigo-500 bg-transparent peer-checked:bg-indigo-500 peer-checked:border-indigo-500 transition-all flex items-center justify-center">
+                                    {isSelected && (
+                                      <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                </label>
+                              ) : (
+                                <div className="w-4 h-4" />
+                              )}
                             </div>
                             <div className="flex items-center gap-3 cursor-pointer flex-1 min-w-0" onClick={() => togglePlayerSelection(player.id)}>
                               <PlayerAvatar name={player.name} size="sm" className={isSelected ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-slate-900' : ''} />
