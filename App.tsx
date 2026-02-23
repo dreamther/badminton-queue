@@ -995,28 +995,28 @@ export default function App() {
       {/* Mobile Backdrop for Sidebar */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden animate-[fadeIn_0.2s_ease-out]"
+          className="fixed inset-0 bg-black/50 z-30 md:hidden animate-[fadeIn_0.2s_ease-out]"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       {/* Mobile: Fixed/Absolute with translate transform for slide effect */}
-      {/* Desktop: Relative flow with width transition */}
+      {/* Desktop: Relative flow, permanently visible */}
       <aside
         className={`
-          fixed lg:relative inset-y-0 left-0 z-40
-          bg-slate-950 border-r border-slate-800 flex flex-col shrink-0 shadow-2xl lg:shadow-none
-          transition-all duration-300 ease-in-out
+          fixed md:relative inset-y-0 left-0 z-40
+          bg-slate-950 border-r border-slate-800 flex flex-col shrink-0 shadow-2xl md:shadow-none
+          transition-transform duration-300 ease-in-out w-80 md:w-96
           ${isSidebarOpen
-            ? 'translate-x-0 w-80 lg:w-96'
-            : '-translate-x-full lg:translate-x-0 lg:w-0 lg:border-r-0'
+            ? 'translate-x-0'
+            : '-translate-x-full md:translate-x-0'
           }
         `}
       >
 
         {/* App Header */}
-        <div className={`p-6 pb-4 bg-slate-950 ${!isSidebarOpen && 'lg:hidden'}`}>
+        <div className="p-6 pb-4 bg-slate-950">
           <div className="flex items-center gap-3 mb-1">
             <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-2 rounded-lg shadow-lg shadow-indigo-500/20">
               <Trophy className="w-5 h-5 text-white" />
@@ -1031,7 +1031,7 @@ export default function App() {
         </div>
 
         {/* Tabs */}
-        <div className={`flex border-b border-slate-800 px-2 ${!isSidebarOpen && 'lg:hidden'}`}>
+        <div className="flex border-b border-slate-800 px-2">
           <button
             onClick={() => setActiveTab('members')}
             className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'members'
@@ -1055,7 +1055,7 @@ export default function App() {
         </div>
 
         {/* Content Container - Hide on desktop when closed to prevent content reflow issues during transition */}
-        <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${!isSidebarOpen && 'lg:hidden'}`}>
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Tab Content: Queue Management */}
           {activeTab === 'queue' && (
             <div className="flex-1 overflow-y-auto flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out]">
@@ -1388,11 +1388,11 @@ export default function App() {
               {/* Sticky header: member list title + search + add/import */}
               <div className="p-4 pb-3 sticky top-0 bg-slate-950/95 backdrop-blur z-10 space-y-2">
                 {/* Member List Header with Search Icon */}
-                <div className="flex items-center justify-between px-1">
+                <div className="flex items-center justify-between pl-1">
                   <h2 className="text-sm font-semibold text-slate-400">
                     會員列表 ({notCheckedInMembers.length})
                   </h2>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 -mr-1.5">
                     <button
                       onClick={() => {
                         setIsSearchExpanded(!isSearchExpanded);
@@ -1595,7 +1595,7 @@ export default function App() {
             {/* Sidebar Toggle Button */}
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className={`p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors ${isSidebarOpen ? 'bg-slate-800/50 text-white' : ''}`}
+              className={`md:hidden p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors ${isSidebarOpen ? 'bg-slate-800/50 text-white' : ''}`}
               title={isSidebarOpen ? "收納側邊欄" : "展開側邊欄"}
             >
               <PanelLeft className="w-5 h-5" />
