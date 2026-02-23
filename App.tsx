@@ -83,9 +83,7 @@ export default function App() {
   const [restAreaSearchTerm, setRestAreaSearchTerm] = useState('');
   const [isRestAreaSearchExpanded, setIsRestAreaSearchExpanded] = useState(false);
 
-  // Drag and drop state
-  const [draggedPlayerId, setDraggedPlayerId] = useState<string | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  // Drag and drop state removed
 
   // --- Persistence ---
   useEffect(() => {
@@ -654,84 +652,7 @@ export default function App() {
       return p;
     }));
   }, [players]);
-
-  // Drag and drop handlers for queue reordering
-  const handleDragStart = useCallback((e: React.DragEvent, playerId: string) => {
-    setDraggedPlayerId(playerId);
-    e.dataTransfer.effectAllowed = 'move';
-    // Add a slight delay to allow the drag image to be created
-    setTimeout(() => {
-      (e.target as HTMLElement).style.opacity = '0.5';
-    }, 0);
-  }, []);
-
-  const handleDragEnd = useCallback((e: React.DragEvent) => {
-    (e.target as HTMLElement).style.opacity = '1';
-    setDraggedPlayerId(null);
-    setDragOverIndex(null);
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent, targetIndex: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setDragOverIndex(targetIndex);
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent, targetPlayerId: string) => {
-    e.preventDefault();
-
-    if (!draggedPlayerId || draggedPlayerId === targetPlayerId) {
-      setDraggedPlayerId(null);
-      setDragOverIndex(null);
-      return;
-    }
-
-    const queuedPlayers = players.filter(p => p.status === 'queued').sort((a, b) => a.joinedAt - b.joinedAt);
-
-    const draggedPlayer = queuedPlayers.find(p => p.id === draggedPlayerId);
-    const targetPlayer = queuedPlayers.find(p => p.id === targetPlayerId);
-
-    if (!draggedPlayer || !targetPlayer) return;
-
-    // Get all players in dragged item (individual or group)
-    const draggedGroupId = draggedPlayer.groupId;
-    const draggedItemPlayers = draggedGroupId
-      ? queuedPlayers.filter(p => p.groupId === draggedGroupId)
-      : [draggedPlayer];
-
-    // Get all players in target item (individual or group)
-    const targetGroupId = targetPlayer.groupId;
-    const targetItemPlayers = targetGroupId
-      ? queuedPlayers.filter(p => p.groupId === targetGroupId)
-      : [targetPlayer];
-
-    // Find indices
-    const draggedFirstIndex = queuedPlayers.findIndex(p => draggedItemPlayers.includes(p));
-    const targetFirstIndex = queuedPlayers.findIndex(p => targetItemPlayers.includes(p));
-
-    if (draggedFirstIndex === targetFirstIndex) return;
-
-    // Get timestamps
-    const draggedFirstTime = queuedPlayers[draggedFirstIndex].joinedAt;
-    const targetFirstTime = queuedPlayers[targetFirstIndex].joinedAt;
-
-    // Swap timestamps
-    setPlayers(prev => prev.map(p => {
-      if (draggedItemPlayers.find(ip => ip.id === p.id)) {
-        const offset = draggedItemPlayers.indexOf(draggedItemPlayers.find(ip => ip.id === p.id)!);
-        return { ...p, joinedAt: targetFirstTime + offset };
-      }
-      if (targetItemPlayers.find(tp => tp.id === p.id)) {
-        const offset = targetItemPlayers.indexOf(targetItemPlayers.find(tp => tp.id === p.id)!);
-        return { ...p, joinedAt: draggedFirstTime + offset };
-      }
-      return p;
-    }));
-
-    setDraggedPlayerId(null);
-    setDragOverIndex(null);
-  }, [draggedPlayerId, players]);
-
+  // Drag and drop handlers removed
   // Toggle Selection for Batch Actions
   const togglePlayerSelection = useCallback((playerId: string) => {
     setSelectedPlayerIds(prev => {
@@ -1137,13 +1058,7 @@ export default function App() {
                         return (
                           <React.Fragment key={player.id}>
                             <div
-                              className={`relative flex group transition-all animate-[fadeIn_0.3s_ease-out] ${dragOverIndex === idx ? 'scale-105' : ''
-                                }`}
-                              draggable={!isGrouped || !prevSameGroup}
-                              onDragStart={(e) => (!isGrouped || !prevSameGroup) && handleDragStart(e, player.id)}
-                              onDragEnd={handleDragEnd}
-                              onDragOver={(e) => handleDragOver(e, idx)}
-                              onDrop={(e) => handleDrop(e, player.id)}
+                              className="relative flex group transition-all animate-[fadeIn_0.3s_ease-out]"
                             >
                               {/* Group Indicator Line */}
                               {isGrouped && (
@@ -1155,9 +1070,6 @@ export default function App() {
 
                               <div className={`flex-1 flex items-center justify-between p-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl ml-2 transition-all
                                                         ${isGrouped ? 'border-l-0 rounded-l-none' : ''}
-                                                        ${draggedPlayerId === player.id ? 'opacity-50' : ''}
-                                                        ${dragOverIndex === idx ? 'border-indigo-500 shadow-lg shadow-indigo-500/20' : ''}
-                                                        ${(!isGrouped || !prevSameGroup) ? 'cursor-move' : ''}
                                                     `}>
                                 <div className="flex items-center gap-3 overflow-hidden">
                                   <span className="font-mono text-xs text-slate-500 w-4 text-center shrink-0">{idx + 1}</span>
