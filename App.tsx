@@ -431,11 +431,9 @@ export default function App() {
         if (levelIndex !== -1 && values[levelIndex]) {
           const levelValue = values[levelIndex].trim().toLowerCase();
           // Support both English and Chinese skill level names
-          if (levelValue === 'advanced' || levelValue === '進階' || levelValue === '高級' || levelValue === '高階') {
-            level = 'advanced';
-          } else if (levelValue === 'intermediate' || levelValue === '一般' || levelValue === '中階' || levelValue === '中级') {
+          if (levelValue === 'intermediate' || levelValue === '一般' || levelValue === '零打' || levelValue === '中階' || levelValue === '中级') {
             level = 'intermediate';
-          } else if (levelValue === 'beginner' || levelValue === '初階' || levelValue === '初级') {
+          } else if (levelValue === 'beginner' || levelValue === '初階' || levelValue === '初级' || levelValue === '季打') {
             level = 'beginner';
           }
           // If none match, default to 'beginner' (already set above)
@@ -966,7 +964,7 @@ export default function App() {
       e.stopPropagation(); // Prevent row selection
       if (disabled) return;
 
-      const levels: SkillLevel[] = ['beginner', 'intermediate', 'advanced'];
+      const levels: SkillLevel[] = ['beginner', 'intermediate'];
       const currentIndex = levels.indexOf(level);
       const nextIndex = (currentIndex + 1) % levels.length;
       onChange(levels[nextIndex]);
@@ -1209,28 +1207,6 @@ export default function App() {
                         const groupColor = groupId ? getGroupColor(groupId) : 'bg-indigo-500';
                         const isGrouped = !!groupId;
 
-                        // Logic to determine tags
-                        const playersInChunk = chunk
-                          .filter(item => item.type === 'player')
-                          .map(item => (item as { type: 'player', data: Player }).data);
-
-                        const advancedCount = playersInChunk.filter(p => p.level === 'advanced').length;
-                        const beginnerCount = playersInChunk.filter(p => p.level === 'beginner').length;
-
-                        let matchTag = null;
-                        if (advancedCount >= 3) {
-                          matchTag = (
-                            <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-rose-500/20 border border-rose-500/30 text-rose-300 text-[10px] font-bold animate-pulse ml-auto shrink-0">
-                              激鬥場
-                            </div>
-                          );
-                        } else if (beginnerCount >= 3) {
-                          matchTag = (
-                            <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold ml-auto shrink-0">
-                              休閒場
-                            </div>
-                          );
-                        }
 
                         return (
                           <div key={chunkIdx} className="relative flex items-center mb-2 animate-[fadeIn_0.3s_ease-out]">
@@ -1256,7 +1232,6 @@ export default function App() {
                                   </div>
                                 ))}
                               </div>
-                              {matchTag}
                             </div>
                           </div>
                         )
@@ -1481,9 +1456,8 @@ export default function App() {
                       className={`absolute right-2 top-1.5 h-7 px-1.5 rounded text-[10px] font-bold border transition-all appearance-none cursor-pointer
                         ${SKILL_LEVELS[newMemberLevel].bg} ${SKILL_LEVELS[newMemberLevel].color} ${SKILL_LEVELS[newMemberLevel].border}`}
                     >
-                      <option value="beginner">初階</option>
-                      <option value="intermediate">一般</option>
-                      <option value="advanced">高階</option>
+                      <option value="beginner">季打</option>
+                      <option value="intermediate">零打</option>
                     </select>
                   </div>
                   <button
@@ -1652,8 +1626,7 @@ export default function App() {
                         <div>
                           <div className="text-sm font-medium text-slate-200 group-hover:text-white transition-colors">匯入名單 (.csv)</div>
                           <div className="text-[10px] text-slate-500 mt-1">
-                            格式：姓名,等級<br />
-                            (初階 / 一般 / 高階)
+                            格式：姓名,狀態(季打／零打)
                           </div>
                         </div>
                       </button>
