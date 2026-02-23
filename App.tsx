@@ -1615,48 +1615,34 @@ export default function App() {
               </span>
             )}
 
-            <div className="h-4 w-px bg-slate-700 hidden sm:block"></div>
-
-            <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700">
-              <button
-                onClick={removeCourt}
-                className="p-1.5 hover:bg-slate-700 text-slate-400 hover:text-red-400 rounded-md transition-colors"
-                title="減少場地"
-              >
-                <Minus className="w-4 h-4" />
-              </button>
-              <span className="px-3 text-xs font-mono text-slate-400 border-l border-r border-slate-700/50 mx-1">
-                {courts.length} 面
-              </span>
-              <button
-                onClick={addCourt}
-                className="p-1.5 hover:bg-slate-700 text-slate-400 hover:text-indigo-400 rounded-md transition-colors"
-                title="新增場地"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-            </div>
           </div>
           <div className="flex items-center gap-3 text-sm">
-            {/* Auto Announce Toggle */}
-            <button
-              onClick={() => setIsAutoAnnounce(!isAutoAnnounce)}
-              className={`p-2 rounded-md transition-colors mr-2 ${isAutoAnnounce
-                ? 'text-indigo-400 hover:bg-indigo-500/10'
-                : 'text-slate-600 hover:text-slate-400 hover:bg-slate-800'
-                }`}
-              title={isAutoAnnounce ? "關閉語音播報" : "開啟語音播報"}
-            >
-              {isAutoAnnounce ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-            </button>
-
-            <span className="text-slate-500 font-mono text-sm hidden sm:block mr-2">
-              {currentTime.toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })}
-            </span>
+            {/* Court adjustments moved here */}
+            <div className="flex items-center bg-slate-800 rounded-lg border border-slate-700 h-8">
+              <button
+                onClick={removeCourt}
+                className="w-8 h-full flex items-center justify-center hover:bg-slate-700 text-slate-400 hover:text-red-400 rounded-l-lg transition-colors"
+                title="減少場地"
+              >
+                <Minus className="w-3.5 h-3.5" />
+              </button>
+              <div className="w-px h-4 bg-slate-700/50"></div>
+              <span className="px-2 text-xs font-mono text-slate-400 flex items-center justify-center min-w-[3rem]">
+                {courts.length} 面
+              </span>
+              <div className="w-px h-4 bg-slate-700/50"></div>
+              <button
+                onClick={addCourt}
+                className="w-8 h-full flex items-center justify-center hover:bg-slate-700 text-slate-400 hover:text-indigo-400 rounded-r-lg transition-colors"
+                title="新增場地"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
 
             <button
               onClick={resetSession}
-              className="flex items-center gap-2 px-3 py-1.5 bg-transparent text-red-400 border border-red-500/50 hover:bg-red-500 hover:text-white hover:border-red-500 text-xs font-medium rounded-lg transition-colors ml-2"
+              className="flex items-center justify-center gap-2 px-3 h-8 bg-transparent text-red-400 border border-red-500/50 hover:bg-red-500 hover:text-white hover:border-red-500 text-xs font-medium rounded-lg transition-colors"
               title="將場上及排隊球員全部移回休息區"
             >
               <LogOut className="w-3.5 h-3.5" />
