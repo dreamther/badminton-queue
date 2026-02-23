@@ -1171,10 +1171,13 @@ export default function App() {
                           setRestAreaSearchTerm('');
                         }
                       }}
-                      className="h-8 p-1.5 rounded-lg transition-all"
+                      className={`p-1.5 rounded-lg transition-colors ${isRestAreaSearchExpanded
+                        ? 'bg-slate-700 text-white'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                        }`}
                       title="搜尋休息區"
                     >
-                      <Search className={`w-4 h-4 transition-colors ${isRestAreaSearchExpanded ? 'text-indigo-500' : 'text-slate-500 hover:text-slate-400'}`} />
+                      <Search className="w-4 h-4" />
                     </button>
                   </div>
 
@@ -1312,10 +1315,13 @@ export default function App() {
                           setMemberSearchTerm('');
                         }
                       }}
-                      className="h-8 p-1.5 rounded-lg transition-all"
+                      className={`p-1.5 rounded-lg transition-colors ${isSearchExpanded
+                        ? 'bg-slate-700 text-white'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                        }`}
                       title="搜尋會員"
                     >
-                      <Search className={`w-4 h-4 transition-colors ${isSearchExpanded ? 'text-indigo-500' : 'text-slate-500 hover:text-slate-400'}`} />
+                      <Search className="w-4 h-4" />
                     </button>
 
                     {/* Settings Dropdown */}
