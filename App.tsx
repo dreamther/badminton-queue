@@ -1674,8 +1674,8 @@ export default function App() {
                       <button
                         onClick={() => {
                           if (confirm('確定要清空會員列表中「尚未報到」的名單嗎？\n已經報到（在休息區或場上）的球員將不會被刪除。')) {
-                            // Only remove players who haven't checked in yet
-                            setPlayers(prev => prev.filter(p => p.status !== 'not-checked-in'));
+                            const activeNames = new Set(players.map(p => p.name));
+                            setMembers(prev => prev.filter(m => activeNames.has(m.name)));
                           }
                           setIsSettingsOpen(false);
                         }}
