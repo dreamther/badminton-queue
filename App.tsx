@@ -405,7 +405,7 @@ export default function App() {
         return;
       }
 
-      const levelIndex = headers.findIndex(h => h === '等級' || h === 'level' || h === '技能');
+      const levelIndex = headers.findIndex(h => h === '等級' || h === '狀態' || h === 'level' || h === '技能');
 
       // Process each row
       const newMembers: Member[] = [];
