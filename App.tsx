@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Users, Activity, Coffee, ArrowRight, RotateCcw, Trash2, Trophy, Plus, Minus, Volume2, VolumeX, X, Swords, UserCheck, Search, CheckCircle2, ChevronDown, ChevronRight, Unlink, ArrowUp, PanelLeft, LogOut, UserX, ChevronUp, Zap, UserPlus, Upload } from 'lucide-react';
+import { Users, Activity, Coffee, ArrowRight, RotateCcw, Trash2, Trophy, Plus, Minus, Volume2, VolumeX, X, Swords, UserCheck, Search, CheckCircle2, ChevronDown, ChevronRight, Unlink, ArrowUp, PanelLeft, LogOut, UserX, ChevronUp, Zap, UserPlus, Upload, Settings } from 'lucide-react';
 import { Player, Court, Member, INITIAL_COURT_COUNT, MAX_PLAYERS_PER_COURT, SkillLevel, SKILL_LEVELS } from './types';
 import { CourtCard } from './components/CourtCard';
 import { PlayerAvatar } from './components/PlayerAvatar';
@@ -79,6 +79,7 @@ export default function App() {
   const [memberSearchTerm, setMemberSearchTerm] = useState('');
   const [newMemberName, setNewMemberName] = useState('');
   const [newMemberLevel, setNewMemberLevel] = useState<SkillLevel>('intermediate');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [restAreaSearchTerm, setRestAreaSearchTerm] = useState('');
   const [isRestAreaSearchExpanded, setIsRestAreaSearchExpanded] = useState(false);
 
@@ -1503,26 +1504,6 @@ export default function App() {
                   >
                     新增
                   </button>
-                  {/* Batch Import - with Hover Tooltip */}
-                  <div className="relative group shrink-0">
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="h-10 px-3 py-2 bg-emerald-800 hover:bg-emerald-600 border border-emerald-700 hover:border-emerald-500 text-emerald-200 hover:text-white text-xs font-medium rounded-lg transition-all"
-                    >
-                      匯入
-                    </button>
-                    {/* Hover Tooltip */}
-                    <div className="absolute right-0 top-full mt-2 w-48 bg-slate-900 border border-slate-700 rounded-lg p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-20 shadow-xl pointer-events-none">
-                      <div className="text-xs text-slate-400 mb-1.5">CSV 格式範例：</div>
-                      <div className="bg-slate-950 rounded p-2 font-mono text-xs text-slate-300">
-                        <div className="text-emerald-400">姓名,等級</div>
-                        <div>張三,初階</div>
-                        <div>李四,一般</div>
-                        <div>王五,高階</div>
-                      </div>
-                      <div className="text-xs text-slate-500 mt-2">等級可選：初階 / 一般 / 高階</div>
-                    </div>
-                  </div>
                 </div>
               </div>
               <input
@@ -1644,6 +1625,52 @@ export default function App() {
               <LogOut className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">打球結束</span>
             </button>
+
+            {/* Settings Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                className={`p-1.5 rounded-lg transition-colors ${isSettingsOpen
+                    ? 'bg-slate-700 text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  }`}
+                title="系統設定"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+
+              {isSettingsOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsSettingsOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                    <div className="p-2">
+                      {/* Import CSV Button */}
+                      <button
+                        onClick={() => {
+                          fileInputRef.current?.click();
+                          setIsSettingsOpen(false);
+                        }}
+                        className="w-full flex inset-y-0 items-start gap-3 p-2 hover:bg-slate-800 rounded-md transition-colors text-left group"
+                      >
+                        <div className="p-1.5 bg-emerald-500/10 text-emerald-400 rounded-md group-hover:bg-emerald-500 group-hover:text-white transition-colors mt-0.5">
+                          <Upload className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-slate-200 group-hover:text-white transition-colors">匯入名單 (.csv)</div>
+                          <div className="text-[10px] text-slate-500 mt-1">
+                            格式：姓名,等級<br />
+                            (初階 / 一般 / 高階)
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
