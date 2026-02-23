@@ -35,27 +35,6 @@ export const CourtCard: React.FC<CourtCardProps> = ({
     // Logic: Can start if queue has valid match group and court is empty
     const canStart = !isActive && queueLength > 0 && canStartMatch;
 
-    // Logic for Match Type Labels
-    const advancedCount = playersOnCourt.filter(p => p?.level === 'advanced').length;
-    const beginnerCount = playersOnCourt.filter(p => p?.level === 'beginner').length;
-
-    let matchTag = null;
-    if (isActive) {
-        if (advancedCount >= 3) {
-            matchTag = (
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-bold animate-pulse">
-                    激鬥場
-                </div>
-            );
-        } else if (beginnerCount >= 3) {
-            matchTag = (
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold">
-                    休閒場
-                </div>
-            );
-        }
-    }
-
     const handleSaveRename = () => {
         if (onRenameCourt) {
             const trimmed = editName.trim();
@@ -147,7 +126,6 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                             </div>
                         )}
                     </div>
-                    {matchTag}
                 </div>
                 <div className="flex items-center gap-2">
                     {isActive && onAnnounce && (
