@@ -1631,8 +1631,8 @@ export default function App() {
               <button
                 onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                 className={`p-1.5 rounded-lg transition-colors ${isSettingsOpen
-                    ? 'bg-slate-700 text-white'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  ? 'bg-slate-700 text-white'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
                   }`}
                 title="系統設定"
               >
@@ -1664,6 +1664,29 @@ export default function App() {
                             格式：姓名,等級<br />
                             (初階 / 一般 / 高階)
                           </div>
+                        </div>
+                      </button>
+
+                      {/* Divider */}
+                      <div className="h-px bg-slate-800 my-1 mx-2" />
+
+                      {/* Reset List Button */}
+                      <button
+                        onClick={() => {
+                          if (confirm('確定要清空會員列表中「尚未報到」的名單嗎？\n已經報到（在休息區或場上）的球員將不會被刪除。')) {
+                            // Only remove players who haven't checked in yet
+                            setPlayers(prev => prev.filter(p => p.status !== 'not-checked-in'));
+                          }
+                          setIsSettingsOpen(false);
+                        }}
+                        className="w-full flex items-center gap-3 p-2 hover:bg-slate-800 rounded-md transition-colors text-left group"
+                      >
+                        <div className="p-1.5 bg-red-500/10 text-red-400 rounded-md group-hover:bg-red-500 group-hover:text-white transition-colors">
+                          <Trash2 className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-slate-200 group-hover:text-white transition-colors">名單重置</div>
+                          <div className="text-[10px] text-slate-500 mt-0.5">清空所有會員紀錄</div>
                         </div>
                       </button>
                     </div>
