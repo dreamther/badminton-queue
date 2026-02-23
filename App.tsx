@@ -1293,25 +1293,23 @@ export default function App() {
 
                   {/* Search Input */}
                   {isRestAreaSearchExpanded && (
-                    <div className="flex items-center gap-2 h-10 animate-[fadeIn_0.2s_ease-out]">
-                      <div className="relative flex-1">
-                        <input
-                          type="text"
-                          placeholder="搜尋球員..."
-                          className="w-full h-10 pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 placeholder-slate-500 text-sm"
-                          value={restAreaSearchTerm}
-                          onChange={e => setRestAreaSearchTerm(e.target.value)}
-                          autoFocus
-                        />
-                        <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                      </div>
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        placeholder="搜尋休息區..."
+                        className="w-full h-10 pl-9 pr-10 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 placeholder-slate-500 text-sm"
+                        value={restAreaSearchTerm}
+                        onChange={e => setRestAreaSearchTerm(e.target.value)}
+                        autoFocus
+                      />
+                      <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
                       {restAreaSearchTerm && (
                         <button
                           onClick={() => setRestAreaSearchTerm('')}
-                          className="h-10 px-3 py-2 border rounded-lg transition-colors flex items-center gap-1 shrink-0 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 border-indigo-500 text-white"
+                          className="absolute right-2 top-2 p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-md transition-colors"
+                          title="清除字元"
                         >
                           <X className="w-4 h-4" />
-                          清除
                         </button>
                       )}
                     </div>
@@ -1326,7 +1324,7 @@ export default function App() {
                       className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium text-sm shadow-lg shadow-indigo-900/20 flex items-center justify-center gap-2 transition-all animate-[slideUp_0.2s_ease-out]"
                     >
                       <ArrowUp className="w-4 h-4" />
-                      將選擇的 {selectedPlayerIds.size} 人組成搭檔
+                      {selectedPlayerIds.size === 1 ? '加入排隊' : `將 ${selectedPlayerIds.size} 人組成搭檔上場`}
                     </button>
                   </div>
                 )}
@@ -1387,24 +1385,15 @@ export default function App() {
                             </div>
                           </div>
 
-                          <div className="flex gap-1 pl-2 border-l border-slate-800/50">
+                          <div className="flex gap-1 pl-2">
                             {!selectedPlayerIds.size && (
-                              <>
-                                <button
-                                  onClick={() => joinQueue(player.id)}
-                                  className="p-1.5 text-indigo-400 hover:bg-indigo-500/10 rounded-md transition-colors opacity-60 group-hover:opacity-100"
-                                  title="加入排隊"
-                                >
-                                  <ArrowUp className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => deletePlayer(player.id)}
-                                  className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors opacity-0 group-hover:opacity-100"
-                                  title="早退 (回到會員列表)"
-                                >
-                                  <LogOut className="w-3.5 h-3.5" />
-                                </button>
-                              </>
+                              <button
+                                onClick={() => deletePlayer(player.id)}
+                                className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                                title="早退 (回到會員列表)"
+                              >
+                                <LogOut className="w-3.5 h-3.5" />
+                              </button>
                             )}
                           </div>
                         </div>
@@ -1447,22 +1436,22 @@ export default function App() {
                       <input
                         type="text"
                         placeholder="搜尋會員..."
-                        className="w-full h-10 pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 placeholder-slate-500 text-sm"
+                        className="w-full h-10 pl-9 pr-10 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 placeholder-slate-500 text-sm"
                         value={memberSearchTerm}
                         onChange={e => setMemberSearchTerm(e.target.value)}
                         autoFocus
                       />
                       <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                      {memberSearchTerm && (
+                        <button
+                          onClick={() => setMemberSearchTerm('')}
+                          className="absolute right-2 top-2 p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-md transition-colors"
+                          title="清除字元"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
-                    {memberSearchTerm && (
-                      <button
-                        onClick={() => setMemberSearchTerm('')}
-                        className="h-10 px-3 py-2 border rounded-lg transition-colors flex items-center gap-1 shrink-0 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 border-indigo-500 text-white"
-                      >
-                        <X className="w-4 h-4" />
-                        清除
-                      </button>
-                    )}
                   </div>
                 )}
 
