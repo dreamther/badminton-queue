@@ -49,7 +49,7 @@ export default function App() {
     if (saved) {
       const parsed = JSON.parse(saved);
       // Migration: ensure level exists
-      return parsed.map((p: any) => ({ ...p, level: p.level || 'beginner' }));
+      return parsed.map((p: any) => ({ ...p, level: p.level || 'intermediate' }));
     }
     return [];
   });
@@ -71,7 +71,7 @@ export default function App() {
     if (saved) {
       const parsed = JSON.parse(saved);
       // Migration: ensure level exists
-      return parsed.map((m: any) => ({ ...m, level: m.level || 'beginner' }));
+      return parsed.map((m: any) => ({ ...m, level: m.level || 'intermediate' }));
     }
     return [];
   });
@@ -384,7 +384,7 @@ export default function App() {
     };
     setMembers(prev => [newMember, ...prev]);
     setNewMemberName('');
-    setNewMemberLevel('beginner'); // Reset to default
+    setNewMemberLevel('intermediate'); // Reset to default
   }, [members, newMemberLevel]);
 
   // Batch Import: Parse CSV and create members
@@ -427,7 +427,7 @@ export default function App() {
         }
 
         // Parse skill level
-        let level: SkillLevel = 'beginner';
+        let level: SkillLevel = 'intermediate';
         if (levelIndex !== -1 && values[levelIndex]) {
           const levelValue = values[levelIndex].trim().toLowerCase();
           // Support both English and Chinese skill level names
@@ -436,7 +436,7 @@ export default function App() {
           } else if (levelValue === 'beginner' || levelValue === '初階' || levelValue === '初级' || levelValue === '季打') {
             level = 'beginner';
           }
-          // If none match, default to 'beginner' (already set above)
+          // If none match, default to 'intermediate' (already set above)
         }
 
         newMembers.push({
@@ -1438,7 +1438,7 @@ export default function App() {
                     <input
                       type="text"
                       placeholder="輸入姓名"
-                      className="w-full h-10 pl-9 pr-20 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 placeholder-slate-500 text-sm"
+                      className="w-full h-10 pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 placeholder-slate-500 text-sm"
                       value={newMemberName}
                       onChange={e => setNewMemberName(e.target.value)}
                       onKeyDown={(e) => {
@@ -1448,26 +1448,15 @@ export default function App() {
                       }}
                     />
                     <UserPlus className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                    {/* Skill Level Dropdown */}
-                    <select
-                      value={newMemberLevel}
-                      onChange={e => setNewMemberLevel(e.target.value as SkillLevel)}
-                      onClick={e => e.stopPropagation()}
-                      className={`absolute right-2 top-1.5 h-7 px-1.5 rounded text-[10px] font-bold border transition-all appearance-none cursor-pointer
-                        ${SKILL_LEVELS[newMemberLevel].bg} ${SKILL_LEVELS[newMemberLevel].color} ${SKILL_LEVELS[newMemberLevel].border}`}
-                    >
-                      <option value="beginner">季打</option>
-                      <option value="intermediate">零打</option>
-                    </select>
                   </div>
                   <button
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => createMember(newMemberName)}
                     disabled={!newMemberName}
-                    className={`h-10 px-3 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg transition-colors shrink-0
+                    className={`h-10 px-4 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg transition-colors shrink-0
                       ${!newMemberName ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-500'}`}
                   >
-                    新增
+                    新增會員
                   </button>
                 </div>
               </div>
