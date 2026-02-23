@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Court, Player, MAX_PLAYERS_PER_COURT } from '../types';
 import { PlayerAvatar } from './PlayerAvatar';
-import { Clock, Play, LogOut, Users, Zap, Coffee, Edit2, Check, X, Bell, BellOff } from 'lucide-react';
+import { Clock, Play, LogOut, Users, Zap, Coffee, Edit2, Check, X, Megaphone } from 'lucide-react';
 
 interface CourtCardProps {
     court: Court;
@@ -156,11 +156,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                             className="p-1.5 hover:bg-indigo-500/20 rounded text-indigo-400 hover:text-indigo-300 transition-all"
                             title="手動語音提醒"
                         >
-                            {isAutoAnnounce ? (
-                                <Bell className="w-4 h-4" />
-                            ) : (
-                                <BellOff className="w-4 h-4" />
-                            )}
+                            <Megaphone className="w-4 h-4" />
                         </button>
                     )}
                     {isActive && (
