@@ -1453,7 +1453,7 @@ export default function App() {
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => createMember(newMemberName)}
                     disabled={!newMemberName}
-                    className={`h-10 px-4 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg transition-colors shrink-0
+                    className={`h-10 px-4 py-2 w-24 bg-indigo-600 text-white text-xs font-medium rounded-lg transition-colors shrink-0 flex items-center justify-center
                       ${!newMemberName ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-500'}`}
                   >
                     新增會員
@@ -1490,7 +1490,7 @@ export default function App() {
                               </span>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
+                          <div className="flex items-center justify-end gap-2 w-24 shrink-0">
                             <button
                               onClick={() => checkInMember(member)}
                               className="h-10 px-3 py-2 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded-lg text-xs font-medium transition-all shrink-0"
@@ -1515,12 +1515,12 @@ export default function App() {
           )}
         </div>
 
-      </aside>
+      </aside >
 
       {/* Main Content: Courts Grid */}
-      <main className="flex-1 flex flex-col min-w-0 h-full relative z-0">
+      < main className="flex-1 flex flex-col min-w-0 h-full relative z-0" >
         {/* Toolbar */}
-        <div className="h-16 border-b border-slate-800 flex items-center px-4 sm:px-8 justify-between bg-slate-900/50 backdrop-blur-sm sticky top-0 z-10 shrink-0">
+        < div className="h-16 border-b border-slate-800 flex items-center px-4 sm:px-8 justify-between bg-slate-900/50 backdrop-blur-sm sticky top-0 z-10 shrink-0" >
           <div className="flex items-center gap-4">
             {/* Sidebar Toggle Button */}
             <button
@@ -1648,10 +1648,10 @@ export default function App() {
               )}
             </div>
           </div>
-        </div>
+        </div >
 
         {/* Grid */}
-        <div className="p-4 sm:p-8 overflow-y-auto flex-1">
+        < div className="p-4 sm:p-8 overflow-y-auto flex-1" >
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-10">
             {courts.map(court => (
               <CourtCard
@@ -1668,28 +1668,30 @@ export default function App() {
               />
             ))}
           </div>
-        </div>
-      </main>
+        </div >
+      </main >
 
       {/* Check-in Success Modal */}
-      {checkInSuccessName && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-          <div className="bg-slate-900 border-2 border-emerald-500 rounded-xl px-8 py-6 shadow-2xl animate-[fadeIn_0.3s_ease-out] pointer-events-auto">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center">
-                <CheckCircle2 className="w-7 h-7 text-emerald-400" />
-              </div>
-              <div>
-                <div className="text-lg font-bold text-white mb-1">報到成功！</div>
-                <div className="text-sm text-slate-300">
-                  <span className="font-semibold text-emerald-400">{checkInSuccessName}</span> 已成功報到
+      {
+        checkInSuccessName && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+            <div className="bg-slate-900 border-2 border-emerald-500 rounded-xl px-8 py-6 shadow-2xl animate-[fadeIn_0.3s_ease-out] pointer-events-auto">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                  <CheckCircle2 className="w-7 h-7 text-emerald-400" />
                 </div>
-                <div className="text-xs text-slate-500 mt-1">請至排隊區加入等待</div>
+                <div>
+                  <div className="text-lg font-bold text-white mb-1">報到成功！</div>
+                  <div className="text-sm text-slate-300">
+                    <span className="font-semibold text-emerald-400">{checkInSuccessName}</span> 已成功報到
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">請至排隊區加入等待</div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 }
