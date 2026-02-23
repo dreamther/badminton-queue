@@ -23,7 +23,7 @@ const getGroupColor = (groupId: string) => {
 
 export default function App() {
   // --- State ---
-  const [activeTab, setActiveTab] = useState<Tab>('queue');
+  const [activeTab, setActiveTab] = useState<Tab>('members');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); // New: Sidebar toggle state
   const [currentTime, setCurrentTime] = useState(new Date()); // New: Clock state
   const [isAutoAnnounce, setIsAutoAnnounce] = useState(true); // New: Auto announce toggle
@@ -1035,16 +1035,6 @@ export default function App() {
         {/* Tabs */}
         <div className={`flex border-b border-slate-800 px-2 ${!isSidebarOpen && 'lg:hidden'}`}>
           <button
-            onClick={() => setActiveTab('queue')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'queue'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-700'
-              }`}
-          >
-            <Swords className="w-4 h-4" />
-            排隊區
-          </button>
-          <button
             onClick={() => setActiveTab('members')}
             className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'members'
               ? 'border-indigo-500 text-indigo-400'
@@ -1053,6 +1043,16 @@ export default function App() {
           >
             <Users className="w-4 h-4" />
             報到區
+          </button>
+          <button
+            onClick={() => setActiveTab('queue')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'queue'
+              ? 'border-indigo-500 text-indigo-400'
+              : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-700'
+              }`}
+          >
+            <Swords className="w-4 h-4" />
+            排隊區
           </button>
         </div>
 
