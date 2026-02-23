@@ -846,13 +846,9 @@ export default function App() {
 
   // Reset Session (End of Game Day)
   const resetSession = useCallback(() => {
-    if (confirm('確定要結束所有比賽嗎？\n所有場上和排隊的球員將會回到休息區。')) {
-      // Move everyone to idle (Bench)
-      setPlayers(prev => prev.map(p => ({
-        ...p,
-        status: 'idle',
-        groupId: undefined
-      })));
+    if (confirm('確定要結束所有比賽嗎？\n所有場上和排隊的球員將會回到會員列表。')) {
+      // Move everyone back to member list (remove from players state)
+      setPlayers([]);
 
       setCourts(prev => prev.map(c => ({
         ...c,
@@ -1643,7 +1639,7 @@ export default function App() {
             <button
               onClick={resetSession}
               className="flex items-center justify-center gap-2 px-3 h-8 bg-transparent text-red-400 border border-red-500/50 hover:bg-red-500 hover:text-white hover:border-red-500 text-xs font-medium rounded-lg transition-colors"
-              title="將場上及排隊球員全部移回休息區"
+              title="將場上及排隊球員全部移回會員列表"
             >
               <LogOut className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">打球結束</span>
