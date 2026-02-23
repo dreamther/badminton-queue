@@ -1523,7 +1523,7 @@ export default function App() {
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => createMember(newMemberName)}
                     disabled={!newMemberName}
-                    className={`h-10 px-4 py-2 w-24 bg-indigo-600 text-white text-xs font-medium rounded-lg transition-colors shrink-0 flex items-center justify-center
+                    className={`h-10 w-[96px] bg-indigo-600 text-white text-xs font-medium rounded-lg transition-colors shrink-0 flex items-center justify-center
                       ${!newMemberName ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-500'}`}
                   >
                     新增會員
@@ -1550,7 +1550,7 @@ export default function App() {
                   ) : (
                     <div className="grid grid-cols-1 gap-2 animate-[fadeIn_0.2s_ease-out]">
                       {notCheckedInMembers.map(member => (
-                        <div key={member.id} className="group flex items-center justify-between p-2.5 rounded-lg border border-transparent">
+                        <div key={member.id} className="group flex items-center justify-between py-2 rounded-lg border border-transparent">
                           <div className="flex items-center gap-3">
                             <PlayerAvatar name={member.name} size="sm" />
                             <span className="text-sm text-slate-300">{member.name}</span>
@@ -1560,19 +1560,19 @@ export default function App() {
                               </span>
                             </div>
                           </div>
-                          <div className="flex items-center justify-end gap-2 w-24 shrink-0">
+                          <div className="flex items-center justify-end gap-1 w-24 shrink-0">
                             <button
                               onClick={() => checkInMember(member)}
-                              className="h-10 px-3 py-2 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded-lg text-xs font-medium transition-all shrink-0"
+                              className="h-10 flex-1 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded-lg text-xs font-medium transition-all"
                             >
                               報到
                             </button>
                             <button
                               onClick={() => removeMember(member.id)}
-                              className="h-10 px-3 py-2 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100 shrink-0"
+                              className="h-10 w-10 flex items-center justify-center text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100 shrink-0"
                               title="刪除會員"
                             >
-                              <X className="w-3.5 h-3.5" />
+                              <X className="w-4 h-4" />
                             </button>
                           </div>
                         </div>
