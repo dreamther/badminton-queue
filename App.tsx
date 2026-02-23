@@ -1392,18 +1392,88 @@ export default function App() {
                   <h2 className="text-sm font-semibold text-slate-400">
                     會員列表 ({notCheckedInMembers.length})
                   </h2>
-                  <button
-                    onClick={() => {
-                      setIsSearchExpanded(!isSearchExpanded);
-                      if (isSearchExpanded) {
-                        setMemberSearchTerm('');
-                      }
-                    }}
-                    className="h-8 p-1.5 rounded-lg transition-all"
-                    title="搜尋會員"
-                  >
-                    <Search className={`w-4 h-4 transition-colors ${isSearchExpanded ? 'text-indigo-500' : 'text-slate-500 hover:text-slate-400'}`} />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => {
+                        setIsSearchExpanded(!isSearchExpanded);
+                        if (isSearchExpanded) {
+                          setMemberSearchTerm('');
+                        }
+                      }}
+                      className="h-8 p-1.5 rounded-lg transition-all"
+                      title="搜尋會員"
+                    >
+                      <Search className={`w-4 h-4 transition-colors ${isSearchExpanded ? 'text-indigo-500' : 'text-slate-500 hover:text-slate-400'}`} />
+                    </button>
+
+                    {/* Settings Dropdown */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                        className={`p-1.5 rounded-lg transition-colors ${isSettingsOpen
+                          ? 'bg-slate-700 text-white'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                          }`}
+                        title="會員設定"
+                      >
+                        <Settings className="w-4 h-4" />
+                      </button>
+
+                      {isSettingsOpen && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={() => setIsSettingsOpen(false)}
+                          />
+                          <div className="absolute right-0 top-full mt-2 w-56 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                            <div className="p-2">
+                              {/* Import CSV Button */}
+                              <button
+                                onClick={() => {
+                                  fileInputRef.current?.click();
+                                  setIsSettingsOpen(false);
+                                }}
+                                className="w-full flex inset-y-0 items-start gap-3 p-2 hover:bg-slate-800 rounded-md transition-colors text-left group"
+                              >
+                                <div className="p-1.5 bg-emerald-500/10 text-emerald-400 rounded-md group-hover:bg-emerald-500 group-hover:text-white transition-colors mt-0.5">
+                                  <Upload className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <div className="text-sm font-medium text-slate-200 group-hover:text-white transition-colors">匯入名單 (.csv)</div>
+                                  <div className="text-[10px] text-slate-500 mt-1">
+                                    格式：姓名,狀態(季打／零打)
+                                  </div>
+                                </div>
+                              </button>
+
+                              {/* Divider */}
+                              <div className="h-px bg-slate-800 my-1 mx-2" />
+
+                              {/* Reset List Button */}
+                              <button
+                                onClick={() => {
+                                  if (confirm('確定要清空會員列表中「尚未報到」的名單嗎？\n已經報到（在休息區或場上）的球員將不會被刪除。')) {
+                                    const activeNames = new Set(players.map(p => p.name));
+                                    setMembers(prev => prev.filter(m => activeNames.has(m.name)));
+                                  }
+                                  setIsSettingsOpen(false);
+                                }}
+                                className="w-full flex items-center gap-3 p-2 hover:bg-slate-800 rounded-md transition-colors text-left group"
+                              >
+                                <div className="p-1.5 bg-red-500/10 text-red-400 rounded-md group-hover:bg-red-500 group-hover:text-white transition-colors">
+                                  <Trash2 className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <div className="text-sm font-medium text-slate-200 group-hover:text-white transition-colors">名單重置</div>
+                                  <div className="text-[10px] text-slate-500 mt-0.5">清空所有會員紀錄</div>
+                                </div>
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Search Input - expands when toggled */}
@@ -1580,73 +1650,6 @@ export default function App() {
               <span className="hidden sm:inline">打球結束</span>
             </button>
 
-            {/* Settings Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                className={`p-1.5 rounded-lg transition-colors ${isSettingsOpen
-                  ? 'bg-slate-700 text-white'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                  }`}
-                title="系統設定"
-              >
-                <Settings className="w-5 h-5" />
-              </button>
-
-              {isSettingsOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setIsSettingsOpen(false)}
-                  />
-                  <div className="absolute right-0 top-full mt-2 w-56 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden animate-[fadeIn_0.2s_ease-out]">
-                    <div className="p-2">
-                      {/* Import CSV Button */}
-                      <button
-                        onClick={() => {
-                          fileInputRef.current?.click();
-                          setIsSettingsOpen(false);
-                        }}
-                        className="w-full flex inset-y-0 items-start gap-3 p-2 hover:bg-slate-800 rounded-md transition-colors text-left group"
-                      >
-                        <div className="p-1.5 bg-emerald-500/10 text-emerald-400 rounded-md group-hover:bg-emerald-500 group-hover:text-white transition-colors mt-0.5">
-                          <Upload className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <div className="text-sm font-medium text-slate-200 group-hover:text-white transition-colors">匯入名單 (.csv)</div>
-                          <div className="text-[10px] text-slate-500 mt-1">
-                            格式：姓名,狀態(季打／零打)
-                          </div>
-                        </div>
-                      </button>
-
-                      {/* Divider */}
-                      <div className="h-px bg-slate-800 my-1 mx-2" />
-
-                      {/* Reset List Button */}
-                      <button
-                        onClick={() => {
-                          if (confirm('確定要清空會員列表中「尚未報到」的名單嗎？\n已經報到（在休息區或場上）的球員將不會被刪除。')) {
-                            const activeNames = new Set(players.map(p => p.name));
-                            setMembers(prev => prev.filter(m => activeNames.has(m.name)));
-                          }
-                          setIsSettingsOpen(false);
-                        }}
-                        className="w-full flex items-center gap-3 p-2 hover:bg-slate-800 rounded-md transition-colors text-left group"
-                      >
-                        <div className="p-1.5 bg-red-500/10 text-red-400 rounded-md group-hover:bg-red-500 group-hover:text-white transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <div className="text-sm font-medium text-slate-200 group-hover:text-white transition-colors">名單重置</div>
-                          <div className="text-[10px] text-slate-500 mt-0.5">清空所有會員紀錄</div>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
           </div>
         </div >
 
