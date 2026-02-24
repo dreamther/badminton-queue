@@ -1014,10 +1014,17 @@ export default function App() {
                                 {chunk.map((item, idx) => (
                                   <div key={idx}>
                                     {item.type === 'player' ? (
-                                      <div title={item.data.name} className="truncate max-w-[80px]">
-                                        <span className={`text-xs pl-1 font-medium text-slate-300`}>
-                                          {item.data.name}
-                                        </span>
+                                      <div className="relative group/player">
+                                        <button
+                                          onClick={() => removeFromQueue(item.data.id)}
+                                          title="讓球員休息 (移出佇列)"
+                                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-800 transition-colors text-left"
+                                        >
+                                          <span className={`text-sm font-medium text-slate-300 group-hover/player:text-amber-400 transition-colors truncate max-w-[80px]`}>
+                                            {item.data.name}
+                                          </span>
+                                          <Coffee className="w-3.5 h-3.5 text-slate-500 opacity-0 group-hover/player:opacity-100 group-hover/player:text-amber-500 transition-all" />
+                                        </button>
                                       </div>
                                     ) : (
                                       <div className="w-6 h-6 rounded-full border border-dashed border-slate-600 flex items-center justify-center opacity-30" title="空位">
