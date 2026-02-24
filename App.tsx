@@ -1003,14 +1003,9 @@ export default function App() {
                       return (
                         <React.Fragment key={chunkIdx}>
                           <div className="relative flex items-center py-2 animate-[fadeIn_0.3s_ease-out]">
-                            {/* Group Indicator (Small strip on left) */}
-                            {isGrouped && (
-                              <div className={`absolute left-0 top-2 bottom-2 w-1 ${groupColor} rounded-full z-10`}></div>
-                            )}
-
                             <div className="flex-1 flex items-center px-2 ml-2 gap-3">
                               <span className="font-mono text-xs text-slate-500 w-4 text-center shrink-0">{chunkIdx + 1}</span>
-                              <div className="flex items-center gap-2">
+                              <div className={`flex items-center gap-1 flex-wrap ${isGrouped ? 'bg-slate-800/60 p-1 rounded-xl shadow-inner border border-slate-700/50' : ''}`}>
                                 {chunk.map((item, idx) => (
                                   <div key={idx}>
                                     {item.type === 'player' ? (
@@ -1018,7 +1013,7 @@ export default function App() {
                                         <button
                                           onClick={() => removeFromQueue(item.data.id)}
                                           title="讓球員休息 (移出佇列)"
-                                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-800 transition-colors text-left"
+                                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-700 transition-colors text-left ${isGrouped ? 'hover:bg-slate-700/80' : ''}`}
                                         >
                                           <span className={`text-sm font-medium text-slate-300 group-hover/player:text-amber-400 transition-colors truncate max-w-[120px] lg:max-w-[160px]`}>
                                             {item.data.name}
@@ -1027,7 +1022,7 @@ export default function App() {
                                         </button>
                                       </div>
                                     ) : (
-                                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-dashed border-slate-600 opacity-40 text-slate-400" title="空位">
+                                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-slate-600 opacity-40 text-slate-400" title="空位">
                                         <span className="text-sm font-medium">空位</span>
                                       </div>
                                     )}
