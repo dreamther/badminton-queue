@@ -1005,7 +1005,7 @@ export default function App() {
                           <div className="relative flex items-center py-2 animate-[fadeIn_0.3s_ease-out]">
                             <div className="flex-1 flex items-center px-2 ml-2 gap-3">
                               <span className="font-mono text-xs text-slate-500 w-4 text-center shrink-0">{chunkIdx + 1}</span>
-                              <div className="flex items-center gap-1 flex-wrap">
+                              <div className="flex items-center gap-3 flex-wrap">
                                 {(() => {
                                   const subGroups: { isGrouped: boolean; items: typeof chunk; groupId?: string }[] = [];
                                   let currentSubGroup: { isGrouped: boolean; items: typeof chunk; groupId?: string } | null = null;
@@ -1147,7 +1147,7 @@ export default function App() {
                       return (
                         <div
                           key={player.id}
-                          className={`flex items-center justify-between p-2 rounded-lg border transition-all group
+                          className={`flex items-center justify-between py-2 px-2 rounded-lg border transition-all group
                                                 ${isSelected
                               ? 'bg-indigo-900/20 border-indigo-500/30'
                               : 'bg-transparent border-transparent hover:bg-slate-800/50 hover:border-slate-800'}
