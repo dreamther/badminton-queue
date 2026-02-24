@@ -1123,90 +1123,92 @@ export default function App() {
                 </div>
 
                 {/* Batch Action Bar - Moved to Top */}
-                {selectedPlayerIds.size > 0 && (
-                  <div className="mb-3 pt-1">
-                    <button
-                      onClick={batchJoinQueue}
-                      className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium text-sm shadow-lg shadow-indigo-900/20 flex items-center justify-center gap-2 transition-all animate-[slideUp_0.2s_ease-out]"
-                    >
-                      <ArrowUp className="w-4 h-4" />
-                      {selectedPlayerIds.size === 1 ? '加入排隊' : `將 ${selectedPlayerIds.size} 人組成搭檔上場`}
-                    </button>
-                  </div>
-                )}
-
-                <div className="flex-1 overflow-y-auto space-y-2">
-                  {filteredIdlePlayers.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-10 text-slate-600 text-xs border border-dashed border-slate-800 rounded-xl">
-                      <p>{restAreaSearchTerm ? '沒有符合的球員' : '休息區空空如也'}</p>
-                      {!restAreaSearchTerm && <p className="mt-1">請至「報到區」進行報到</p>}
+                <div className="pl-7">
+                  {selectedPlayerIds.size > 0 && (
+                    <div className="mb-3 pt-1">
+                      <button
+                        onClick={batchJoinQueue}
+                        className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium text-sm shadow-lg shadow-indigo-900/20 flex items-center justify-center gap-2 transition-all animate-[slideUp_0.2s_ease-out]"
+                      >
+                        <ArrowUp className="w-4 h-4" />
+                        {selectedPlayerIds.size === 1 ? '加入排隊' : `將 ${selectedPlayerIds.size} 人組成搭檔上場`}
+                      </button>
                     </div>
-                  ) : (
-                    filteredIdlePlayers.map(player => {
-                      const isSelected = selectedPlayerIds.has(player.id);
-                      return (
-                        <div
-                          key={player.id}
-                          className={`flex items-center justify-between py-2 px-2 rounded-lg border transition-all group
+                  )}
+
+                  <div className="flex-1 overflow-y-auto space-y-2">
+                    {filteredIdlePlayers.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-10 text-slate-600 text-xs border border-dashed border-slate-800 rounded-xl">
+                        <p>{restAreaSearchTerm ? '沒有符合的球員' : '休息區空空如也'}</p>
+                        {!restAreaSearchTerm && <p className="mt-1">請至「報到區」進行報到</p>}
+                      </div>
+                    ) : (
+                      filteredIdlePlayers.map(player => {
+                        const isSelected = selectedPlayerIds.has(player.id);
+                        return (
+                          <div
+                            key={player.id}
+                            className={`flex items-center justify-between py-2 px-2 rounded-lg border transition-all group
                                                 ${isSelected
-                              ? 'bg-indigo-900/20 border-indigo-500/30'
-                              : 'bg-transparent border-transparent hover:bg-slate-800/50 hover:border-slate-800'}
+                                ? 'bg-indigo-900/20 border-indigo-500/30'
+                                : 'bg-transparent border-transparent hover:bg-slate-800/50 hover:border-slate-800'}
                                             `}
-                        >
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            {selectedPlayerIds.size > 0 && (
-                              <div className="flex items-center h-5 shrink-0 transition-opacity">
-                                {(isSelected || selectedPlayerIds.size < MAX_PLAYERS_PER_COURT) ? (
-                                  <label className="relative flex items-center cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      checked={isSelected}
-                                      onChange={() => togglePlayerSelection(player.id)}
-                                      className="sr-only peer"
-                                    />
-                                    <div className="w-4 h-4 rounded-md border border-slate-600 hover:border-indigo-500 bg-transparent peer-checked:bg-indigo-500 peer-checked:border-indigo-500 transition-all flex items-center justify-center">
-                                      {isSelected && (
-                                        <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                        </svg>
-                                      )}
-                                    </div>
-                                  </label>
-                                ) : (
-                                  <div className="w-4 h-4" />
-                                )}
-                              </div>
-                            )}
-                            <div className="flex items-center gap-2 cursor-pointer flex-1 min-w-0" onClick={() => togglePlayerSelection(player.id)}>
-                              <div className="flex flex-col min-w-0">
-                                <span className={`text-sm transition-colors truncate ${isSelected ? 'text-indigo-200 font-bold' : 'text-slate-300'}`}>
-                                  {player.name}
-                                </span>
-                              </div>
-                              <div className="scale-90 origin-left shrink-0" onClick={(e) => e.stopPropagation()}>
-                                <LevelSelector
-                                  level={player.level}
-                                  onChange={(l) => updatePlayerLevel(player.id, l)}
-                                />
+                          >
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              {selectedPlayerIds.size > 0 && (
+                                <div className="flex items-center h-5 shrink-0 transition-opacity">
+                                  {(isSelected || selectedPlayerIds.size < MAX_PLAYERS_PER_COURT) ? (
+                                    <label className="relative flex items-center cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={isSelected}
+                                        onChange={() => togglePlayerSelection(player.id)}
+                                        className="sr-only peer"
+                                      />
+                                      <div className="w-4 h-4 rounded-md border border-slate-600 hover:border-indigo-500 bg-transparent peer-checked:bg-indigo-500 peer-checked:border-indigo-500 transition-all flex items-center justify-center">
+                                        {isSelected && (
+                                          <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                          </svg>
+                                        )}
+                                      </div>
+                                    </label>
+                                  ) : (
+                                    <div className="w-4 h-4" />
+                                  )}
+                                </div>
+                              )}
+                              <div className="flex items-center gap-2 cursor-pointer flex-1 min-w-0" onClick={() => togglePlayerSelection(player.id)}>
+                                <div className="flex flex-col min-w-0">
+                                  <span className={`text-sm transition-colors truncate ${isSelected ? 'text-indigo-200 font-bold' : 'text-slate-300'}`}>
+                                    {player.name}
+                                  </span>
+                                </div>
+                                <div className="scale-90 origin-left shrink-0" onClick={(e) => e.stopPropagation()}>
+                                  <LevelSelector
+                                    level={player.level}
+                                    onChange={(l) => updatePlayerLevel(player.id, l)}
+                                  />
+                                </div>
                               </div>
                             </div>
-                          </div>
 
-                          <div className="flex gap-1 pl-2">
-                            {!selectedPlayerIds.size && (
-                              <button
-                                onClick={() => deletePlayer(player.id)}
-                                className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors opacity-0 group-hover:opacity-100"
-                                title="早退 (回到會員列表)"
-                              >
-                                <LogOut className="w-3.5 h-3.5" />
-                              </button>
-                            )}
+                            <div className="flex gap-1 pl-2">
+                              {!selectedPlayerIds.size && (
+                                <button
+                                  onClick={() => deletePlayer(player.id)}
+                                  className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                                  title="早退 (回到會員列表)"
+                                >
+                                  <LogOut className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })
-                  )}
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
