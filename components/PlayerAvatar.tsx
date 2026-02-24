@@ -1,4 +1,5 @@
 import React from 'react';
+import { User } from 'lucide-react';
 
 // A deterministic hashing function to consistently assign a shape and color based on a string (player name or id)
 const hashCode = (str: string) => {
@@ -11,16 +12,15 @@ const hashCode = (str: string) => {
     return Math.abs(hash);
 };
 
-// Available shapes and colors
-const SHAPES = ['circle', 'square', 'triangle', 'diamond'];
+// Available colors
 const COLORS = [
-    { bg: 'bg-emerald-400', text: 'text-emerald-400' },
-    { bg: 'bg-indigo-400', text: 'text-indigo-400' },
-    { bg: 'bg-amber-400', text: 'text-amber-400' },
-    { bg: 'bg-rose-400', text: 'text-rose-400' },
-    { bg: 'bg-cyan-400', text: 'text-cyan-400' },
-    { bg: 'bg-violet-400', text: 'text-violet-400' },
-    { bg: 'bg-fuchsia-400', text: 'text-fuchsia-400' }
+    'text-emerald-400',
+    'text-indigo-400',
+    'text-amber-400',
+    'text-rose-400',
+    'text-cyan-400',
+    'text-violet-400',
+    'text-fuchsia-400'
 ];
 
 interface PlayerAvatarProps {
@@ -28,29 +28,9 @@ interface PlayerAvatarProps {
     className?: string; // Optional extra classes for sizing (e.g., 'w-3 h-3')
 }
 
-export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({ identifier, className = 'w-2 h-2' }) => {
+export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({ identifier, className = 'w-3.5 h-3.5' }) => {
     const hash = hashCode(identifier);
+    const colorClass = COLORS[hash % COLORS.length];
 
-    const shape = SHAPES[hash % SHAPES.length];
-    const color = COLORS[hash % COLORS.length];
-
-    // Base classes for the shape
-    const baseClasses = `inline-block ${className} ${color.bg}`;
-
-    switch (shape) {
-        case 'circle':
-            return <span className={`${baseClasses} rounded-full shrink-0`} />;
-        case 'square':
-            return <span className={`${baseClasses} rounded-[2px] shrink-0`} />;
-        case 'triangle':
-            return (
-                <svg viewBox="0 0 10 10" className={`inline-block ${className} ${color.text} fill-current shrink-0`} xmlns="http://www.w3.org/2000/svg">
-                    <polygon points="5,0 10,10 0,10" />
-                </svg>
-            );
-        case 'diamond':
-            return <span className={`${baseClasses} rounded-[1px] rotate-45 transform shrink-0`} />;
-        default:
-            return <span className={`${baseClasses} rounded-full shrink-0`} />;
-    }
+    return <User className={`${className} ${colorClass} shrink-0`} />;
 };

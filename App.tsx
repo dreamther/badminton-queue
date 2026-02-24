@@ -1181,9 +1181,12 @@ export default function App() {
                               )}
                               <div className="flex items-center gap-2 cursor-pointer flex-1 min-w-0" onClick={() => togglePlayerSelection(player.id)}>
                                 <div className="flex flex-col min-w-0">
-                                  <span className={`text-sm transition-colors truncate ${isSelected ? 'text-indigo-200 font-bold' : 'text-slate-300'}`}>
-                                    {player.name}
-                                  </span>
+                                  <div className="flex items-center gap-1.5">
+                                    <PlayerAvatar identifier={player.name} className="w-3.5 h-3.5 shrink-0" />
+                                    <span className={`text-sm transition-colors truncate ${isSelected ? 'text-indigo-200 font-bold' : 'text-slate-300'}`}>
+                                      {player.name}
+                                    </span>
+                                  </div>
                                 </div>
                                 <div className="scale-90 origin-left shrink-0" onClick={(e) => e.stopPropagation()}>
                                   <LevelSelector
