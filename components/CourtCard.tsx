@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Court, Player, MAX_PLAYERS_PER_COURT } from '../types';
-import { Clock, Play, LogOut, Users, Zap, Coffee, Edit2, Check, X, Megaphone } from 'lucide-react';
+import { Clock, Play, LogOut, Users, Zap, Coffee, Edit2, Check, X, Megaphone, CircleDashed } from 'lucide-react';
 import { PlayerAvatar } from './PlayerAvatar';
 
 interface CourtCardProps {
@@ -196,7 +196,11 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                     : 'bg-slate-500/5 text-slate-500 cursor-not-allowed border-slate-700/50'
                                 }`}
                         >
-                            <Play className="w-4 h-4 fill-current" />
+                            {canStart ? (
+                                <Play className="w-4 h-4 fill-current" />
+                            ) : (
+                                <CircleDashed className="w-4 h-4" />
+                            )}
                             {queueLength === 0
                                 ? '空場'
                                 : !canStartMatch
