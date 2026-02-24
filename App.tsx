@@ -1313,7 +1313,7 @@ export default function App() {
 
                 {/* Search Input - expands when toggled */}
                 {isSearchExpanded && (
-                  <div className="flex items-center gap-2 h-10 animate-[fadeIn_0.2s_ease-out] mb-2">
+                  <div className="flex items-center gap-2 h-10 animate-[fadeIn_0.2s_ease-out] pt-1 mb-5">
                     <div className="relative flex-1">
                       <input
                         type="text"
