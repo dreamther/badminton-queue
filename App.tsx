@@ -1005,29 +1005,57 @@ export default function App() {
                           <div className="relative flex items-center py-2 animate-[fadeIn_0.3s_ease-out]">
                             <div className="flex-1 flex items-center px-2 ml-2 gap-3">
                               <span className="font-mono text-xs text-slate-500 w-4 text-center shrink-0">{chunkIdx + 1}</span>
-                              <div className={`flex items-center gap-1 flex-wrap ${isGrouped ? 'bg-slate-800/60 p-1 rounded-xl shadow-inner border border-slate-700/50' : ''}`}>
-                                {chunk.map((item, idx) => (
-                                  <div key={idx}>
-                                    {item.type === 'player' ? (
-                                      <div className="relative group/player">
-                                        <button
-                                          onClick={() => removeFromQueue(item.data.id)}
-                                          title="讓球員休息 (移出佇列)"
-                                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-700 transition-colors text-left ${isGrouped ? 'hover:bg-slate-700/80' : ''}`}
-                                        >
-                                          <span className={`text-sm font-medium text-slate-300 group-hover/player:text-amber-400 transition-colors truncate max-w-[120px] lg:max-w-[160px]`}>
-                                            {item.data.name}
-                                          </span>
-                                          <Coffee className="w-3.5 h-3.5 text-slate-500 opacity-0 group-hover/player:opacity-100 group-hover/player:text-amber-500 transition-all" />
-                                        </button>
-                                      </div>
-                                    ) : (
-                                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-slate-600 opacity-40 text-slate-400" title="空位">
-                                        <span className="text-sm font-medium">空位</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {(() => {
+                                  const subGroups: { isGrouped: boolean; items: typeof chunk; groupId?: string }[] = [];
+                                  let currentSubGroup: { isGrouped: boolean; items: typeof chunk; groupId?: string } | null = null;
+
+                                  chunk.forEach(item => {
+                                    const itemGroupId = item.type === 'player' ? item.data.groupId : item.groupId;
+                                    const isGrouped = item.type === 'player' && !!itemGroupId;
+
+                                    if (!currentSubGroup) {
+                                      currentSubGroup = { isGrouped, items: [item], groupId: itemGroupId };
+                                    } else if (currentSubGroup.groupId === itemGroupId && isGrouped === currentSubGroup.isGrouped && isGrouped) {
+                                      // Only group together if they share the same valid groupId AND both are considered grouped (meaning both are players)
+                                      currentSubGroup.items.push(item);
+                                    } else if (!currentSubGroup.isGrouped && !isGrouped) {
+                                      // If both are NOT grouped, we can safely put them in the same container because it has no background
+                                      currentSubGroup.items.push(item);
+                                    } else {
+                                      subGroups.push(currentSubGroup);
+                                      currentSubGroup = { isGrouped, items: [item], groupId: itemGroupId };
+                                    }
+                                  });
+                                  if (currentSubGroup) subGroups.push(currentSubGroup);
+
+                                  return subGroups.map((subGroup, subIdx) => (
+                                    <div key={subIdx} className={`flex items-center gap-1 ${subGroup.isGrouped ? 'bg-slate-800/60 p-1 rounded-xl shadow-inner border border-slate-700/50' : ''}`}>
+                                      {subGroup.items.map((item, idx) => (
+                                        <React.Fragment key={idx}>
+                                          {item.type === 'player' ? (
+                                            <div className="relative group/player">
+                                              <button
+                                                onClick={() => removeFromQueue(item.data.id)}
+                                                title="讓球員休息 (移出佇列)"
+                                                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-700 transition-colors text-left ${subGroup.isGrouped ? 'hover:bg-slate-700/80' : ''}`}
+                                              >
+                                                <span className={`text-sm font-medium text-slate-300 group-hover/player:text-amber-400 transition-colors truncate max-w-[120px] lg:max-w-[160px]`}>
+                                                  {item.data.name}
+                                                </span>
+                                                <Coffee className="w-3.5 h-3.5 text-slate-500 opacity-0 group-hover/player:opacity-100 group-hover/player:text-amber-500 transition-all" />
+                                              </button>
+                                            </div>
+                                          ) : (
+                                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-slate-600 opacity-40 text-slate-400" title="空位">
+                                              <span className="text-sm font-medium">空位</span>
+                                            </div>
+                                          )}
+                                        </React.Fragment>
+                                      ))}
+                                    </div>
+                                  ));
+                                })()}
                               </div>
                             </div>
                           </div>
