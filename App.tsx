@@ -927,7 +927,7 @@ export default function App() {
         className={`
           fixed md:relative inset-y-0 left-0 z-40
           bg-slate-950 border-r border-slate-800 flex flex-col shrink-0 shadow-2xl md:shadow-none
-          transition-transform duration-300 ease-in-out w-80 md:w-96
+          transition-transform duration-300 ease-in-out w-80 md:w-[28rem] xl:w-[32rem]
           ${isSidebarOpen
             ? 'translate-x-0'
             : '-translate-x-full md:translate-x-0'
@@ -1020,7 +1020,7 @@ export default function App() {
                                           title="讓球員休息 (移出佇列)"
                                           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-800 transition-colors text-left"
                                         >
-                                          <span className={`text-sm font-medium text-slate-300 group-hover/player:text-amber-400 transition-colors truncate max-w-[80px]`}>
+                                          <span className={`text-sm font-medium text-slate-300 group-hover/player:text-amber-400 transition-colors truncate max-w-[120px] lg:max-w-[160px]`}>
                                             {item.data.name}
                                           </span>
                                           <Coffee className="w-3.5 h-3.5 text-slate-500 opacity-0 group-hover/player:opacity-100 group-hover/player:text-amber-500 transition-all" />
