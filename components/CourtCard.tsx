@@ -76,12 +76,12 @@ export const CourtCard: React.FC<CourtCardProps> = ({
     return (
         <div className={`relative flex flex-col rounded-xl border transition-all duration-300 overflow-hidden
       ${isActive
-                ? 'bg-slate-800 border-indigo-500/50'
-                : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
+                ? 'bg-slate-900 border-indigo-500/30'
+                : 'bg-slate-950 border-slate-800 hover:border-slate-700'
             }
     `}>
             {/* Header */}
-            <div className={`px-4 py-3 flex items-center justify-between border-b ${isActive ? 'border-indigo-500/30 bg-indigo-500/10' : 'border-slate-700'}`}>
+            <div className={`px-4 py-3 flex items-center justify-between border-b ${isActive ? 'border-indigo-500/20 bg-indigo-500/5' : 'border-slate-800 bg-slate-900/50'}`}>
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-green-400 animate-pulse' : 'bg-slate-500'}`} />
@@ -156,9 +156,9 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                             <div
                                 key={`slot-${idx}`}
                                 className={`h-10 flex items-center gap-2 px-2 rounded-lg border text-sm
-                            ${player
-                                        ? 'bg-slate-700/50 border-slate-600 text-slate-200'
-                                        : 'bg-slate-800/30 border-slate-700/50 border-dashed text-slate-500'
+                                ${player
+                                        ? 'bg-slate-800 border-slate-700 text-slate-200'
+                                        : 'bg-slate-900/50 border-slate-800/50 border-dashed text-slate-500'
                                     }`}
                             >
                                 {player ? (
