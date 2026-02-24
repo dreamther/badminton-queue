@@ -156,10 +156,10 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                         return (
                             <div
                                 key={`slot-${idx}`}
-                                className={`h-10 flex items-center gap-2 px-2 rounded-lg border text-sm
+                                className={`h-10 flex items-center gap-2 px-2 rounded-lg text-sm
                                 ${player
-                                        ? 'bg-slate-800 border-slate-700 text-slate-200'
-                                        : 'bg-transparent border-slate-800/50 border-dashed text-slate-500'
+                                        ? 'bg-transparent text-slate-200'
+                                        : 'bg-transparent border border-slate-800/50 border-dashed text-slate-500'
                                     }`}
                             >
                                 {player ? (
