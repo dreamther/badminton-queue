@@ -1137,7 +1137,7 @@ export default function App() {
                     </div>
                   )}
 
-                  <div className="flex-1 overflow-y-auto space-y-2">
+                  <div className="flex-1 overflow-y-auto space-y-4">
                     {filteredIdlePlayers.length === 0 ? (
                       <div className="py-8 text-center text-slate-500 text-sm -ml-7">
                         <p>{restAreaSearchTerm ? '沒有符合的球員' : '休息區空空如也'}</p>
