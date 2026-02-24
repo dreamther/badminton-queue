@@ -1384,7 +1384,7 @@ export default function App() {
                     <div className="grid grid-cols-1 gap-2 animate-[fadeIn_0.2s_ease-out]">
                       {notCheckedInMembers.map(member => (
                         <div key={member.id} className="group flex items-center justify-between py-2 rounded-lg border border-transparent">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 pl-9">
                             <span className="text-sm text-slate-300">{member.name}</span>
                             <div className="scale-90 origin-left">
                               <span className={`px-2 py-1 rounded text-[10px] font-bold border ${SKILL_LEVELS[member.level].bg} ${SKILL_LEVELS[member.level].color} ${SKILL_LEVELS[member.level].border}`}>
