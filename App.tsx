@@ -1027,8 +1027,8 @@ export default function App() {
                                         </button>
                                       </div>
                                     ) : (
-                                      <div className="w-6 h-6 rounded-full border border-dashed border-slate-600 flex items-center justify-center opacity-30" title="空位">
-                                        <UserX className="w-3 h-3" />
+                                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-dashed border-slate-600 opacity-40 text-slate-400" title="空位">
+                                        <span className="text-sm font-medium">空位</span>
                                       </div>
                                     )}
                                   </div>
