@@ -1040,7 +1040,8 @@ export default function App() {
                                                 title="讓球員休息 (移出佇列)"
                                                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-700 transition-colors text-left ${subGroup.isGrouped ? 'hover:bg-slate-700/80' : ''}`}
                                               >
-                                                <span className={`text-sm font-medium text-slate-300 group-hover/player:text-amber-400 transition-colors truncate max-w-[120px] lg:max-w-[160px]`}>
+                                                <span className={`flex items-center gap-1.5 text-sm font-medium text-slate-300 group-hover/player:text-amber-400 transition-colors truncate max-w-[120px] lg:max-w-[160px]`}>
+                                                  <PlayerAvatar identifier={item.data.name} className="w-2.5 h-2.5 shrink-0" />
                                                   {item.data.name}
                                                 </span>
                                                 <Coffee className="w-3.5 h-3.5 text-slate-500 opacity-0 group-hover/player:opacity-100 group-hover/player:text-amber-500 transition-all" />
@@ -1387,7 +1388,10 @@ export default function App() {
                       {notCheckedInMembers.map(member => (
                         <div key={member.id} className="group flex items-center justify-between py-2 rounded-lg border border-transparent">
                           <div className="flex items-center gap-3 pl-9">
-                            <span className="text-sm text-slate-300">{member.name}</span>
+                            <div className="flex items-center gap-2">
+                              <PlayerAvatar identifier={member.name} className="w-2.5 h-2.5 shrink-0" />
+                              <span className="text-sm text-slate-300">{member.name}</span>
+                            </div>
                             <div className="scale-90 origin-left">
                               <span className={`px-2 py-1 rounded text-[10px] font-bold border ${SKILL_LEVELS[member.level].bg} ${SKILL_LEVELS[member.level].color} ${SKILL_LEVELS[member.level].border}`}>
                                 {SKILL_LEVELS[member.level].label}

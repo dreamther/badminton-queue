@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Court, Player, MAX_PLAYERS_PER_COURT } from '../types';
 import { Clock, Play, LogOut, Users, Zap, Coffee, Edit2, Check, X, Megaphone } from 'lucide-react';
+import { PlayerAvatar } from './PlayerAvatar';
 
 interface CourtCardProps {
     court: Court;
@@ -158,11 +159,12 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                 className={`h-10 flex items-center gap-2 px-2 rounded-lg border text-sm
                                 ${player
                                         ? 'bg-slate-800 border-slate-700 text-slate-200'
-                                        : 'bg-slate-900/50 border-slate-800/50 border-dashed text-slate-500'
+                                        : 'bg-transparent border-slate-800/50 border-dashed text-slate-500'
                                     }`}
                             >
                                 {player ? (
                                     <>
+                                        <PlayerAvatar identifier={player.name} className="w-2.5 h-2.5 mr-1" />
                                         <span className="truncate font-medium">{player.name}</span>
                                     </>
                                 ) : (
