@@ -1001,33 +1001,38 @@ export default function App() {
                       const isGrouped = !!groupId;
 
                       return (
-                        <div key={chunkIdx} className="relative flex items-center mb-2 animate-[fadeIn_0.3s_ease-out]">
-                          {/* Group Indicator (Small strip on left) */}
-                          {isGrouped && (
-                            <div className={`absolute left-0 top-1 bottom-1 w-1 ${groupColor} rounded-l-md z-10`}></div>
-                          )}
+                        <React.Fragment key={chunkIdx}>
+                          <div className="relative flex items-center py-2 animate-[fadeIn_0.3s_ease-out]">
+                            {/* Group Indicator (Small strip on left) */}
+                            {isGrouped && (
+                              <div className={`absolute left-0 top-2 bottom-2 w-1 ${groupColor} rounded-full z-10`}></div>
+                            )}
 
-                          <div className={`flex-1 flex items-center p-2 bg-slate-900 border border-slate-800 rounded-xl ml-2 gap-3 ${isGrouped ? 'border-l-0 rounded-l-none' : ''}`}>
-                            <span className="font-mono text-xs text-slate-500 w-4 text-center shrink-0">{chunkIdx + 1}</span>
-                            <div className="flex items-center gap-2">
-                              {chunk.map((item, idx) => (
-                                <div key={idx}>
-                                  {item.type === 'player' ? (
-                                    <div title={item.data.name} className="truncate max-w-[80px]">
-                                      <span className={`text-xs pl-1 font-medium text-slate-300`}>
-                                        {item.data.name}
-                                      </span>
-                                    </div>
-                                  ) : (
-                                    <div className="w-6 h-6 rounded-full border border-dashed border-slate-600 flex items-center justify-center opacity-30" title="空位">
-                                      <UserX className="w-3 h-3" />
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
+                            <div className="flex-1 flex items-center px-2 ml-2 gap-3">
+                              <span className="font-mono text-xs text-slate-500 w-4 text-center shrink-0">{chunkIdx + 1}</span>
+                              <div className="flex items-center gap-2">
+                                {chunk.map((item, idx) => (
+                                  <div key={idx}>
+                                    {item.type === 'player' ? (
+                                      <div title={item.data.name} className="truncate max-w-[80px]">
+                                        <span className={`text-xs pl-1 font-medium text-slate-300`}>
+                                          {item.data.name}
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <div className="w-6 h-6 rounded-full border border-dashed border-slate-600 flex items-center justify-center opacity-30" title="空位">
+                                        <UserX className="w-3 h-3" />
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           </div>
-                        </div>
+                          {chunkIdx < chunkedQueueItems.length - 1 && (
+                            <div className="mx-2 h-px bg-slate-800/50"></div>
+                          )}
+                        </React.Fragment>
                       )
                     })
                   )}
