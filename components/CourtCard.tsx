@@ -74,9 +74,9 @@ export const CourtCard: React.FC<CourtCardProps> = ({
     }, [isActive, court.startTime]);
 
     return (
-        <div className={`relative flex flex-col rounded-xl border transition-all duration-300 shadow-lg overflow-hidden
+        <div className={`relative flex flex-col rounded-xl border transition-all duration-300 overflow-hidden
       ${isActive
-                ? 'bg-slate-800 border-indigo-500/50 shadow-indigo-500/10'
+                ? 'bg-slate-800 border-indigo-500/50'
                 : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
             }
     `}>
@@ -190,7 +190,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                             disabled={!canStart}
                             className={`w-full py-2.5 flex items-center justify-center gap-2 rounded-lg font-medium text-sm transition-all
                         ${canStart
-                                    ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-900/20'
+                                    ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
                                     : 'bg-slate-700 text-slate-400 cursor-not-allowed opacity-50'
                                 }`}
                         >
