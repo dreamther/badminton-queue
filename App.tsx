@@ -1030,7 +1030,7 @@ export default function App() {
                                   if (currentSubGroup) subGroups.push(currentSubGroup);
 
                                   return subGroups.map((subGroup, subIdx) => (
-                                    <div key={subIdx} className={`flex items-center gap-1 ${subGroup.isGrouped ? 'bg-slate-800/60 p-1 rounded-xl shadow-inner border border-slate-700/50' : ''}`}>
+                                    <div key={subIdx} className={`flex items-center gap-1 ${subGroup.isGrouped ? 'p-1 rounded-xl border border-[#554EE6]' : ''}`}>
                                       {subGroup.items.map((item, idx) => (
                                         <React.Fragment key={idx}>
                                           {item.type === 'player' ? (
