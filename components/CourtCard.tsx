@@ -192,7 +192,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                             disabled={!canStart}
                             className={`w-full py-2.5 flex items-center justify-center gap-2 rounded-lg font-medium text-sm transition-all
                         ${canStart
-                                    ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                                    ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 border border-emerald-500/20'
                                     : 'bg-slate-700 text-slate-400 cursor-not-allowed opacity-50'
                                 }`}
                         >
