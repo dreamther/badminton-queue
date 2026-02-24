@@ -190,10 +190,10 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                         <button
                             onClick={() => onStartMatch(court.id)}
                             disabled={!canStart}
-                            className={`w-full py-2.5 flex items-center justify-center gap-2 rounded-lg font-medium text-sm transition-all
+                            className={`w-full py-2.5 flex items-center justify-center gap-2 rounded-lg font-medium text-sm transition-all border
                         ${canStart
-                                    ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 border border-emerald-500/20'
-                                    : 'bg-slate-700 text-slate-400 cursor-not-allowed opacity-50'
+                                    ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 border-emerald-500/20'
+                                    : 'bg-slate-500/5 text-slate-500 cursor-not-allowed border-slate-700/50'
                                 }`}
                         >
                             <Play className="w-4 h-4 fill-current" />
