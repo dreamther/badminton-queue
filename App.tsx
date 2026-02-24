@@ -1003,9 +1003,9 @@ export default function App() {
                       return (
                         <React.Fragment key={chunkIdx}>
                           <div className="relative flex items-center py-2 animate-[fadeIn_0.3s_ease-out]">
-                            <div className="flex-1 flex items-center gap-3">
+                            <div className="flex-1 flex items-center gap-3 min-w-0 overflow-hidden">
                               <span className="font-mono text-xs text-slate-500 w-4 text-center shrink-0">{chunkIdx + 1}</span>
-                              <div className="flex items-center gap-3 flex-wrap">
+                              <div className="flex items-center gap-3 flex-wrap min-w-0 overflow-hidden flex-1">
                                 {(() => {
                                   const subGroups: { isGrouped: boolean; items: typeof chunk; groupId?: string }[] = [];
                                   let currentSubGroup: { isGrouped: boolean; items: typeof chunk; groupId?: string } | null = null;
@@ -1030,21 +1030,21 @@ export default function App() {
                                   if (currentSubGroup) subGroups.push(currentSubGroup);
 
                                   return subGroups.map((subGroup, subIdx) => (
-                                    <div key={subIdx} className={`flex items-center gap-1 ${subGroup.isGrouped ? 'p-1 rounded-xl border border-[#554EE6]' : ''}`}>
+                                    <div key={subIdx} className={`flex items-center gap-1 min-w-0 flex-wrap ${subGroup.isGrouped ? 'p-1 rounded-xl border border-[#554EE6]' : ''}`}>
                                       {subGroup.items.map((item, idx) => (
                                         <React.Fragment key={idx}>
                                           {item.type === 'player' ? (
-                                            <div className="relative group/player">
+                                            <div className="relative group/player min-w-0">
                                               <button
                                                 onClick={() => removeFromQueue(item.data.id)}
                                                 title="讓球員休息 (移出佇列)"
-                                                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-700 transition-colors text-left ${subGroup.isGrouped ? 'hover:bg-slate-700/80' : ''}`}
+                                                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-700 transition-colors text-left min-w-0 ${subGroup.isGrouped ? 'hover:bg-slate-700/80' : ''}`}
                                               >
-                                                <span className={`flex items-center gap-1.5 text-sm font-medium text-slate-300 group-hover/player:text-amber-400 transition-colors truncate max-w-[120px] lg:max-w-[160px]`}>
+                                                <span className={`flex items-center gap-1.5 text-sm font-medium text-slate-300 group-hover/player:text-amber-400 transition-colors min-w-0`}>
                                                   <PlayerAvatar identifier={item.data.name} className="w-2.5 h-2.5 shrink-0" />
-                                                  {item.data.name}
+                                                  <span className="truncate">{item.data.name}</span>
                                                 </span>
-                                                <Coffee className="w-3.5 h-3.5 text-slate-500 opacity-0 group-hover/player:opacity-100 group-hover/player:text-amber-500 transition-all" />
+                                                <Coffee className="w-3.5 h-3.5 text-slate-500 opacity-0 group-hover/player:opacity-100 group-hover/player:text-amber-500 transition-all shrink-0" />
                                               </button>
                                             </div>
                                           ) : (
