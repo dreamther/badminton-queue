@@ -1460,22 +1460,22 @@ export default function App() {
           </div>
           <div className="flex items-center gap-3 text-sm">
             {/* Court adjustments moved here */}
-            <div className="flex items-center bg-slate-800 rounded-lg border border-slate-700 h-8">
+            <div className="flex items-center bg-slate-950 rounded-lg border border-slate-800 h-8">
               <button
                 onClick={removeCourt}
-                className="w-8 h-full flex items-center justify-center hover:bg-slate-700 text-slate-400 hover:text-red-400 rounded-l-lg transition-colors"
+                className="w-8 h-full flex items-center justify-center hover:bg-slate-800 text-slate-400 hover:text-red-400 rounded-l-lg transition-colors"
                 title="減少場地"
               >
                 <Minus className="w-3.5 h-3.5" />
               </button>
-              <div className="w-px h-4 bg-slate-700/50"></div>
+              <div className="w-px h-4 bg-slate-800/50"></div>
               <span className="px-2 text-xs font-mono text-slate-400 flex items-center justify-center min-w-[3rem]">
                 {courts.length} 面
               </span>
-              <div className="w-px h-4 bg-slate-700/50"></div>
+              <div className="w-px h-4 bg-slate-800/50"></div>
               <button
                 onClick={addCourt}
-                className="w-8 h-full flex items-center justify-center hover:bg-slate-700 text-slate-400 hover:text-indigo-400 rounded-r-lg transition-colors"
+                className="w-8 h-full flex items-center justify-center hover:bg-slate-800 text-slate-400 hover:text-indigo-400 rounded-r-lg transition-colors"
                 title="新增場地"
               >
                 <Plus className="w-3.5 h-3.5" />
