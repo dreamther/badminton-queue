@@ -113,7 +113,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                             </div>
                         ) : (
                             <div className="flex items-center gap-1.5 group">
-                                <h3 className="font-semibold text-slate-200">{court.name}</h3>
+                                <h3 className="text-sm font-semibold text-slate-200">{court.name}</h3>
                                 {onRenameCourt && (
                                     <button
                                         onClick={() => setIsEditing(true)}
