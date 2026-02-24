@@ -12,15 +12,18 @@ const hashCode = (str: string) => {
     return Math.abs(hash);
 };
 
-// Available colors
+// Available colors (Blue to Purple spectrum)
 const COLORS = [
-    'text-emerald-400',
+    'text-blue-400',
+    'text-blue-500',
     'text-indigo-400',
-    'text-amber-400',
-    'text-rose-400',
-    'text-cyan-400',
+    'text-indigo-500',
     'text-violet-400',
-    'text-fuchsia-400'
+    'text-violet-500',
+    'text-purple-400',
+    'text-purple-500',
+    'text-fuchsia-400',
+    'text-fuchsia-500',
 ];
 
 interface PlayerAvatarProps {
