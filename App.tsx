@@ -42,7 +42,6 @@ export default function App() {
   const [checkInSuccessName, setCheckInSuccessName] = useState<string | null>(null);
 
   // Queue Display State
-  const [isQueueExpanded, setIsQueueExpanded] = useState(false); // New: Collapse state for queue
 
   const [players, setPlayers] = useState<Player[]>(() => {
     const saved = localStorage.getItem('badminton_players');
@@ -986,12 +985,6 @@ export default function App() {
                   <h2 className="text-sm font-semibold text-slate-400">
                     等待上場 ({queue.length})
                   </h2>
-                  <button
-                    onClick={() => setIsQueueExpanded(!isQueueExpanded)}
-                    className="h-8 px-2 rounded-lg transition-all text-xs text-slate-500 hover:text-slate-400"
-                  >
-                    {isQueueExpanded ? '收合' : '展開'}
-                  </button>
                 </div>
 
                 <div className="space-y-2">
@@ -1001,154 +994,42 @@ export default function App() {
                       <div className="text-xs mt-1 opacity-70">請從下方休息區加入</div>
                     </div>
                   ) : (
-                    isQueueExpanded ? (
-                      // Expanded View (Vertical List)
-                      queueDisplayItems.map((item, idx) => {
-                        // Divider Logic: Every 4 visual items
-                        const showDivider = (idx + 1) % 4 === 0 && idx < queueDisplayItems.length - 1;
+                    chunkedQueueItems.map((chunk, chunkIdx) => {
+                      const firstItem = chunk[0];
+                      const groupId = (firstItem.type === 'player' && firstItem.data.groupId) || (firstItem.type === 'empty' ? firstItem.groupId : undefined);
+                      const groupColor = groupId ? getGroupColor(groupId) : 'bg-indigo-500';
+                      const isGrouped = !!groupId;
 
-                        if (item.type === 'empty') {
-                          const groupColor = getGroupColor(item.groupId);
-                          return (
-                            <React.Fragment key={`empty-${item.groupId}-${idx}`}>
-                              <div className="relative flex group animate-[fadeIn_0.3s_ease-out]">
-                                {/* Continue group line */}
-                                <div className={`absolute left-0 top-0 bottom-0 w-1 ${groupColor} z-10
-                                                            ${(idx + 1) % 4 === 0 ? 'rounded-bl-md' : ''}
-                                                        `}></div>
+                      return (
+                        <div key={chunkIdx} className="relative flex items-center mb-2 animate-[fadeIn_0.3s_ease-out]">
+                          {/* Group Indicator (Small strip on left) */}
+                          {isGrouped && (
+                            <div className={`absolute left-0 top-1 bottom-1 w-1 ${groupColor} rounded-l-md z-10`}></div>
+                          )}
 
-                                <div className="flex-1 flex items-center justify-center p-3 bg-slate-900/10 border border-slate-800/30 border-dashed rounded-r-xl rounded-l-none ml-2">
-                                  <div className="flex items-center gap-2 opacity-20">
-                                    <UserX className="w-4 h-4" />
-                                    <span className="text-xs font-medium">空位</span>
-                                  </div>
+                          <div className={`flex-1 flex items-center p-2 bg-slate-900 border border-slate-800 rounded-xl ml-2 gap-3 ${isGrouped ? 'border-l-0 rounded-l-none' : ''}`}>
+                            <span className="font-mono text-xs text-slate-500 w-4 text-center shrink-0">{chunkIdx + 1}</span>
+                            <div className="flex items-center gap-2">
+                              {chunk.map((item, idx) => (
+                                <div key={idx}>
+                                  {item.type === 'player' ? (
+                                    <div title={item.data.name} className="truncate max-w-[80px]">
+                                      <span className={`text-xs pl-1 font-medium text-slate-300`}>
+                                        {item.data.name}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <div className="w-6 h-6 rounded-full border border-dashed border-slate-600 flex items-center justify-center opacity-30" title="空位">
+                                      <UserX className="w-3 h-3" />
+                                    </div>
+                                  )}
                                 </div>
-                              </div>
-                              {showDivider && (
-                                <div className="relative py-2 flex items-center justify-center opacity-50">
-                                  <div className="absolute inset-0 flex items-center">
-                                    <div className="w-full border-t border-slate-600 border-dashed"></div>
-                                  </div>
-                                  <div className="relative bg-slate-950 px-2 text-[10px] text-slate-400 font-mono">
-                                    第 {(idx + 1) / 4 + 1} 組
-                                  </div>
-                                </div>
-                              )}
-                            </React.Fragment>
-                          )
-                        }
-
-                        const player = item.data;
-                        // Determine grouping visuals
-                        const isGrouped = !!player.groupId;
-
-                        // Check if PREVIOUS item was same group (visual continuity)
-                        const prevItem = idx > 0 ? queueDisplayItems[idx - 1] : null;
-                        const prevSameGroup = isGrouped && prevItem?.type === 'player' && prevItem.data.groupId === player.groupId;
-
-                        // Check if NEXT item is same group (including empty slots for that group)
-                        const nextItem = idx < queueDisplayItems.length - 1 ? queueDisplayItems[idx + 1] : null;
-                        const nextSameGroup = isGrouped && (
-                          (nextItem?.type === 'player' && nextItem.data.groupId === player.groupId) ||
-                          (nextItem?.type === 'empty' && nextItem.groupId === player.groupId)
-                        );
-
-                        const groupColor = player.groupId ? getGroupColor(player.groupId) : 'bg-indigo-500';
-
-                        return (
-                          <React.Fragment key={player.id}>
-                            <div
-                              className="relative flex group transition-all animate-[fadeIn_0.3s_ease-out]"
-                            >
-                              {/* Group Indicator Line */}
-                              {isGrouped && (
-                                <div className={`absolute left-0 w-1 ${groupColor} rounded-l-sm z-10
-                                                            ${prevSameGroup ? 'top-0' : 'top-1 rounded-tl-md'}
-                                                            ${nextSameGroup ? 'bottom-0' : 'bottom-1 rounded-bl-md'}
-                                                        `}></div>
-                              )}
-
-                              <div className={`flex-1 flex items-center justify-between p-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl ml-2 transition-all
-                                                        ${isGrouped ? 'border-l-0 rounded-l-none' : ''}
-                                                    `}>
-                                <div className="flex items-center gap-3 overflow-hidden">
-                                  <span className="font-mono text-xs text-slate-500 w-4 text-center shrink-0">{idx + 1}</span>
-                                  <PlayerAvatar name={player.name} size="sm" />
-                                  <div className="flex flex-col min-w-0">
-                                    <span className="font-medium text-sm truncate">{player.name}</span>
-                                  </div>
-                                  <div className="scale-90 origin-left">
-                                    <LevelSelector
-                                      level={player.level}
-                                      onChange={(l) => updatePlayerLevel(player.id, l)}
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    onClick={() => removeFromQueue(player.id)}
-                                    className="text-slate-600 hover:text-amber-500 opacity-0 group-hover:opacity-100 transition-all p-1.5 hover:bg-slate-700 rounded-lg"
-                                    title="暫時休息 (移出佇列)"
-                                  >
-                                    <Coffee className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Queue Divider: Add line every 4 VISUAL items */}
-                            {showDivider && (
-                              <div className="relative py-2 flex items-center justify-center opacity-50">
-                                <div className="absolute inset-0 flex items-center">
-                                  <div className="w-full border-t border-slate-600 border-dashed"></div>
-                                </div>
-                                <div className="relative bg-slate-950 px-2 text-[10px] text-slate-400 font-mono">
-                                  第 {(idx + 1) / 4 + 1} 組
-                                </div>
-                              </div>
-                            )}
-                          </React.Fragment>
-                        );
-                      })
-                    ) : (
-                      // Collapsed View (Horizontal Groups)
-                      chunkedQueueItems.map((chunk, chunkIdx) => {
-                        const firstItem = chunk[0];
-                        const groupId = (firstItem.type === 'player' && firstItem.data.groupId) || (firstItem.type === 'empty' ? firstItem.groupId : undefined);
-                        const groupColor = groupId ? getGroupColor(groupId) : 'bg-indigo-500';
-                        const isGrouped = !!groupId;
-
-
-                        return (
-                          <div key={chunkIdx} className="relative flex items-center mb-2 animate-[fadeIn_0.3s_ease-out]">
-                            {/* Group Indicator (Small strip on left) */}
-                            {isGrouped && (
-                              <div className={`absolute left-0 top-1 bottom-1 w-1 ${groupColor} rounded-l-md z-10`}></div>
-                            )}
-
-                            <div className={`flex-1 flex items-center p-2 bg-slate-900 border border-slate-800 rounded-xl ml-2 gap-3 ${isGrouped ? 'border-l-0 rounded-l-none' : ''}`}>
-                              <span className="font-mono text-xs text-slate-500 w-4 text-center shrink-0">{chunkIdx + 1}</span>
-                              <div className="flex items-center gap-2">
-                                {chunk.map((item, idx) => (
-                                  <div key={idx}>
-                                    {item.type === 'player' ? (
-                                      <div title={item.data.name}>
-                                        <PlayerAvatar name={item.data.name} size="sm" className="ring-1 ring-slate-900" />
-                                      </div>
-                                    ) : (
-                                      <div className="w-6 h-6 rounded-full border border-dashed border-slate-600 flex items-center justify-center opacity-30" title="空位">
-                                        <UserX className="w-3 h-3" />
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
+                              ))}
                             </div>
                           </div>
-                        )
-                      })
-                    )
+                        </div>
+                      )
+                    })
                   )}
                 </div>
               </div>
@@ -1261,10 +1142,9 @@ export default function App() {
                                 )}
                               </div>
                             )}
-                            <div className="flex items-center gap-3 cursor-pointer flex-1 min-w-0" onClick={() => togglePlayerSelection(player.id)}>
-                              <PlayerAvatar name={player.name} size="sm" className={isSelected ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-slate-900' : ''} />
+                            <div className="flex items-center gap-2 cursor-pointer flex-1 min-w-0" onClick={() => togglePlayerSelection(player.id)}>
                               <div className="flex flex-col min-w-0">
-                                <span className={`text-sm transition-colors truncate ${isSelected ? 'text-indigo-200 font-medium' : 'text-slate-300'}`}>
+                                <span className={`text-sm transition-colors truncate ${isSelected ? 'text-indigo-200 font-bold' : 'text-slate-300'}`}>
                                   {player.name}
                                 </span>
                               </div>
@@ -1470,7 +1350,6 @@ export default function App() {
                       {notCheckedInMembers.map(member => (
                         <div key={member.id} className="group flex items-center justify-between py-2 rounded-lg border border-transparent">
                           <div className="flex items-center gap-3">
-                            <PlayerAvatar name={member.name} size="sm" />
                             <span className="text-sm text-slate-300">{member.name}</span>
                             <div className="scale-90 origin-left">
                               <span className={`px-2 py-1 rounded text-[10px] font-bold border ${SKILL_LEVELS[member.level].bg} ${SKILL_LEVELS[member.level].color} ${SKILL_LEVELS[member.level].border}`}>
