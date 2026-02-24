@@ -981,7 +981,7 @@ export default function App() {
             <div className="flex-1 overflow-y-auto flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out]">
               {/* Waiting Queue */}
               <div className="px-6 py-4">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-3 min-h-[32px]">
                   <h2 className="text-sm font-semibold text-slate-400">
                     等待上場 ({queue.length})
                   </h2>
@@ -1076,7 +1076,7 @@ export default function App() {
               <div className="px-6 py-4 flex-1 flex flex-col">
                 <div className="space-y-4 mb-3">
                   {/* Header with Search Icon */}
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between min-h-[32px]">
                     <h2 className="text-sm font-semibold text-slate-400">
                       休息區 ({idlePlayers.length})
                     </h2>
@@ -1218,9 +1218,9 @@ export default function App() {
           {activeTab === 'members' && (
             <div className="flex-1 overflow-y-auto flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out] bg-slate-950">
               {/* Sticky header: member list title + search + add/import */}
-              <div className="px-6 pt-5 pb-3 sticky top-0 bg-slate-950/95 backdrop-blur z-10 space-y-2">
+              <div className="px-6 pt-4 pb-3 sticky top-0 bg-slate-950/95 backdrop-blur z-10 space-y-2">
                 {/* Member List Header with Search Icon */}
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between min-h-[32px]">
                   <h2 className="text-sm font-semibold text-slate-400">
                     會員列表 ({notCheckedInMembers.length})
                   </h2>
@@ -1313,7 +1313,7 @@ export default function App() {
 
                 {/* Search Input - expands when toggled */}
                 {isSearchExpanded && (
-                  <div className="flex items-center gap-2 h-10 animate-[fadeIn_0.2s_ease-out]">
+                  <div className="flex items-center gap-2 h-10 animate-[fadeIn_0.2s_ease-out] mb-2">
                     <div className="relative flex-1">
                       <input
                         type="text"
