@@ -936,7 +936,7 @@ export default function App() {
       >
 
         {/* App Header */}
-        <div className="p-6 pb-4 bg-slate-950">
+        <div className="p-4 pb-4 bg-slate-950">
           <div className="flex items-center gap-3 mb-1">
             <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-2 rounded-lg shadow-lg shadow-indigo-500/20">
               <Trophy className="w-5 h-5 text-white" />
@@ -945,7 +945,7 @@ export default function App() {
           </div>
 
           {/* Stats Summary */}
-          <div className="flex gap-4 text-xs text-slate-400 mt-3 px-1">
+          <div className="flex gap-4 text-xs text-slate-400 mt-3">
             <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> 今日打球人數: {players.length}</span>
           </div>
         </div>
@@ -981,7 +981,7 @@ export default function App() {
             <div className="flex-1 overflow-y-auto flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out]">
               {/* Waiting Queue */}
               <div className="p-4">
-                <div className="flex items-center justify-between mb-3 px-1">
+                <div className="flex items-center justify-between mb-3">
                   <h2 className="text-sm font-semibold text-slate-400">
                     等待上場 ({queue.length})
                   </h2>
@@ -1003,7 +1003,7 @@ export default function App() {
                       return (
                         <React.Fragment key={chunkIdx}>
                           <div className="relative flex items-center py-2 animate-[fadeIn_0.3s_ease-out]">
-                            <div className="flex-1 flex items-center px-2 ml-2 gap-3">
+                            <div className="flex-1 flex items-center gap-3">
                               <span className="font-mono text-xs text-slate-500 w-4 text-center shrink-0">{chunkIdx + 1}</span>
                               <div className="flex items-center gap-3 flex-wrap">
                                 {(() => {
@@ -1076,7 +1076,7 @@ export default function App() {
               <div className="p-4 flex-1 flex flex-col">
                 <div className="space-y-4 mb-3">
                   {/* Header with Search Icon */}
-                  <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center justify-between">
                     <h2 className="text-sm font-semibold text-slate-400">
                       休息區 ({idlePlayers.length})
                     </h2>
@@ -1218,7 +1218,7 @@ export default function App() {
               {/* Sticky header: member list title + search + add/import */}
               <div className="p-4 pb-3 sticky top-0 bg-slate-950/95 backdrop-blur z-10 space-y-2">
                 {/* Member List Header with Search Icon */}
-                <div className="flex items-center justify-between pl-1">
+                <div className="flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-slate-400">
                     會員列表 ({notCheckedInMembers.length})
                   </h2>
