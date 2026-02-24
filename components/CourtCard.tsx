@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Court, Player, MAX_PLAYERS_PER_COURT } from '../types';
-import { PlayerAvatar } from './PlayerAvatar';
 import { Clock, Play, LogOut, Users, Zap, Coffee, Edit2, Check, X, Megaphone } from 'lucide-react';
 
 interface CourtCardProps {
@@ -164,7 +163,6 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                             >
                                 {player ? (
                                     <>
-                                        <PlayerAvatar name={player.name} size="sm" />
                                         <span className="truncate font-medium">{player.name}</span>
                                     </>
                                 ) : (
