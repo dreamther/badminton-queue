@@ -1139,9 +1139,9 @@ export default function App() {
 
                   <div className="flex-1 overflow-y-auto space-y-2">
                     {filteredIdlePlayers.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-10 text-slate-600 text-xs border border-dashed border-slate-800 rounded-xl">
+                      <div className="py-8 text-center text-slate-500 text-sm -ml-7">
                         <p>{restAreaSearchTerm ? '沒有符合的球員' : '休息區空空如也'}</p>
-                        {!restAreaSearchTerm && <p className="mt-1">請至「報到區」進行報到</p>}
+                        {!restAreaSearchTerm && <p className="text-xs mt-1 opacity-70">請至「報到區」進行報到</p>}
                       </div>
                     ) : (
                       filteredIdlePlayers.map(player => {
