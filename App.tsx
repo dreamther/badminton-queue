@@ -656,6 +656,36 @@ export default function App() {
     ));
   }, [courts]);
 
+  // Drop a player directly onto a court from rest area or queue
+  const dropPlayerToCourt = useCallback((courtId: number, playerId: string) => {
+    const court = courts.find(c => c.id === courtId);
+    if (!court || court.playerIds.length >= MAX_PLAYERS_PER_COURT) return;
+    if (court.playerIds.includes(playerId)) return;
+
+    // Remove from queue if they were queued
+    setQueueSlots(prev => {
+      const newSlots = prev.map(id => id === playerId ? null : id);
+      while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
+      return newSlots;
+    });
+
+    // Set player status to playing
+    setPlayers(prev => prev.map(p =>
+      p.id === playerId ? { ...p, status: 'playing' } : p
+    ));
+
+    // Add to court — only start match timer when reaching 4 players
+    setCourts(prev => prev.map(c => {
+      if (c.id !== courtId) return c;
+      const newPlayerIds = [...c.playerIds, playerId];
+      return {
+        ...c,
+        playerIds: newPlayerIds,
+        startTime: newPlayerIds.length >= MAX_PLAYERS_PER_COURT ? (c.startTime || Date.now()) : c.startTime
+      };
+    }));
+  }, [courts]);
+
   // --- Components ---
 
   const LevelSelector = ({ level, onChange, disabled = false }: { level: SkillLevel, onChange: (l: SkillLevel) => void, disabled?: boolean }) => {
@@ -1283,6 +1313,7 @@ export default function App() {
                 onAnnounce={announceCourtPlayers}
                 isAutoAnnounce={isAutoAnnounce}
                 canStartMatch={isQueueReady}
+                onDropPlayer={dropPlayerToCourt}
               />
             ))}
           </div>

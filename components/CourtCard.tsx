@@ -12,7 +12,8 @@ interface CourtCardProps {
     onRenameCourt?: (courtId: number, newName: string) => void;
     onAnnounce?: (courtId: number) => void;
     isAutoAnnounce?: boolean;
-    canStartMatch?: boolean; // New prop
+    canStartMatch?: boolean;
+    onDropPlayer?: (courtId: number, playerId: string) => void;
 }
 
 export const CourtCard: React.FC<CourtCardProps> = ({
@@ -24,16 +25,19 @@ export const CourtCard: React.FC<CourtCardProps> = ({
     onRenameCourt,
     onAnnounce,
     isAutoAnnounce = true,
-    canStartMatch = true
+    canStartMatch = true,
+    onDropPlayer
 }) => {
     const [elapsed, setElapsed] = useState<string>('00:00');
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(court.name);
+    const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
 
-    const isActive = playersOnCourt.length > 0;
+    const hasPlayers = playersOnCourt.length > 0;
+    const isMatchStarted = court.startTime !== null;
 
-    // Logic: Can start if queue has valid match group and court is empty
-    const canStart = !isActive && queueLength > 0 && canStartMatch;
+    // Can start if queue has valid match group and court is empty
+    const canStart = !hasPlayers && queueLength > 0 && canStartMatch;
 
     const handleSaveRename = () => {
         if (onRenameCourt) {
@@ -60,7 +64,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
 
     useEffect(() => {
         let interval: number;
-        if (isActive && court.startTime) {
+        if (isMatchStarted && court.startTime) {
             interval = window.setInterval(() => {
                 const now = Date.now();
                 const diff = Math.floor((now - court.startTime!) / 1000);
@@ -72,20 +76,22 @@ export const CourtCard: React.FC<CourtCardProps> = ({
             setElapsed('00:00');
         }
         return () => clearInterval(interval);
-    }, [isActive, court.startTime]);
+    }, [isMatchStarted, court.startTime]);
 
     return (
         <div className={`relative flex flex-col rounded-xl border transition-all duration-300 overflow-hidden
-      ${isActive
+      ${isMatchStarted
                 ? 'bg-slate-900 border-indigo-500/30'
-                : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                : hasPlayers
+                    ? 'bg-slate-900 border-amber-500/30'
+                    : 'bg-slate-950 border-slate-800 hover:border-slate-700'
             }
     `}>
             {/* Header */}
-            <div className={`px-4 py-3 flex items-center justify-between border-b ${isActive ? 'border-indigo-500/20 bg-indigo-500/5' : 'border-slate-800 bg-slate-900/50'}`}>
+            <div className={`px-4 py-3 flex items-center justify-between border-b ${isMatchStarted ? 'border-indigo-500/20 bg-indigo-500/5' : hasPlayers ? 'border-amber-500/20 bg-amber-500/5' : 'border-slate-800 bg-slate-900/50'}`}>
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-green-400 animate-pulse' : 'bg-slate-500'}`} />
+                        <div className={`w-2 h-2 rounded-full ${isMatchStarted ? 'bg-green-400 animate-pulse' : hasPlayers ? 'bg-amber-400' : 'bg-slate-500'}`} />
                         {isEditing ? (
                             <div className="flex items-center gap-1">
                                 <input
@@ -128,7 +134,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    {isActive && onAnnounce && (
+                    {isMatchStarted && onAnnounce && (
                         <button
                             onClick={() => onAnnounce(court.id)}
                             className="p-1.5 hover:bg-indigo-500/20 rounded text-indigo-400 hover:text-indigo-300 transition-all"
@@ -137,10 +143,16 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                             <Megaphone className="w-4 h-4" />
                         </button>
                     )}
-                    {isActive && (
+                    {isMatchStarted && (
                         <div className="flex items-center gap-1.5 text-xs font-mono text-indigo-300 bg-indigo-950/50 px-2 py-1 rounded">
                             <Clock className="w-3 h-3" />
                             {elapsed}
+                        </div>
+                    )}
+                    {hasPlayers && !isMatchStarted && (
+                        <div className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-950/50 px-2 py-1 rounded">
+                            <Users className="w-3 h-3" />
+                            {playersOnCourt.length}/{MAX_PLAYERS_PER_COURT}
                         </div>
                     )}
                 </div>
@@ -156,11 +168,25 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                         return (
                             <div
                                 key={`slot-${idx}`}
-                                className={`h-10 flex items-center gap-2 px-2 rounded-lg text-sm
+                                className={`h-10 flex items-center gap-2 px-2 rounded-lg text-sm transition-all
                                 ${player
                                         ? 'bg-transparent text-slate-200'
-                                        : 'bg-transparent border border-slate-800/50 border-dashed text-slate-500'
+                                        : dragOverSlot === idx
+                                            ? 'bg-indigo-500/10 border border-indigo-500/50 border-dashed text-indigo-400'
+                                            : 'bg-transparent border border-slate-800/50 border-dashed text-slate-500'
                                     }`}
+                                {...(!player && onDropPlayer ? {
+                                    onDragOver: (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; },
+                                    onDragEnter: (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setDragOverSlot(idx); },
+                                    onDragLeave: (e: React.DragEvent) => { e.stopPropagation(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverSlot(null); },
+                                    onDrop: (e: React.DragEvent) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setDragOverSlot(null);
+                                        const playerId = e.dataTransfer.getData('text/plain');
+                                        if (playerId) onDropPlayer(court.id, playerId);
+                                    }
+                                } : {})}
                             >
                                 {player ? (
                                     <>
@@ -177,7 +203,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
 
                 {/* Actions */}
                 <div className="mt-auto">
-                    {isActive ? (
+                    {isMatchStarted ? (
                         <button
                             onClick={() => onEndMatch(court.id)}
                             className="w-full py-2.5 flex items-center justify-center gap-2 rounded-lg font-medium text-sm
@@ -186,7 +212,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                             <LogOut className="w-4 h-4" />
                             結束比賽 (下場)
                         </button>
-                    ) : (
+                    ) : !hasPlayers ? (
                         <button
                             onClick={() => onStartMatch(court.id)}
                             disabled={!canStart}
@@ -207,6 +233,12 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                     ? '空場'
                                     : '打球囉'}
                         </button>
+                    ) : (
+                        <div className="w-full py-2.5 flex items-center justify-center gap-2 rounded-lg font-medium text-sm
+                            bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            <Users className="w-4 h-4" />
+                            等待中 ({playersOnCourt.length}/{MAX_PLAYERS_PER_COURT})
+                        </div>
                     )}
                 </div>
             </div>
