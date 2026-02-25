@@ -1330,6 +1330,7 @@ export default function App() {
                     <input
                       type="text"
                       placeholder="輸入姓名"
+                      maxLength={10}
                       className="w-full h-10 pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 placeholder-slate-500 text-sm"
                       value={newMemberName}
                       onChange={e => setNewMemberName(e.target.value)}
