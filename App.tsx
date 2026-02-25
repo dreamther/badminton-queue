@@ -16,7 +16,7 @@ export default function App() {
   const [currentTime, setCurrentTime] = useState(new Date()); // New: Clock state
   const [isAutoAnnounce, setIsAutoAnnounce] = useState(true); // New: Auto announce toggle
 
-  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [dragOverSlotKey, setDragOverSlotKey] = useState<string | null>(null);
   const [isCheckedInExpanded, setIsCheckedInExpanded] = useState(false);
   const [isMemberListExpanded, setIsMemberListExpanded] = useState(true);
 
@@ -458,6 +458,25 @@ export default function App() {
     });
   }, []);
 
+  const insertIntoQueueAt = useCallback((playerId: string, position: number) => {
+    setPlayers(prev => {
+      const queued = prev.filter(p => p.status === 'queued').sort((a, b) => a.joinedAt - b.joinedAt);
+      let newJoinedAt: number;
+
+      if (queued.length === 0 || position >= queued.length) {
+        newJoinedAt = Date.now();
+      } else if (position <= 0) {
+        newJoinedAt = queued[0].joinedAt - 1;
+      } else {
+        newJoinedAt = (queued[position - 1].joinedAt + queued[position].joinedAt) / 2;
+      }
+
+      return prev.map(p =>
+        p.id === playerId ? { ...p, status: 'queued', joinedAt: newJoinedAt } : p
+      );
+    });
+  }, []);
+
   const removeFromQueue = useCallback((playerId: string) => {
     if (!confirm('確定要讓此球員回到休息區嗎？')) return;
     setPlayers(prev => prev.map(p =>
@@ -717,18 +736,17 @@ export default function App() {
             <div className="flex-1 overflow-y-auto flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out]">
               {/* Waiting Queue */}
               <div
-                className={`px-6 py-4 transition-colors ${isDraggingOver ? 'bg-indigo-500/10 ring-2 ring-inset ring-indigo-500/50 rounded-xl' : ''}`}
+                className={`px-6 py-4 transition-colors ${dragOverSlotKey === 'container' ? 'bg-indigo-500/10 ring-2 ring-inset ring-indigo-500/50 rounded-xl' : ''}`}
                 onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
-                onDragEnter={(e) => { e.preventDefault(); setIsDraggingOver(true); }}
+                onDragEnter={(e) => { e.preventDefault(); if (e.currentTarget === e.target) setDragOverSlotKey('container'); }}
                 onDragLeave={(e) => {
-                  // Only set false if leaving the container itself
                   if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                    setIsDraggingOver(false);
+                    setDragOverSlotKey(null);
                   }
                 }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  setIsDraggingOver(false);
+                  setDragOverSlotKey(null);
                   const playerId = e.dataTransfer.getData('text/plain');
                   if (playerId) joinQueue(playerId);
                 }}
@@ -756,7 +774,22 @@ export default function App() {
                                 {chunk.map((item, idx) => (
                                   <React.Fragment key={idx}>
                                     {item.type === 'player' ? (
-                                      <div className="relative group/player min-w-0">
+                                      <div
+                                        className={`relative group/player min-w-0 transition-all ${dragOverSlotKey === `${chunkIdx}-${idx}` ? 'ring-2 ring-indigo-500/70 rounded-lg' : ''}`}
+                                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; }}
+                                        onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverSlotKey(`${chunkIdx}-${idx}`); }}
+                                        onDragLeave={(e) => { e.stopPropagation(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverSlotKey(null); }}
+                                        onDrop={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          setDragOverSlotKey(null);
+                                          const playerId = e.dataTransfer.getData('text/plain');
+                                          if (playerId) {
+                                            const flatIdx = chunkIdx * 4 + idx;
+                                            insertIntoQueueAt(playerId, flatIdx);
+                                          }
+                                        }}
+                                      >
                                         <button
                                           onClick={() => removeFromQueue(item.data.id)}
                                           title="讓球員休息 (移出佇列)"
@@ -770,7 +803,24 @@ export default function App() {
                                         </button>
                                       </div>
                                     ) : (
-                                      <div className="h-10 flex items-center justify-center rounded-lg border border-dashed border-slate-800/50 text-slate-500" title="空位">
+                                      <div
+                                        className={`h-10 flex items-center justify-center rounded-lg border border-dashed text-slate-500 transition-all
+                                          ${dragOverSlotKey === `${chunkIdx}-${idx}` ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-slate-800/50'}`}
+                                        title="空位 - 拖曳球員到此處"
+                                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; }}
+                                        onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverSlotKey(`${chunkIdx}-${idx}`); }}
+                                        onDragLeave={(e) => { e.stopPropagation(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverSlotKey(null); }}
+                                        onDrop={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          setDragOverSlotKey(null);
+                                          const playerId = e.dataTransfer.getData('text/plain');
+                                          if (playerId) {
+                                            const flatIdx = chunkIdx * 4 + idx;
+                                            insertIntoQueueAt(playerId, flatIdx);
+                                          }
+                                        }}
+                                      >
                                         <span className="text-xs opacity-50">空位</span>
                                       </div>
                                     )}
