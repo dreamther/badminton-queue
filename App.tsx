@@ -1024,7 +1024,7 @@ export default function App() {
                                         <button
                                           onClick={() => removeFromQueue(item.data.id)}
                                           title="讓球員休息 (移出佇列)"
-                                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-700 transition-colors text-left min-w-0"
+                                          className="w-full h-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] hover:bg-slate-700/40 transition-colors text-left min-w-0"
                                         >
                                           <span className="flex items-center gap-1.5 text-sm font-medium text-slate-300 group-hover/player:text-amber-400 transition-colors min-w-0">
                                             <PlayerAvatar identifier={item.data.name} className="w-2.5 h-2.5 shrink-0" />
