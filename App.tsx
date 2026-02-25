@@ -155,8 +155,10 @@ export default function App() {
     const playerMap = new Map<string, Player>(players.map(p => [p.id, p]));
     const displayResult: ({ type: 'player', data: Player } | { type: 'empty', id: string })[] = [];
 
-    // Build display from queueSlots, preserving gaps
-    const totalSlots = queueSlots.length > 0 ? Math.ceil(queueSlots.length / 4) * 4 : 0;
+    // Always show at least (courts + 1) groups of 4 slots
+    const minSlots = (courts.length + 1) * 4;
+    const slotsFromQueue = queueSlots.length > 0 ? Math.ceil(queueSlots.length / 4) * 4 : 0;
+    const totalSlots = Math.max(minSlots, slotsFromQueue);
     for (let i = 0; i < totalSlots; i++) {
       const id = queueSlots[i];
       if (id) {
@@ -172,7 +174,7 @@ export default function App() {
     }
 
     return displayResult;
-  }, [queueSlots, players]);
+  }, [queueSlots, players, courts.length]);
 
   // --- Chunked Queue for Collapsed View ---
   const chunkedQueueItems = useMemo(() => {
