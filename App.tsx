@@ -359,6 +359,15 @@ export default function App() {
     return chunks;
   }, [queueDisplayItems]);
 
+  // Count how many queued players share each groupId
+  const queueGroupSizes = useMemo(() => {
+    const sizes = new Map<string, number>();
+    players.filter(p => p.status === 'queued' && p.groupId).forEach(p => {
+      sizes.set(p.groupId!, (sizes.get(p.groupId!) || 0) + 1);
+    });
+    return sizes;
+  }, [players]);
+
 
   // --- Helper Functions ---
   const speak = useCallback((text: string) => {
@@ -1032,19 +1041,24 @@ export default function App() {
                                 {chunk.map((item, idx) => (
                                   <React.Fragment key={idx}>
                                     {item.type === 'player' ? (
-                                      <div className={`relative group/player min-w-0 ${item.data.groupId ? `p-0.5 rounded-xl border ${getGroupBorderColor(item.data.groupId)}` : ''}`}>
-                                        <button
-                                          onClick={() => removeFromQueue(item.data.id)}
-                                          title="讓球員休息 (移出佇列)"
-                                          className="w-full h-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] hover:bg-slate-700/40 transition-colors text-left min-w-0"
-                                        >
-                                          <span className="flex items-center gap-1.5 text-sm font-medium text-slate-300 group-hover/player:text-amber-400 transition-colors min-w-0">
-                                            <PlayerAvatar identifier={item.data.name} className="w-2.5 h-2.5 shrink-0" />
-                                            <span className="truncate">{item.data.name}</span>
-                                          </span>
-                                          <Coffee className="w-3.5 h-3.5 text-slate-500 opacity-0 group-hover/player:opacity-100 group-hover/player:text-amber-500 transition-all shrink-0" />
-                                        </button>
-                                      </div>
+                                      (() => {
+                                        const hasBoundPartner = item.data.groupId && (queueGroupSizes.get(item.data.groupId) || 0) >= 2;
+                                        return (
+                                          <div className={`relative group/player min-w-0 ${hasBoundPartner ? `p-0.5 rounded-xl border ${getGroupBorderColor(item.data.groupId!)}` : ''}`}>
+                                            <button
+                                              onClick={() => removeFromQueue(item.data.id)}
+                                              title="讓球員休息 (移出佇列)"
+                                              className="w-full h-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] hover:bg-slate-700/40 transition-colors text-left min-w-0"
+                                            >
+                                              <span className="flex items-center gap-1.5 text-sm font-medium text-slate-300 group-hover/player:text-amber-400 transition-colors min-w-0">
+                                                <PlayerAvatar identifier={item.data.name} className="w-2.5 h-2.5 shrink-0" />
+                                                <span className="truncate">{item.data.name}</span>
+                                              </span>
+                                              <Coffee className="w-3.5 h-3.5 text-slate-500 opacity-0 group-hover/player:opacity-100 group-hover/player:text-amber-500 transition-all shrink-0" />
+                                            </button>
+                                          </div>
+                                        );
+                                      })()
                                     ) : (
                                       <div className="h-10 flex items-center justify-center rounded-lg border border-dashed border-slate-800/50 text-slate-500" title="空位">
                                         <span className="text-xs opacity-50">空位</span>
