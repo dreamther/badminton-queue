@@ -17,6 +17,7 @@ export default function App() {
   const [isAutoAnnounce, setIsAutoAnnounce] = useState(true); // New: Auto announce toggle
 
   const [dragOverSlotKey, setDragOverSlotKey] = useState<string | null>(null);
+  const [queueSlots, setQueueSlots] = useState<(string | null)[]>([]);
   const [isCheckedInExpanded, setIsCheckedInExpanded] = useState(false);
   const [isMemberListExpanded, setIsMemberListExpanded] = useState(true);
 
@@ -94,8 +95,12 @@ export default function App() {
 
   // --- Derived Lists ---
   const queue = useMemo(() => {
-    return players.filter(p => p.status === 'queued').sort((a, b) => a.joinedAt - b.joinedAt);
-  }, [players]);
+    const playerMap = new Map(players.map(p => [p.id, p]));
+    return queueSlots
+      .filter((id): id is string => id !== null)
+      .map(id => playerMap.get(id))
+      .filter((p): p is Player => p !== undefined);
+  }, [players, queueSlots]);
   const idlePlayers = useMemo(() => players.filter(p => p.status === 'idle').sort((a, b) => b.joinedAt - a.joinedAt), [players]);
 
   // Filtered idle players based on search term
@@ -107,14 +112,9 @@ export default function App() {
   const idleCourtsCount = useMemo(() => courts.filter(c => c.playerIds.length === 0).length, [courts]);
 
   // --- Match Calculation Logic ---
-  // Calculate the next batch of players (Greedy Fit)
-  const getNextMatchBatch = useCallback((currentQueue: Player[]) => {
-    const batch: Player[] = [];
-    for (const p of currentQueue) {
-      if (batch.length >= MAX_PLAYERS_PER_COURT) break;
-      batch.push(p);
-    }
-    return batch;
+  // Get the first 4 non-null players from queue (slot order)
+  const getNextMatchBatch = useCallback((q: Player[]) => {
+    return q.slice(0, MAX_PLAYERS_PER_COURT);
   }, []);
 
   // Next Match Group Calculation (Who is on deck?)
@@ -150,41 +150,29 @@ export default function App() {
     return { checkedInMembers: checkedIn, notCheckedInMembers: notCheckedIn };
   }, [players, filteredMembers]);
 
-  // --- Queue Display Logic (Match-Based Grouping) ---
-  // Group players by who will actually play together in matches
+  // --- Queue Display Logic (Slot-Based) ---
   const queueDisplayItems = useMemo(() => {
+    const playerMap = new Map<string, Player>(players.map(p => [p.id, p]));
     const displayResult: ({ type: 'player', data: Player } | { type: 'empty', id: string })[] = [];
 
-    // Process queue in chunks of 4 (match groups)
-    let remainingQueue = [...queue];
-    let groupIndex = 0;
-
-    while (remainingQueue.length > 0) {
-      // Get next batch using the same logic as match start
-      const nextBatch = getNextMatchBatch(remainingQueue);
-
-      if (nextBatch.length === 0) break; // Safety check
-
-      // Add this batch as a visual group
-      nextBatch.forEach(p => {
-        displayResult.push({ type: 'player', data: p });
-      });
-
-      // Fill remaining slots with empty placeholders
-      const slotsToFill = 4 - nextBatch.length;
-      for (let i = 0; i < slotsToFill; i++) {
-        displayResult.push({ type: 'empty', id: `filler-${groupIndex}-${i}` });
+    // Build display from queueSlots, preserving gaps
+    const totalSlots = queueSlots.length > 0 ? Math.ceil(queueSlots.length / 4) * 4 : 0;
+    for (let i = 0; i < totalSlots; i++) {
+      const id = queueSlots[i];
+      if (id) {
+        const player = playerMap.get(id);
+        if (player) {
+          displayResult.push({ type: 'player', data: player });
+        } else {
+          displayResult.push({ type: 'empty', id: `slot-${i}` });
+        }
+      } else {
+        displayResult.push({ type: 'empty', id: `slot-${i}` });
       }
-
-      // Remove processed players from remaining queue
-      const processedIds = new Set(nextBatch.map(p => p.id));
-      remainingQueue = remainingQueue.filter(p => !processedIds.has(p.id));
-
-      groupIndex++;
     }
 
     return displayResult;
-  }, [queue, getNextMatchBatch]);
+  }, [queueSlots, players]);
 
   // --- Chunked Queue for Collapsed View ---
   const chunkedQueueItems = useMemo(() => {
@@ -410,75 +398,70 @@ export default function App() {
 
   // Move player up in the queue
   const moveQueueItemUp = useCallback((playerId: string) => {
-    const queuedPlayers = players.filter(p => p.status === 'queued').sort((a, b) => a.joinedAt - b.joinedAt);
-    const playerIndex = queuedPlayers.findIndex(p => p.id === playerId);
-
-    if (playerIndex <= 0) return; // Already at top or not found
-
-    const currentTime = queuedPlayers[playerIndex].joinedAt;
-    const prevTime = queuedPlayers[playerIndex - 1].joinedAt;
-
-    // Swap timestamps
-    setPlayers(prev => prev.map(p => {
-      if (p.id === playerId) return { ...p, joinedAt: prevTime };
-      if (p.id === queuedPlayers[playerIndex - 1].id) return { ...p, joinedAt: currentTime };
-      return p;
-    }));
-  }, [players]);
-
-  // Move player down in the queue
-  const moveQueueItemDown = useCallback((playerId: string) => {
-    const queuedPlayers = players.filter(p => p.status === 'queued').sort((a, b) => a.joinedAt - b.joinedAt);
-    const playerIndex = queuedPlayers.findIndex(p => p.id === playerId);
-
-    if (playerIndex === -1 || playerIndex >= queuedPlayers.length - 1) return; // Not found or at bottom
-
-    const currentTime = queuedPlayers[playerIndex].joinedAt;
-    const nextTime = queuedPlayers[playerIndex + 1].joinedAt;
-
-    // Swap timestamps
-    setPlayers(prev => prev.map(p => {
-      if (p.id === playerId) return { ...p, joinedAt: nextTime };
-      if (p.id === queuedPlayers[playerIndex + 1].id) return { ...p, joinedAt: currentTime };
-      return p;
-    }));
-  }, [players]);
-  // Drag and drop handlers removed
-
-
-  const joinQueue = useCallback((playerId: string) => {
-    setPlayers(prev => {
-      return prev.map(p =>
-        p.id === playerId ? {
-          ...p,
-          status: 'queued',
-          joinedAt: Date.now()
-        } : p
-      );
+    setQueueSlots(prev => {
+      const idx = prev.indexOf(playerId);
+      if (idx <= 0) return prev;
+      // Find the previous non-null slot
+      let prevIdx = idx - 1;
+      while (prevIdx >= 0 && prev[prevIdx] === null) prevIdx--;
+      if (prevIdx < 0) return prev;
+      const newSlots = [...prev];
+      [newSlots[prevIdx], newSlots[idx]] = [newSlots[idx], newSlots[prevIdx]];
+      return newSlots;
     });
   }, []);
 
-  const insertIntoQueueAt = useCallback((playerId: string, position: number) => {
-    setPlayers(prev => {
-      const queued = prev.filter(p => p.status === 'queued').sort((a, b) => a.joinedAt - b.joinedAt);
-      let newJoinedAt: number;
-
-      if (queued.length === 0 || position >= queued.length) {
-        newJoinedAt = Date.now();
-      } else if (position <= 0) {
-        newJoinedAt = queued[0].joinedAt - 1;
-      } else {
-        newJoinedAt = (queued[position - 1].joinedAt + queued[position].joinedAt) / 2;
-      }
-
-      return prev.map(p =>
-        p.id === playerId ? { ...p, status: 'queued', joinedAt: newJoinedAt } : p
-      );
+  // Move player down in the queue
+  const moveQueueItemDown = useCallback((playerId: string) => {
+    setQueueSlots(prev => {
+      const idx = prev.indexOf(playerId);
+      if (idx === -1 || idx >= prev.length - 1) return prev;
+      // Find the next non-null slot
+      let nextIdx = idx + 1;
+      while (nextIdx < prev.length && prev[nextIdx] === null) nextIdx++;
+      if (nextIdx >= prev.length) return prev;
+      const newSlots = [...prev];
+      [newSlots[idx], newSlots[nextIdx]] = [newSlots[nextIdx], newSlots[idx]];
+      return newSlots;
     });
+  }, []);
+
+
+  const joinQueue = useCallback((playerId: string) => {
+    // Append to end of queueSlots
+    setQueueSlots(prev => [...prev, playerId]);
+    setPlayers(prev => prev.map(p =>
+      p.id === playerId ? { ...p, status: 'queued', joinedAt: Date.now() } : p
+    ));
+  }, []);
+
+  const insertIntoQueueAt = useCallback((playerId: string, position: number) => {
+    setQueueSlots(prev => {
+      const newSlots = [...prev];
+      // Extend array if needed
+      while (newSlots.length <= position) newSlots.push(null);
+      // If slot is empty (null), place directly. Otherwise, insert and shift.
+      if (newSlots[position] === null) {
+        newSlots[position] = playerId;
+      } else {
+        newSlots.splice(position, 0, playerId);
+      }
+      return newSlots;
+    });
+    setPlayers(prev => prev.map(p =>
+      p.id === playerId ? { ...p, status: 'queued', joinedAt: Date.now() } : p
+    ));
   }, []);
 
   const removeFromQueue = useCallback((playerId: string) => {
     if (!confirm('確定要讓此球員回到休息區嗎？')) return;
+    // Set slot to null (preserve position gaps)
+    setQueueSlots(prev => {
+      const newSlots = prev.map(id => id === playerId ? null : id);
+      // Trim trailing nulls
+      while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
+      return newSlots;
+    });
     setPlayers(prev => prev.map(p =>
       p.id === playerId ? { ...p, status: 'idle' } : p
     ));
@@ -487,6 +470,11 @@ export default function App() {
   // Remove from session (Check out) -> "Early Leave"
   const deletePlayer = useCallback((playerId: string) => {
     if (confirm('確定要讓此球員早退嗎？（將回到會員列表）')) {
+      setQueueSlots(prev => {
+        const newSlots = prev.map(id => id === playerId ? null : id);
+        while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
+        return newSlots;
+      });
       setPlayers(prev => prev.filter(p => p.id !== playerId));
       setCourts(prev => prev.map(c => ({
         ...c,
@@ -501,6 +489,7 @@ export default function App() {
     if (queuedCount === 0) return;
 
     if (confirm(`確定要讓排隊中的 ${queuedCount} 人全部回到休息區嗎？`)) {
+      setQueueSlots([]);
       setPlayers(prev => prev.map(p =>
         p.status === 'queued'
           ? { ...p, status: 'idle' }
@@ -524,6 +513,7 @@ export default function App() {
     if (confirm('確定要結束所有比賽嗎？\n所有場上和排隊的球員將會回到會員列表。')) {
       // Move everyone back to member list (remove from players state)
       setPlayers([]);
+      setQueueSlots([]);
 
       setCourts(prev => prev.map(c => ({
         ...c,
@@ -610,6 +600,13 @@ export default function App() {
     setPlayers(prev => prev.map(p =>
       playerIds.includes(p.id) ? { ...p, status: 'playing' } : p
     ));
+
+    // Remove matched players from queueSlots
+    setQueueSlots(prev => {
+      const newSlots = prev.map(id => playerIds.includes(id!) ? null : id);
+      while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
+      return newSlots;
+    });
 
     setCourts(prev => prev.map(c =>
       c.id === courtId ? { ...c, playerIds, startTime: Date.now() } : c
