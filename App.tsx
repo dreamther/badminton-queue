@@ -32,6 +32,17 @@ const getGroupBorderColor = (groupId: string) => {
   return colors[Math.abs(hash) % colors.length];
 };
 
+const getGroupBgColor = (groupId: string) => {
+  const colors = [
+    'bg-indigo-500', 'bg-pink-500'
+  ];
+  let hash = 0;
+  for (let i = 0; i < groupId.length; i++) {
+    hash = groupId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
+
 export default function App() {
   // --- State ---
   const [activeTab, setActiveTab] = useState<Tab>('members');
@@ -1016,7 +1027,7 @@ export default function App() {
                           <div className="relative flex items-center py-2 animate-[fadeIn_0.3s_ease-out]">
                             <div className="flex-1 flex items-center gap-3 min-w-0 overflow-hidden">
                               <span className="font-mono text-xs text-slate-500 w-4 text-center shrink-0">{chunkIdx + 1}</span>
-                              <div className="grid grid-cols-2 gap-3 min-w-0 overflow-hidden flex-1">
+                              <div className="relative grid grid-cols-2 gap-3 min-w-0 flex-1">
                                 {chunk.map((item, idx) => (
                                   <React.Fragment key={idx}>
                                     {item.type === 'player' ? (
@@ -1040,6 +1051,53 @@ export default function App() {
                                     )}
                                   </React.Fragment>
                                 ))}
+                                {/* Connector lines between bound players */}
+                                {(() => {
+                                  const boundGroups = new Map<string, number[]>();
+                                  chunk.forEach((item, idx) => {
+                                    if (item.type === 'player' && item.data.groupId) {
+                                      const pos = boundGroups.get(item.data.groupId) || [];
+                                      pos.push(idx);
+                                      boundGroups.set(item.data.groupId, pos);
+                                    }
+                                  });
+                                  const connectors: React.ReactNode[] = [];
+                                  boundGroups.forEach((indices, groupId) => {
+                                    if (indices.length < 2) return;
+                                    for (let i = 0; i < indices.length - 1; i++) {
+                                      const from = indices[i], to = indices[i + 1];
+                                      const fromRow = Math.floor(from / 2), fromCol = from % 2;
+                                      const toRow = Math.floor(to / 2), toCol = to % 2;
+                                      let style: React.CSSProperties;
+                                      if (fromRow === toRow) {
+                                        // Same row → horizontal connector
+                                        style = {
+                                          position: 'absolute', left: '50%', top: fromRow === 0 ? '25%' : '75%',
+                                          transform: 'translate(-50%, -50%)', width: '12px', height: '1px',
+                                        };
+                                      } else if (fromCol === toCol) {
+                                        // Same column → vertical connector
+                                        style = {
+                                          position: 'absolute', left: fromCol === 0 ? '25%' : '75%', top: '50%',
+                                          transform: 'translate(-50%, -50%)', width: '1px', height: '12px',
+                                        };
+                                      } else {
+                                        // Diagonal
+                                        const isDiagDown = (from === 0 && to === 3) || (from === 3 && to === 0);
+                                        const rotation = isDiagDown ? -45 : 45;
+                                        style = {
+                                          position: 'absolute', left: '50%', top: '50%',
+                                          transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+                                          width: '1px', height: '17px',
+                                        };
+                                      }
+                                      connectors.push(
+                                        <div key={`conn-${groupId}-${i}`} style={style} className={`${getGroupBgColor(groupId)} pointer-events-none z-10`} />
+                                      );
+                                    }
+                                  });
+                                  return connectors.length > 0 ? connectors : null;
+                                })()}
                               </div>
                             </div>
                           </div>
