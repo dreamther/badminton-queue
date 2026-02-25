@@ -16,8 +16,7 @@ export default function App() {
   const [currentTime, setCurrentTime] = useState(new Date()); // New: Clock state
   const [isAutoAnnounce, setIsAutoAnnounce] = useState(true); // New: Auto announce toggle
 
-  // Grouping & Selection State
-  const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set());
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [isCheckedInExpanded, setIsCheckedInExpanded] = useState(false);
   const [isMemberListExpanded, setIsMemberListExpanded] = useState(true);
 
@@ -445,44 +444,7 @@ export default function App() {
     }));
   }, [players]);
   // Drag and drop handlers removed
-  // Toggle Selection for Batch Actions
-  const togglePlayerSelection = useCallback((playerId: string) => {
-    setSelectedPlayerIds(prev => {
-      const next = new Set(prev);
-      if (next.has(playerId)) {
-        next.delete(playerId);
-      } else {
-        if (next.size >= MAX_PLAYERS_PER_COURT) {
-          alert(`最多只能選擇 ${MAX_PLAYERS_PER_COURT} 人組成搭檔`);
-          return prev;
-        }
-        next.add(playerId);
-      }
-      return next;
-    });
-  }, []);
 
-  // Batch Join Queue with Fill Logic
-  const batchJoinQueue = useCallback(() => {
-    if (selectedPlayerIds.size === 0) return;
-
-    setPlayers(prev => {
-      const now = Date.now();
-
-      return prev.map(p => {
-        if (selectedPlayerIds.has(p.id)) {
-          return {
-            ...p,
-            status: 'queued',
-            joinedAt: now,
-          };
-        }
-        return p;
-      });
-    });
-
-    setSelectedPlayerIds(new Set()); // Clear selection
-  }, [selectedPlayerIds]);
 
   const joinQueue = useCallback((playerId: string) => {
     setPlayers(prev => {
@@ -511,11 +473,6 @@ export default function App() {
         ...c,
         playerIds: c.playerIds.filter(id => id !== playerId)
       })));
-      setSelectedPlayerIds(prev => {
-        const next = new Set(prev);
-        next.delete(playerId);
-        return next;
-      });
     }
   }, []);
 
@@ -530,7 +487,6 @@ export default function App() {
           ? { ...p, status: 'idle' }
           : p
       ));
-      setSelectedPlayerIds(new Set());
     }
   }, [players]);
 
@@ -541,8 +497,6 @@ export default function App() {
 
     if (confirm(`確定要讓休息區的 ${idleCount} 人全部離開球場嗎？\n他們將回到會員列表。`)) {
       setPlayers(prev => prev.filter(p => p.status !== 'idle'));
-      // Also clear selections just in case
-      setSelectedPlayerIds(new Set());
     }
   }, [players]);
 
@@ -557,7 +511,6 @@ export default function App() {
         playerIds: [],
         startTime: null
       })));
-      setSelectedPlayerIds(new Set());
     }
   }, []);
 
@@ -763,7 +716,23 @@ export default function App() {
           {activeTab === 'queue' && (
             <div className="flex-1 overflow-y-auto flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out]">
               {/* Waiting Queue */}
-              <div className="px-6 py-4">
+              <div
+                className={`px-6 py-4 transition-colors ${isDraggingOver ? 'bg-indigo-500/10 ring-2 ring-inset ring-indigo-500/50 rounded-xl' : ''}`}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                onDragEnter={(e) => { e.preventDefault(); setIsDraggingOver(true); }}
+                onDragLeave={(e) => {
+                  // Only set false if leaving the container itself
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setIsDraggingOver(false);
+                  }
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDraggingOver(false);
+                  const playerId = e.dataTransfer.getData('text/plain');
+                  if (playerId) joinQueue(playerId);
+                }}
+              >
                 <div className="flex items-center justify-between mb-3 min-h-[32px]">
                   <h2 className="text-sm font-semibold text-slate-400">
                     等待上場 ({queue.length})
@@ -774,7 +743,7 @@ export default function App() {
                   {queueDisplayItems.length === 0 ? (
                     <div className="py-8 text-center border-2 border-dashed border-slate-800 rounded-xl text-slate-500 text-sm bg-slate-900/50">
                       目前沒有人在排隊
-                      <div className="text-xs mt-1 opacity-70">請從下方休息區加入</div>
+                      <div className="text-xs mt-1 opacity-70">從下方休息區拖曳球員到此處</div>
                     </div>
                   ) : (
                     chunkedQueueItems.map((chunk, chunkIdx) => {
@@ -873,19 +842,7 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Batch Action Bar - Moved to Top */}
                 <div className="pl-7">
-                  {selectedPlayerIds.size > 0 && (
-                    <div className="mb-3 pt-1">
-                      <button
-                        onClick={batchJoinQueue}
-                        className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium text-sm shadow-lg shadow-indigo-900/20 flex items-center justify-center gap-2 transition-all animate-[slideUp_0.2s_ease-out]"
-                      >
-                        <ArrowUp className="w-4 h-4" />
-                        {selectedPlayerIds.size === 1 ? '加入排隊' : `將 ${selectedPlayerIds.size} 人組成搭檔上場`}
-                      </button>
-                    </div>
-                  )}
 
                   <div className="flex-1 overflow-y-auto space-y-4">
                     {filteredIdlePlayers.length === 0 ? (
@@ -895,45 +852,23 @@ export default function App() {
                       </div>
                     ) : (
                       filteredIdlePlayers.map(player => {
-                        const isSelected = selectedPlayerIds.has(player.id);
                         return (
                           <div
                             key={player.id}
-                            className={`flex items-center justify-between py-2 px-2 rounded-lg border transition-all group
-                                                ${isSelected
-                                ? 'bg-indigo-900/20 border-indigo-500/30'
-                                : 'bg-transparent border-transparent hover:bg-slate-800/50 hover:border-slate-800'}
-                                            `}
+                            draggable
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData('text/plain', player.id);
+                              e.dataTransfer.effectAllowed = 'move';
+                            }}
+                            className="flex items-center justify-between py-2 px-2 rounded-lg border transition-all group
+                              bg-transparent border-transparent hover:bg-slate-800/50 hover:border-slate-800 cursor-grab active:cursor-grabbing"
                           >
                             <div className="flex items-center gap-3 flex-1 min-w-0">
-                              {selectedPlayerIds.size > 0 && (
-                                <div className="flex items-center h-5 shrink-0 transition-opacity">
-                                  {(isSelected || selectedPlayerIds.size < MAX_PLAYERS_PER_COURT) ? (
-                                    <label className="relative flex items-center cursor-pointer">
-                                      <input
-                                        type="checkbox"
-                                        checked={isSelected}
-                                        onChange={() => togglePlayerSelection(player.id)}
-                                        className="sr-only peer"
-                                      />
-                                      <div className="w-4 h-4 rounded-md border border-slate-600 hover:border-indigo-500 bg-transparent peer-checked:bg-indigo-500 peer-checked:border-indigo-500 transition-all flex items-center justify-center">
-                                        {isSelected && (
-                                          <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                          </svg>
-                                        )}
-                                      </div>
-                                    </label>
-                                  ) : (
-                                    <div className="w-4 h-4" />
-                                  )}
-                                </div>
-                              )}
-                              <div className="flex items-center gap-2 cursor-pointer flex-1 min-w-0" onClick={() => togglePlayerSelection(player.id)}>
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
                                 <div className="flex flex-col min-w-0">
                                   <div className="flex items-center gap-1.5">
                                     <PlayerAvatar identifier={player.name} className="w-3.5 h-3.5 shrink-0" />
-                                    <span className={`text-sm transition-colors truncate ${isSelected ? 'text-indigo-200 font-bold' : 'text-slate-300'}`}>
+                                    <span className="text-sm text-slate-300 truncate">
                                       {player.name}
                                     </span>
                                   </div>
@@ -948,15 +883,13 @@ export default function App() {
                             </div>
 
                             <div className="flex gap-1 pl-2">
-                              {!selectedPlayerIds.size && (
-                                <button
-                                  onClick={() => deletePlayer(player.id)}
-                                  className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors opacity-0 group-hover:opacity-100"
-                                  title="早退 (回到會員列表)"
-                                >
-                                  <LogOut className="w-3.5 h-3.5" />
-                                </button>
-                              )}
+                              <button
+                                onClick={() => deletePlayer(player.id)}
+                                className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                                title="早退 (回到會員列表)"
+                              >
+                                <LogOut className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </div>
                         );
