@@ -453,6 +453,31 @@ export default function App() {
     ));
   }, []);
 
+  // Move an existing queued player to a new slot position
+  const moveInQueue = useCallback((playerId: string, toPosition: number) => {
+    setQueueSlots(prev => {
+      const newSlots = [...prev];
+      const fromIdx = newSlots.indexOf(playerId);
+      if (fromIdx === -1) return prev;
+      // Remove from current position (leave null)
+      newSlots[fromIdx] = null;
+      // Extend if needed
+      while (newSlots.length <= toPosition) newSlots.push(null);
+      // If target is empty, place directly. Otherwise swap.
+      if (newSlots[toPosition] === null) {
+        newSlots[toPosition] = playerId;
+      } else {
+        // Swap: move the target player to the old position
+        const targetId = newSlots[toPosition];
+        newSlots[toPosition] = playerId;
+        newSlots[fromIdx] = targetId;
+      }
+      // Trim trailing nulls
+      while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
+      return newSlots;
+    });
+  }, []);
+
   const removeFromQueue = useCallback((playerId: string) => {
     if (!confirm('確定要讓此球員回到休息區嗎？')) return;
     // Set slot to null (preserve position gaps)
@@ -772,7 +797,13 @@ export default function App() {
                                   <React.Fragment key={idx}>
                                     {item.type === 'player' ? (
                                       <div
-                                        className={`relative group/player min-w-0 transition-all ${dragOverSlotKey === `${chunkIdx}-${idx}` ? 'ring-2 ring-indigo-500/70 rounded-lg' : ''}`}
+                                        draggable
+                                        onDragStart={(e) => {
+                                          e.dataTransfer.setData('text/plain', item.data.id);
+                                          e.dataTransfer.setData('source', 'queue');
+                                          e.dataTransfer.effectAllowed = 'move';
+                                        }}
+                                        className={`relative group/player min-w-0 transition-all cursor-grab active:cursor-grabbing ${dragOverSlotKey === `${chunkIdx}-${idx}` ? 'ring-2 ring-indigo-500/70 rounded-lg' : ''}`}
                                         onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; }}
                                         onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverSlotKey(`${chunkIdx}-${idx}`); }}
                                         onDragLeave={(e) => { e.stopPropagation(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverSlotKey(null); }}
@@ -781,9 +812,14 @@ export default function App() {
                                           e.stopPropagation();
                                           setDragOverSlotKey(null);
                                           const playerId = e.dataTransfer.getData('text/plain');
-                                          if (playerId) {
+                                          if (playerId && playerId !== item.data.id) {
                                             const flatIdx = chunkIdx * 4 + idx;
-                                            insertIntoQueueAt(playerId, flatIdx);
+                                            const isFromQueue = e.dataTransfer.getData('source') === 'queue';
+                                            if (isFromQueue) {
+                                              moveInQueue(playerId, flatIdx);
+                                            } else {
+                                              insertIntoQueueAt(playerId, flatIdx);
+                                            }
                                           }
                                         }}
                                       >
@@ -814,7 +850,12 @@ export default function App() {
                                           const playerId = e.dataTransfer.getData('text/plain');
                                           if (playerId) {
                                             const flatIdx = chunkIdx * 4 + idx;
-                                            insertIntoQueueAt(playerId, flatIdx);
+                                            const isFromQueue = e.dataTransfer.getData('source') === 'queue';
+                                            if (isFromQueue) {
+                                              moveInQueue(playerId, flatIdx);
+                                            } else {
+                                              insertIntoQueueAt(playerId, flatIdx);
+                                            }
                                           }
                                         }}
                                       >
