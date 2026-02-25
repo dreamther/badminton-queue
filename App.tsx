@@ -927,7 +927,7 @@ export default function App() {
         className={`
           fixed md:relative inset-y-0 left-0 z-40
           bg-slate-950 border-r border-slate-800 flex flex-col shrink-0 shadow-2xl md:shadow-none
-          transition-transform duration-300 ease-in-out w-80 md:w-[26rem] xl:w-[28rem]
+          transition-transform duration-300 ease-in-out w-72 md:w-[22rem] xl:w-[24rem]
           ${isSidebarOpen
             ? 'translate-x-0'
             : '-translate-x-full md:translate-x-0'
@@ -1317,7 +1317,7 @@ export default function App() {
 
                 {/* Search Input - expands when toggled */}
                 {isSearchExpanded && (
-                  <div className="flex items-center gap-2 h-10 animate-[fadeIn_0.2s_ease-out] pt-1 mb-5">
+                  <div className="flex items-center gap-2 h-10 animate-[fadeIn_0.2s_ease-out] pt-1 mb-8">
                     <div className="relative flex-1">
                       <input
                         type="text"
@@ -1390,7 +1390,7 @@ export default function App() {
                     <div className="grid grid-cols-1 gap-2 animate-[fadeIn_0.2s_ease-out]">
                       {notCheckedInMembers.map(member => (
                         <div key={member.id} className="group flex items-center justify-between py-2 rounded-lg border border-transparent">
-                          <div className="flex items-center gap-3 pl-9">
+                          <div className="flex items-center gap-3 pl-3">
                             <div className="flex items-center gap-2">
                               <PlayerAvatar identifier={member.name} className="w-2.5 h-2.5 shrink-0" />
                               <span className="text-sm text-slate-300">{member.name}</span>
