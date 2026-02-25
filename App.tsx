@@ -23,9 +23,7 @@ const getGroupColor = (groupId: string) => {
 
 const getGroupBorderColor = (groupId: string) => {
   const colors = [
-    'border-indigo-500', 'border-pink-500', 'border-emerald-500',
-    'border-orange-500', 'border-cyan-500', 'border-violet-500',
-    'border-yellow-500', 'border-rose-500', 'border-sky-500'
+    'border-indigo-500', 'border-pink-500'
   ];
   let hash = 0;
   for (let i = 0; i < groupId.length; i++) {
@@ -1018,7 +1016,7 @@ export default function App() {
                           <div className="relative flex items-center py-2 animate-[fadeIn_0.3s_ease-out]">
                             <div className="flex-1 flex items-center gap-3 min-w-0 overflow-hidden">
                               <span className="font-mono text-xs text-slate-500 w-4 text-center shrink-0">{chunkIdx + 1}</span>
-                              <div className="grid grid-cols-2 gap-1 min-w-0 overflow-hidden flex-1">
+                              <div className="grid grid-cols-2 gap-3 min-w-0 overflow-hidden flex-1">
                                 {chunk.map((item, idx) => (
                                   <React.Fragment key={idx}>
                                     {item.type === 'player' ? (
@@ -1036,8 +1034,8 @@ export default function App() {
                                         </button>
                                       </div>
                                     ) : (
-                                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-slate-600 opacity-40 text-slate-400" title="空位">
-                                        <span className="text-sm font-medium">空位</span>
+                                      <div className="h-10 flex items-center justify-center rounded-lg border border-dashed border-slate-800/50 text-slate-500" title="空位">
+                                        <span className="text-xs opacity-50">空位</span>
                                       </div>
                                     )}
                                   </React.Fragment>
