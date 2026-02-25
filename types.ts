@@ -14,7 +14,6 @@ export interface Player {
   status: PlayerStatus;
   level: SkillLevel; // Added level
   joinedAt: number;
-  groupId?: string;
 }
 
 export interface Court {

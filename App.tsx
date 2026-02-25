@@ -7,41 +7,7 @@ import { PlayerAvatar } from './components/PlayerAvatar';
 type Tab = 'queue' | 'members';
 // test3
 
-// Helper to generate consistent colors for groups
-const getGroupColor = (groupId: string) => {
-  const colors = [
-    'bg-indigo-500', 'bg-pink-500', 'bg-emerald-500',
-    'bg-orange-500', 'bg-cyan-500', 'bg-violet-500',
-    'bg-yellow-500', 'bg-rose-500', 'bg-sky-500'
-  ];
-  let hash = 0;
-  for (let i = 0; i < groupId.length; i++) {
-    hash = groupId.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
-};
 
-const getGroupBorderColor = (groupId: string) => {
-  const colors = [
-    'border-indigo-500', 'border-pink-500'
-  ];
-  let hash = 0;
-  for (let i = 0; i < groupId.length; i++) {
-    hash = groupId.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
-};
-
-const getGroupBgColor = (groupId: string) => {
-  const colors = [
-    'bg-indigo-500', 'bg-pink-500'
-  ];
-  let hash = 0;
-  for (let i = 0; i < groupId.length; i++) {
-    hash = groupId.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
-};
 
 export default function App() {
   // --- State ---
@@ -129,114 +95,7 @@ export default function App() {
 
   // --- Derived Lists ---
   const queue = useMemo(() => {
-    const queued = players.filter(p => p.status === 'queued');
-
-    // Sort by joinedAt first
-    const sorted = [...queued].sort((a, b) => a.joinedAt - b.joinedAt);
-
-    // Build items with join time tracking
-    interface QueueItem {
-      type: 'group' | 'individual';
-      players: Player[];
-      joinTime: number;
-    }
-
-    const items: QueueItem[] = [];
-    const processedIds = new Set<string>();
-    const processedGroupIds = new Set<string>();
-
-    for (const p of sorted) {
-      if (processedIds.has(p.id)) continue;
-
-      if (p.groupId) {
-        if (processedGroupIds.has(p.groupId)) continue;
-
-        const groupMembers = sorted.filter(m => m.groupId === p.groupId);
-        items.push({
-          type: 'group',
-          players: groupMembers,
-          joinTime: Math.min(...groupMembers.map(m => m.joinedAt))
-        });
-        groupMembers.forEach(m => processedIds.add(m.id));
-        processedGroupIds.add(p.groupId);
-      } else {
-        items.push({
-          type: 'individual',
-          players: [p],
-          joinTime: p.joinedAt
-        });
-        processedIds.add(p.id);
-      }
-    }
-
-    // Sort by join time
-    items.sort((a, b) => a.joinTime - b.joinTime);
-
-    // Find the cutoff: last group's join time
-    const lastGroupIndex = items.map((item, idx) => item.type === 'group' ? idx : -1).filter(idx => idx >= 0).pop();
-    const cutoffTime = lastGroupIndex !== undefined ? items[lastGroupIndex].joinTime : Infinity;
-
-    // Separate: early items (before/including last group) and late individuals
-    const earlyItems: QueueItem[] = [];
-    const lateIndividuals: QueueItem[] = [];
-
-    for (const item of items) {
-      if (item.joinTime <= cutoffTime) {
-        earlyItems.push(item);
-      } else if (item.type === 'individual') {
-        lateIndividuals.push(item);
-      }
-    }
-
-    // Build result: process early items and track group boundaries
-    const result: Player[] = [];
-    const groupBoundaries: number[] = []; // Positions where groups end (multiples of 4)
-    let currentPos = 0;
-
-    for (const item of earlyItems) {
-      if (item.type === 'group') {
-        // Check if group fits in current 4-slot
-        const currentSlot = Math.floor(currentPos / 4);
-        const slotStart = currentSlot * 4;
-        const slotRemaining = 4 - (currentPos - slotStart);
-
-        if (slotRemaining < item.players.length && currentPos % 4 !== 0) {
-          // Group doesn't fit, mark boundary and start new slot
-          groupBoundaries.push(slotStart + 4);
-          currentPos = slotStart + 4;
-        }
-
-        result.push(...item.players);
-        currentPos += item.players.length;
-      } else {
-        result.push(...item.players);
-        currentPos++;
-      }
-    }
-
-    // Fill gaps with late individuals
-    const finalResult: Player[] = [];
-    let lateIndex = 0;
-
-    for (let i = 0; i < result.length; i += 4) {
-      const groupSlice = result.slice(i, Math.min(i + 4, result.length));
-      finalResult.push(...groupSlice);
-
-      let slotsNeeded = 4 - groupSlice.length;
-      while (slotsNeeded > 0 && lateIndex < lateIndividuals.length) {
-        finalResult.push(...lateIndividuals[lateIndex].players);
-        lateIndex++;
-        slotsNeeded--;
-      }
-    }
-
-    // Add remaining late individuals
-    while (lateIndex < lateIndividuals.length) {
-      finalResult.push(...lateIndividuals[lateIndex].players);
-      lateIndex++;
-    }
-
-    return finalResult;
+    return players.filter(p => p.status === 'queued').sort((a, b) => a.joinedAt - b.joinedAt);
   }, [players]);
   const idlePlayers = useMemo(() => players.filter(p => p.status === 'idle').sort((a, b) => b.joinedAt - a.joinedAt), [players]);
 
@@ -252,31 +111,9 @@ export default function App() {
   // Calculate the next batch of players (Greedy Fit)
   const getNextMatchBatch = useCallback((currentQueue: Player[]) => {
     const batch: Player[] = [];
-    const processedGroups = new Set<string>();
-
     for (const p of currentQueue) {
-      // Stop if we have enough players
       if (batch.length >= MAX_PLAYERS_PER_COURT) break;
-
-      if (p.groupId) {
-        // If we already processed this group (either added or skipped), ignore subsequent members in the loop
-        if (processedGroups.has(p.groupId)) continue;
-
-        // Find all members of this group
-        const groupMembers = currentQueue.filter(m => m.groupId === p.groupId);
-
-        // Check if the WHOLE group fits into the remaining slots
-        if (batch.length + groupMembers.length <= MAX_PLAYERS_PER_COURT) {
-          batch.push(...groupMembers);
-        }
-        // If they don't fit, we skip them. They wait for a court where they can fit entirely.
-
-        // Mark group as processed
-        processedGroups.add(p.groupId);
-      } else {
-        // Individuals always fit 1 slot (if available)
-        batch.push(p);
-      }
+      batch.push(p);
     }
     return batch;
   }, []);
@@ -317,7 +154,7 @@ export default function App() {
   // --- Queue Display Logic (Match-Based Grouping) ---
   // Group players by who will actually play together in matches
   const queueDisplayItems = useMemo(() => {
-    const displayResult: ({ type: 'player', data: Player } | { type: 'empty', groupId: string })[] = [];
+    const displayResult: ({ type: 'player', data: Player } | { type: 'empty', id: string })[] = [];
 
     // Process queue in chunks of 4 (match groups)
     let remainingQueue = [...queue];
@@ -337,7 +174,7 @@ export default function App() {
       // Fill remaining slots with empty placeholders
       const slotsToFill = 4 - nextBatch.length;
       for (let i = 0; i < slotsToFill; i++) {
-        displayResult.push({ type: 'empty', groupId: `filler-${groupIndex}-${i}` });
+        displayResult.push({ type: 'empty', id: `filler-${groupIndex}-${i}` });
       }
 
       // Remove processed players from remaining queue
@@ -359,14 +196,7 @@ export default function App() {
     return chunks;
   }, [queueDisplayItems]);
 
-  // Count how many queued players share each groupId
-  const queueGroupSizes = useMemo(() => {
-    const sizes = new Map<string, number>();
-    players.filter(p => p.status === 'queued' && p.groupId).forEach(p => {
-      sizes.set(p.groupId!, (sizes.get(p.groupId!) || 0) + 1);
-    });
-    return sizes;
-  }, [players]);
+
 
 
   // --- Helper Functions ---
@@ -579,106 +409,38 @@ export default function App() {
     }
   }, []);
 
-  // Move queue item (player or group) up in the queue
+  // Move player up in the queue
   const moveQueueItemUp = useCallback((playerId: string) => {
     const queuedPlayers = players.filter(p => p.status === 'queued').sort((a, b) => a.joinedAt - b.joinedAt);
     const playerIndex = queuedPlayers.findIndex(p => p.id === playerId);
 
     if (playerIndex <= 0) return; // Already at top or not found
 
-    const player = queuedPlayers[playerIndex];
-    const groupId = player.groupId;
+    const currentTime = queuedPlayers[playerIndex].joinedAt;
+    const prevTime = queuedPlayers[playerIndex - 1].joinedAt;
 
-    // Get all players in this item (individual or group)
-    const itemPlayers = groupId
-      ? queuedPlayers.filter(p => p.groupId === groupId)
-      : [player];
-
-    // Find the first player in this item
-    const firstItemIndex = queuedPlayers.findIndex(p => itemPlayers.includes(p));
-
-    if (firstItemIndex <= 0) return; // Already at top
-
-    // Find the previous item (player or group)
-    let prevItemIndex = firstItemIndex - 1;
-    const prevPlayer = queuedPlayers[prevItemIndex];
-    const prevGroupId = prevPlayer.groupId;
-
-    const prevItemPlayers = prevGroupId
-      ? queuedPlayers.filter(p => p.groupId === prevGroupId)
-      : [prevPlayer];
-
-    // Find the first player in the previous item
-    const prevFirstIndex = queuedPlayers.findIndex(p => prevItemPlayers.includes(p));
-
-    // Calculate new timestamps
-    const prevItemFirstTime = queuedPlayers[prevFirstIndex].joinedAt;
-    const itemFirstTime = queuedPlayers[firstItemIndex].joinedAt;
-
-    // Swap timestamps between the two items
+    // Swap timestamps
     setPlayers(prev => prev.map(p => {
-      if (itemPlayers.find(ip => ip.id === p.id)) {
-        // Move current item to previous item's position
-        const offset = itemPlayers.indexOf(itemPlayers.find(ip => ip.id === p.id)!);
-        return { ...p, joinedAt: prevItemFirstTime + offset };
-      }
-      if (prevItemPlayers.find(pp => pp.id === p.id)) {
-        // Move previous item to current item's position
-        const offset = prevItemPlayers.indexOf(prevItemPlayers.find(pp => pp.id === p.id)!);
-        return { ...p, joinedAt: itemFirstTime + offset };
-      }
+      if (p.id === playerId) return { ...p, joinedAt: prevTime };
+      if (p.id === queuedPlayers[playerIndex - 1].id) return { ...p, joinedAt: currentTime };
       return p;
     }));
   }, [players]);
 
-  // Move queue item (player or group) down in the queue
+  // Move player down in the queue
   const moveQueueItemDown = useCallback((playerId: string) => {
     const queuedPlayers = players.filter(p => p.status === 'queued').sort((a, b) => a.joinedAt - b.joinedAt);
     const playerIndex = queuedPlayers.findIndex(p => p.id === playerId);
 
-    if (playerIndex === -1) return; // Not found
+    if (playerIndex === -1 || playerIndex >= queuedPlayers.length - 1) return; // Not found or at bottom
 
-    const player = queuedPlayers[playerIndex];
-    const groupId = player.groupId;
+    const currentTime = queuedPlayers[playerIndex].joinedAt;
+    const nextTime = queuedPlayers[playerIndex + 1].joinedAt;
 
-    // Get all players in this item (individual or group)
-    const itemPlayers = groupId
-      ? queuedPlayers.filter(p => p.groupId === groupId)
-      : [player];
-
-    // Find the last player in this item
-    const lastItemIndex = queuedPlayers.findIndex(p => p === itemPlayers[itemPlayers.length - 1]);
-
-    if (lastItemIndex >= queuedPlayers.length - 1) return; // Already at bottom
-
-    // Find the next item (player or group)
-    let nextItemIndex = lastItemIndex + 1;
-    const nextPlayer = queuedPlayers[nextItemIndex];
-    const nextGroupId = nextPlayer.groupId;
-
-    const nextItemPlayers = nextGroupId
-      ? queuedPlayers.filter(p => p.groupId === nextGroupId)
-      : [nextPlayer];
-
-    // Find the first player in the current item
-    const firstItemIndex = queuedPlayers.findIndex(p => itemPlayers.includes(p));
-
-    // Calculate new timestamps
-    const itemFirstTime = queuedPlayers[firstItemIndex].joinedAt;
-    const nextItemFirstTime = queuedPlayers[nextItemIndex].joinedAt;
-
-    // Swap timestamps between the two items
+    // Swap timestamps
     setPlayers(prev => prev.map(p => {
-      if (itemPlayers.find(ip => ip.id === p.id)) {
-        // Move current item to next item's position
-        const offset = itemPlayers.indexOf(itemPlayers.find(ip => ip.id === p.id)!);
-        return { ...p, joinedAt: nextItemFirstTime + offset };
-      }
-      if (nextItemPlayers.find(np => np.id === p.id)) {
-        // Move next item to current item's position
-        const offset = nextItemPlayers.indexOf(nextItemPlayers.find(np => np.id === p.id)!);
-        return { ...p, joinedAt: itemFirstTime + offset };
-      }
+      if (p.id === playerId) return { ...p, joinedAt: nextTime };
+      if (p.id === queuedPlayers[playerIndex + 1].id) return { ...p, joinedAt: currentTime };
       return p;
     }));
   }, [players]);
@@ -706,15 +468,12 @@ export default function App() {
 
     setPlayers(prev => {
       const now = Date.now();
-      // Always create a new group if > 1 selected, otherwise undefined
-      const newGroupId = selectedPlayerIds.size > 1 ? crypto.randomUUID() : undefined;
 
       return prev.map(p => {
         if (selectedPlayerIds.has(p.id)) {
           return {
             ...p,
             status: 'queued',
-            groupId: newGroupId,
             joinedAt: now,
           };
         }
@@ -731,24 +490,16 @@ export default function App() {
         p.id === playerId ? {
           ...p,
           status: 'queued',
-          groupId: undefined, // Always individual, no fill
           joinedAt: Date.now()
         } : p
       );
     });
   }, []);
 
-  const unbindPlayer = useCallback((playerId: string) => {
-    setPlayers(prev => prev.map(p =>
-      // When unbinding, reduce joinedAt slightly to make them appear BEFORE (above) the group they left
-      p.id === playerId ? { ...p, groupId: undefined, joinedAt: p.joinedAt - 1 } : p
-    ));
-  }, []);
-
   const removeFromQueue = useCallback((playerId: string) => {
     if (!confirm('確定要讓此球員回到休息區嗎？')) return;
     setPlayers(prev => prev.map(p =>
-      p.id === playerId ? { ...p, status: 'idle', groupId: undefined } : p
+      p.id === playerId ? { ...p, status: 'idle' } : p
     ));
   }, []);
 
@@ -776,7 +527,7 @@ export default function App() {
     if (confirm(`確定要讓排隊中的 ${queuedCount} 人全部回到休息區嗎？`)) {
       setPlayers(prev => prev.map(p =>
         p.status === 'queued'
-          ? { ...p, status: 'idle', groupId: undefined }
+          ? { ...p, status: 'idle' }
           : p
       ));
       setSelectedPlayerIds(new Set());
@@ -905,7 +656,7 @@ export default function App() {
     ));
 
     setPlayers(prev => prev.map(p =>
-      finishedPlayerIds.includes(p.id) ? { ...p, status: 'idle', groupId: undefined } : p
+      finishedPlayerIds.includes(p.id) ? { ...p, status: 'idle' } : p
     ));
   }, [courts]);
 
@@ -1027,38 +778,28 @@ export default function App() {
                     </div>
                   ) : (
                     chunkedQueueItems.map((chunk, chunkIdx) => {
-                      const firstItem = chunk[0];
-                      const groupId = (firstItem.type === 'player' && firstItem.data.groupId) || (firstItem.type === 'empty' ? firstItem.groupId : undefined);
-                      const groupColor = groupId ? getGroupColor(groupId) : 'bg-indigo-500';
-                      const isGrouped = !!groupId;
-
                       return (
                         <React.Fragment key={chunkIdx}>
                           <div className="relative flex items-center py-2 animate-[fadeIn_0.3s_ease-out]">
                             <div className="flex-1 flex items-center gap-3 min-w-0 overflow-hidden">
                               <span className="font-mono text-xs text-slate-500 w-4 text-center shrink-0">{chunkIdx + 1}</span>
-                              <div className="relative grid grid-cols-2 gap-3 min-w-0 flex-1">
+                              <div className="grid grid-cols-2 gap-3 min-w-0 flex-1">
                                 {chunk.map((item, idx) => (
                                   <React.Fragment key={idx}>
                                     {item.type === 'player' ? (
-                                      (() => {
-                                        const hasBoundPartner = item.data.groupId && (queueGroupSizes.get(item.data.groupId) || 0) >= 2;
-                                        return (
-                                          <div className={`relative group/player min-w-0 ${hasBoundPartner ? `p-0.5 rounded-xl border ${getGroupBorderColor(item.data.groupId!)}` : ''}`}>
-                                            <button
-                                              onClick={() => removeFromQueue(item.data.id)}
-                                              title="讓球員休息 (移出佇列)"
-                                              className="w-full h-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] hover:bg-slate-700/40 transition-colors text-left min-w-0"
-                                            >
-                                              <span className="flex items-center gap-1.5 text-sm font-medium text-slate-300 group-hover/player:text-amber-400 transition-colors min-w-0">
-                                                <PlayerAvatar identifier={item.data.name} className="w-2.5 h-2.5 shrink-0" />
-                                                <span className="truncate">{item.data.name}</span>
-                                              </span>
-                                              <Coffee className="w-3.5 h-3.5 text-slate-500 opacity-0 group-hover/player:opacity-100 group-hover/player:text-amber-500 transition-all shrink-0" />
-                                            </button>
-                                          </div>
-                                        );
-                                      })()
+                                      <div className="relative group/player min-w-0">
+                                        <button
+                                          onClick={() => removeFromQueue(item.data.id)}
+                                          title="讓球員休息 (移出佇列)"
+                                          className="w-full h-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] hover:bg-slate-700/40 transition-colors text-left min-w-0"
+                                        >
+                                          <span className="flex items-center gap-1.5 text-sm font-medium text-slate-300 group-hover/player:text-amber-400 transition-colors min-w-0">
+                                            <PlayerAvatar identifier={item.data.name} className="w-2.5 h-2.5 shrink-0" />
+                                            <span className="truncate">{item.data.name}</span>
+                                          </span>
+                                          <Coffee className="w-3.5 h-3.5 text-slate-500 opacity-0 group-hover/player:opacity-100 group-hover/player:text-amber-500 transition-all shrink-0" />
+                                        </button>
+                                      </div>
                                     ) : (
                                       <div className="h-10 flex items-center justify-center rounded-lg border border-dashed border-slate-800/50 text-slate-500" title="空位">
                                         <span className="text-xs opacity-50">空位</span>
@@ -1066,53 +807,6 @@ export default function App() {
                                     )}
                                   </React.Fragment>
                                 ))}
-                                {/* Connector lines between bound players */}
-                                {(() => {
-                                  const boundGroups = new Map<string, number[]>();
-                                  chunk.forEach((item, idx) => {
-                                    if (item.type === 'player' && item.data.groupId) {
-                                      const pos = boundGroups.get(item.data.groupId) || [];
-                                      pos.push(idx);
-                                      boundGroups.set(item.data.groupId, pos);
-                                    }
-                                  });
-                                  const connectors: React.ReactNode[] = [];
-                                  boundGroups.forEach((indices, groupId) => {
-                                    if (indices.length < 2) return;
-                                    for (let i = 0; i < indices.length - 1; i++) {
-                                      const from = indices[i], to = indices[i + 1];
-                                      const fromRow = Math.floor(from / 2), fromCol = from % 2;
-                                      const toRow = Math.floor(to / 2), toCol = to % 2;
-                                      let style: React.CSSProperties;
-                                      if (fromRow === toRow) {
-                                        // Same row → horizontal connector
-                                        style = {
-                                          position: 'absolute', left: '50%', top: fromRow === 0 ? '25%' : '75%',
-                                          transform: 'translate(-50%, -50%)', width: '12px', height: '1px',
-                                        };
-                                      } else if (fromCol === toCol) {
-                                        // Same column → vertical connector
-                                        style = {
-                                          position: 'absolute', left: fromCol === 0 ? '25%' : '75%', top: '50%',
-                                          transform: 'translate(-50%, -50%)', width: '1px', height: '12px',
-                                        };
-                                      } else {
-                                        // Diagonal
-                                        const isDiagDown = (from === 0 && to === 3) || (from === 3 && to === 0);
-                                        const rotation = isDiagDown ? -45 : 45;
-                                        style = {
-                                          position: 'absolute', left: '50%', top: '50%',
-                                          transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
-                                          width: '1px', height: '17px',
-                                        };
-                                      }
-                                      connectors.push(
-                                        <div key={`conn-${groupId}-${i}`} style={style} className={`${getGroupBgColor(groupId)} pointer-events-none z-10`} />
-                                      );
-                                    }
-                                  });
-                                  return connectors.length > 0 ? connectors : null;
-                                })()}
                               </div>
                             </div>
                           </div>
