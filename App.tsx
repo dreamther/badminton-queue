@@ -737,6 +737,7 @@ export default function App() {
   }, []);
 
   const removeFromQueue = useCallback((playerId: string) => {
+    if (!confirm('確定要讓此球員回到休息區嗎？')) return;
     setPlayers(prev => prev.map(p =>
       p.id === playerId ? { ...p, status: 'idle', groupId: undefined } : p
     ));
