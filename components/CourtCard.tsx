@@ -170,11 +170,22 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                 key={`slot-${idx}`}
                                 className={`h-10 flex items-center gap-2 px-2 rounded-lg text-sm transition-all
                                 ${player
-                                        ? 'bg-transparent text-slate-200'
+                                        ? !isMatchStarted
+                                            ? 'bg-transparent text-slate-200 cursor-grab active:cursor-grabbing'
+                                            : 'bg-transparent text-slate-200'
                                         : dragOverSlot === idx
                                             ? 'bg-indigo-500/10 border border-indigo-500/50 border-dashed text-indigo-400'
                                             : 'bg-transparent border border-slate-800/50 border-dashed text-slate-500'
                                     }`}
+                                {...(player && !isMatchStarted ? {
+                                    draggable: true,
+                                    onDragStart: (e: React.DragEvent) => {
+                                        e.dataTransfer.setData('text/plain', player.id);
+                                        e.dataTransfer.setData('source', 'court');
+                                        e.dataTransfer.setData('courtId', String(court.id));
+                                        e.dataTransfer.effectAllowed = 'move';
+                                    }
+                                } : {})}
                                 {...(!player && onDropPlayer ? {
                                     onDragOver: (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; },
                                     onDragEnter: (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setDragOverSlot(idx); },

@@ -109,7 +109,7 @@ export default function App() {
     return idlePlayers.filter(p => p.name.toLowerCase().includes(restAreaSearchTerm.toLowerCase()));
   }, [idlePlayers, restAreaSearchTerm]);
   const totalActivePlayers = useMemo(() => players.filter(p => p.status === 'playing').length, [players]);
-  const idleCourtsCount = useMemo(() => courts.filter(c => c.playerIds.length === 0).length, [courts]);
+  const idleCourtsCount = useMemo(() => courts.filter(c => c.startTime === null).length, [courts]);
 
   // --- Match Calculation Logic ---
   // Get the first 4 non-null players from queue (slot order)
@@ -656,7 +656,17 @@ export default function App() {
     ));
   }, [courts]);
 
-  // Drop a player directly onto a court from rest area or queue
+  // Remove a player from their court (used when dragging away)
+  const removePlayerFromCourt = useCallback((playerId: string) => {
+    setCourts(prev => prev.map(c => ({
+      ...c,
+      playerIds: c.playerIds.filter(id => id !== playerId),
+      // Reset startTime if court becomes empty
+      startTime: c.playerIds.filter(id => id !== playerId).length === 0 ? null : c.startTime
+    })));
+  }, []);
+
+  // Drop a player directly onto a court from rest area, queue, or another court
   const dropPlayerToCourt = useCallback((courtId: number, playerId: string) => {
     const court = courts.find(c => c.id === courtId);
     if (!court || court.playerIds.length >= MAX_PLAYERS_PER_COURT) return;
@@ -668,6 +678,9 @@ export default function App() {
       while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
       return newSlots;
     });
+
+    // Remove from any other court (drag between courts)
+    removePlayerFromCourt(playerId);
 
     // Set player status to playing
     setPlayers(prev => prev.map(p =>
@@ -684,7 +697,7 @@ export default function App() {
         startTime: newPlayerIds.length >= MAX_PLAYERS_PER_COURT ? (c.startTime || Date.now()) : c.startTime
       };
     }));
-  }, [courts]);
+  }, [courts, removePlayerFromCourt]);
 
   // --- Components ---
 
@@ -802,7 +815,14 @@ export default function App() {
                   e.preventDefault();
                   setDragOverSlotKey(null);
                   const playerId = e.dataTransfer.getData('text/plain');
-                  if (playerId) joinQueue(playerId);
+                  if (!playerId) return;
+                  const source = e.dataTransfer.getData('source');
+                  if (source === 'court') {
+                    removePlayerFromCourt(playerId);
+                    joinQueue(playerId);
+                  } else {
+                    joinQueue(playerId);
+                  }
                 }}
               >
                 <div className="flex items-center justify-between mb-3 min-h-[32px]">
@@ -846,8 +866,9 @@ export default function App() {
                                           const playerId = e.dataTransfer.getData('text/plain');
                                           if (playerId && playerId !== item.data.id) {
                                             const flatIdx = chunkIdx * 4 + idx;
-                                            const isFromQueue = e.dataTransfer.getData('source') === 'queue';
-                                            if (isFromQueue) {
+                                            const source = e.dataTransfer.getData('source');
+                                            if (source === 'court') removePlayerFromCourt(playerId);
+                                            if (source === 'queue') {
                                               moveInQueue(playerId, flatIdx);
                                             } else {
                                               insertIntoQueueAt(playerId, flatIdx);
@@ -882,8 +903,9 @@ export default function App() {
                                           const playerId = e.dataTransfer.getData('text/plain');
                                           if (playerId) {
                                             const flatIdx = chunkIdx * 4 + idx;
-                                            const isFromQueue = e.dataTransfer.getData('source') === 'queue';
-                                            if (isFromQueue) {
+                                            const source = e.dataTransfer.getData('source');
+                                            if (source === 'court') removePlayerFromCourt(playerId);
+                                            if (source === 'queue') {
                                               moveInQueue(playerId, flatIdx);
                                             } else {
                                               insertIntoQueueAt(playerId, flatIdx);
