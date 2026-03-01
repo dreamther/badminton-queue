@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Court, Player, MAX_PLAYERS_PER_COURT } from '../types';
-import { Clock, Play, LogOut, Users, Zap, Coffee, Edit2, Check, X, Megaphone, CircleDashed } from 'lucide-react';
+import { Clock, Play, LogOut, Users, Coffee, Edit2, Check, X, Megaphone, CircleDashed } from 'lucide-react';
 import { PlayerAvatar } from './PlayerAvatar';
 
 interface CourtCardProps {

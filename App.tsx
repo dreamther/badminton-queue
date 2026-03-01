@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Users, Activity, Coffee, ArrowRight, RotateCcw, Trash2, Trophy, Plus, Minus, Volume2, VolumeX, X, Swords, UserCheck, Search, CheckCircle2, ChevronDown, ChevronRight, Unlink, ArrowUp, PanelLeft, LogOut, UserX, ChevronUp, Zap, UserPlus, Upload, Settings, MoreVertical } from 'lucide-react';
+import { Users, Activity, Coffee, ArrowRight, RotateCcw, Trash2, Trophy, Plus, Minus, Volume2, VolumeX, X, Swords, UserCheck, Search, CheckCircle2, ChevronDown, ChevronRight, Unlink, ArrowUp, PanelLeft, LogOut, UserX, ChevronUp, Flame, Lock, UserPlus, Upload, Settings, MoreVertical } from 'lucide-react';
 import { Player, Court, Member, INITIAL_COURT_COUNT, MAX_PLAYERS_PER_COURT, SkillLevel, SKILL_LEVELS } from './types';
 import { CourtCard } from './components/CourtCard';
 import { PlayerAvatar } from './components/PlayerAvatar';
@@ -1325,7 +1325,7 @@ export default function App() {
                 }`}
               title={isWarmupDone ? '點擊解除鎖定，允許移動球員' : '要滣場才能點擊'}
             >
-              <Zap className="w-3.5 h-3.5" />
+              {isWarmupDone ? <Lock className="w-3.5 h-3.5" /> : <Flame className="w-3.5 h-3.5" />}
               <span className="hidden sm:inline">{isWarmupDone ? '已鎖定' : '熱身結束'}</span>
             </button>
 
