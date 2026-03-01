@@ -18,6 +18,7 @@ export default function App() {
 
   const [dragOverSlotKey, setDragOverSlotKey] = useState<string | null>(null);
   const [queueSlots, setQueueSlots] = useState<(string | null)[]>([]);
+  const [isWarmupDone, setIsWarmupDone] = useState(false);
   const [isCheckedInExpanded, setIsCheckedInExpanded] = useState(false);
   const [isMemberListExpanded, setIsMemberListExpanded] = useState(true);
 
@@ -541,6 +542,7 @@ export default function App() {
       // Move everyone back to member list (remove from players state)
       setPlayers([]);
       setQueueSlots([]);
+      setIsWarmupDone(false);
 
       setCourts(prev => prev.map(c => ({
         ...c,
@@ -658,12 +660,14 @@ export default function App() {
 
   // Remove a player from their court (used when dragging away)
   const removePlayerFromCourt = useCallback((playerId: string) => {
-    setCourts(prev => prev.map(c => ({
-      ...c,
-      playerIds: c.playerIds.filter(id => id !== playerId),
-      // Reset startTime if court becomes empty
-      startTime: c.playerIds.filter(id => id !== playerId).length === 0 ? null : c.startTime
-    })));
+    setCourts(prev => prev.map(c => {
+      const newPlayerIds = c.playerIds.filter(id => id !== playerId);
+      return {
+        ...c,
+        playerIds: newPlayerIds,
+        startTime: newPlayerIds.length === 0 ? null : c.startTime
+      };
+    }));
   }, []);
 
   // Drop a player directly onto a court from rest area, queue, or another court
@@ -1308,6 +1312,23 @@ export default function App() {
               </button>
             </div>
 
+            {/* Global Warmup Lock */}
+            <button
+              onClick={() => setIsWarmupDone(!isWarmupDone)}
+              disabled={idleCourtsCount > 0 && !isWarmupDone}
+              className={`flex items-center justify-center gap-2 px-3 h-8 text-xs font-medium rounded-lg transition-colors border
+                ${isWarmupDone
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                  : idleCourtsCount === 0
+                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
+                    : 'bg-slate-500/5 text-slate-500 cursor-not-allowed border-slate-700/50'
+                }`}
+              title={isWarmupDone ? '點擊解除鎖定，允許移動球員' : '要滣場才能點擊'}
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{isWarmupDone ? '已鎖定' : '熱身結束'}</span>
+            </button>
+
             <button
               onClick={resetSession}
               className="flex items-center justify-center gap-2 px-3 h-8 bg-transparent text-red-400 border border-red-500/50 hover:bg-red-500 hover:text-white hover:border-red-500 text-xs font-medium rounded-lg transition-colors"
@@ -1336,6 +1357,7 @@ export default function App() {
                 isAutoAnnounce={isAutoAnnounce}
                 canStartMatch={isQueueReady}
                 onDropPlayer={dropPlayerToCourt}
+                isWarmupDone={isWarmupDone}
               />
             ))}
           </div>

@@ -14,6 +14,7 @@ interface CourtCardProps {
     isAutoAnnounce?: boolean;
     canStartMatch?: boolean;
     onDropPlayer?: (courtId: number, playerId: string) => void;
+    isWarmupDone?: boolean;
 }
 
 export const CourtCard: React.FC<CourtCardProps> = ({
@@ -26,7 +27,8 @@ export const CourtCard: React.FC<CourtCardProps> = ({
     onAnnounce,
     isAutoAnnounce = true,
     canStartMatch = true,
-    onDropPlayer
+    onDropPlayer,
+    isWarmupDone = false
 }) => {
     const [elapsed, setElapsed] = useState<string>('00:00');
     const [isEditing, setIsEditing] = useState(false);
@@ -170,14 +172,14 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                 key={`slot-${idx}`}
                                 className={`h-10 flex items-center gap-2 px-2 rounded-lg text-sm transition-all
                                 ${player
-                                        ? !isMatchStarted
+                                        ? !isWarmupDone
                                             ? 'bg-transparent text-slate-200 cursor-grab active:cursor-grabbing'
                                             : 'bg-transparent text-slate-200'
                                         : dragOverSlot === idx
                                             ? 'bg-indigo-500/10 border border-indigo-500/50 border-dashed text-indigo-400'
                                             : 'bg-transparent border border-slate-800/50 border-dashed text-slate-500'
                                     }`}
-                                {...(player && !isMatchStarted ? {
+                                {...(player && !isWarmupDone ? {
                                     draggable: true,
                                     onDragStart: (e: React.DragEvent) => {
                                         e.dataTransfer.setData('text/plain', player.id);
@@ -186,7 +188,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                         e.dataTransfer.effectAllowed = 'move';
                                     }
                                 } : {})}
-                                {...(!player && onDropPlayer ? {
+                                {...(!player && onDropPlayer && !isWarmupDone ? {
                                     onDragOver: (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; },
                                     onDragEnter: (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setDragOverSlot(idx); },
                                     onDragLeave: (e: React.DragEvent) => { e.stopPropagation(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverSlot(null); },
