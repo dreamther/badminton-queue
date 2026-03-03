@@ -670,6 +670,27 @@ export default function App() {
     }));
   }, []);
 
+  // Handle Warmup Toggle with validation
+  const handleWarmupToggle = useCallback(() => {
+    if (!isWarmupDone) {
+      // 熱身中 - 需要檢查場地是否滿場
+      if (idleCourtsCount > 0) {
+        // 場地未滿
+        alert('目前場地尚未滿場，請保持熱身階段🔥');
+        return;
+      }
+      // 場地已滿，詢問是否結束熱身
+      if (confirm('確定要結束熱身嗎？')) {
+        setIsWarmupDone(true);
+      }
+    } else {
+      // 已熱身 - 直接詢問是否回到熱身，忽略場地滿場判斷
+      if (confirm('確定要回到熱身階段嗎？')) {
+        setIsWarmupDone(false);
+      }
+    }
+  }, [idleCourtsCount, isWarmupDone]);
+
   // Drop a player directly onto a court from rest area, queue, or another court
   const dropPlayerToCourt = useCallback((courtId: number, playerId: string) => {
     const court = courts.find(c => c.id === courtId);
@@ -1312,21 +1333,18 @@ export default function App() {
               </button>
             </div>
 
-            {/* Global Warmup Lock */}
+            {/* Global Warmup Status */}
             <button
-              onClick={() => setIsWarmupDone(!isWarmupDone)}
-              disabled={idleCourtsCount > 0 && !isWarmupDone}
+              onClick={handleWarmupToggle}
               className={`flex items-center justify-center gap-2 px-3 h-8 text-xs font-medium rounded-lg transition-colors border
                 ${isWarmupDone
                   ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
-                  : idleCourtsCount === 0
-                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
-                    : 'bg-slate-500/5 text-slate-500 cursor-not-allowed border-slate-700/50'
+                  : 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
                 }`}
-              title={isWarmupDone ? '點擊解除鎖定，允許移動球員' : '要滣場才能點擊'}
+              title={isWarmupDone ? '已熱身' : '熱身中'}
             >
-              {isWarmupDone ? <Lock className="w-3.5 h-3.5" /> : <Flame className="w-3.5 h-3.5" />}
-              <span className="hidden sm:inline">{isWarmupDone ? '已鎖定' : '熱身結束'}</span>
+              {isWarmupDone ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Flame className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{isWarmupDone ? '已熱身' : '熱身中'}</span>
             </button>
 
             <button
