@@ -762,7 +762,7 @@ export default function App() {
       {/* Mobile Backdrop for Sidebar */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 md:hidden animate-[fadeIn_0.2s_ease-out]"
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden animate-[fadeIn_0.2s_ease-out]"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
@@ -772,12 +772,12 @@ export default function App() {
       {/* Desktop: Relative flow, permanently visible */}
       <aside
         className={`
-          fixed md:relative inset-y-0 left-0 z-40
-          bg-slate-950 border-r border-slate-800 flex flex-col shrink-0 shadow-2xl md:shadow-none
-          transition-transform duration-300 ease-in-out w-72 md:w-[22rem] xl:w-[24rem]
+          fixed lg:relative inset-y-0 left-0 z-40
+          bg-slate-950 border-r border-slate-800 flex flex-col shrink-0 shadow-2xl lg:shadow-none
+          transition-transform duration-300 ease-in-out w-72 lg:w-[22rem] xl:w-[24rem]
           ${isSidebarOpen
             ? 'translate-x-0'
-            : '-translate-x-full md:translate-x-0'
+            : '-translate-x-full lg:translate-x-0'
           }
         `}
       >
@@ -1287,7 +1287,7 @@ export default function App() {
             {/* Sidebar Toggle Button */}
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className={`md:hidden p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors ${isSidebarOpen ? 'bg-slate-800/50 text-white' : ''}`}
+              className={`lg:hidden p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors ${isSidebarOpen ? 'bg-slate-800/50 text-white' : ''}`}
               title={isSidebarOpen ? "收納側邊欄" : "展開側邊欄"}
             >
               <PanelLeft className="w-5 h-5" />
@@ -1361,7 +1361,7 @@ export default function App() {
 
         {/* Grid */}
         < div className="p-4 sm:p-8 overflow-y-auto flex-1" >
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-6 pb-10">
             {courts.map(court => (
               <CourtCard
                 key={court.id}
