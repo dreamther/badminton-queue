@@ -90,7 +90,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
             }
     `}>
             {/* Header */}
-            <div className={`px-4 py-3 flex items-center justify-between border-b ${isMatchStarted ? 'border-indigo-500/20 bg-indigo-500/5' : hasPlayers ? 'border-amber-500/20 bg-amber-500/5' : 'border-slate-800 bg-slate-900/50'}`}>
+            <div className={`px-4 py-3 flex items-center justify-between border-b min-h-[48px] ${isMatchStarted ? 'border-indigo-500/20 bg-indigo-500/5' : hasPlayers ? 'border-amber-500/20 bg-amber-500/5' : 'border-slate-800 bg-slate-900/50'}`}>
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${isMatchStarted ? 'bg-green-400 animate-pulse' : hasPlayers ? 'bg-amber-400' : 'bg-slate-500'}`} />
@@ -135,24 +135,24 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                         )}
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-end gap-2 h-6">
                     {isMatchStarted && onAnnounce && (
                         <button
                             onClick={() => onAnnounce(court.id)}
-                            className="p-1.5 hover:bg-indigo-500/20 rounded text-indigo-400 hover:text-indigo-300 transition-all"
+                            className="p-1 hover:bg-indigo-500/20 rounded text-indigo-400 hover:text-indigo-300 transition-all"
                             title="手動語音提醒"
                         >
-                            <Megaphone className="w-4 h-4" />
+                            <Megaphone className="w-3.5 h-3.5" />
                         </button>
                     )}
                     {isMatchStarted && (
-                        <div className="flex items-center gap-1.5 text-xs font-mono text-indigo-300 bg-indigo-950/50 px-2 py-1 rounded">
+                        <div className="flex items-center gap-1 text-xs font-mono text-indigo-300 bg-indigo-950/50 px-1.5 py-0.5 rounded">
                             <Clock className="w-3 h-3" />
                             {elapsed}
                         </div>
                     )}
                     {hasPlayers && !isMatchStarted && (
-                        <div className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-950/50 px-2 py-1 rounded">
+                        <div className="flex items-center gap-1 text-xs text-amber-400 bg-amber-950/50 px-1.5 py-0.5 rounded">
                             <Users className="w-3 h-3" />
                             {playersOnCourt.length}/{MAX_PLAYERS_PER_COURT}
                         </div>
@@ -161,10 +161,9 @@ export const CourtCard: React.FC<CourtCardProps> = ({
             </div>
 
             {/* Body */}
-            <div className="flex-1 p-4 flex flex-col gap-4">
-
+            <div className="flex-1 p-4 flex flex-col gap-3 min-h-[174px]">
                 {/* Players Grid */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3 h-[92px]">
                     {Array.from({ length: MAX_PLAYERS_PER_COURT }).map((_, idx) => {
                         const player = playersOnCourt[idx];
                         return (
@@ -173,8 +172,8 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                 className={`h-10 flex items-center gap-2 px-2 rounded-lg text-sm transition-all
                                 ${player
                                         ? !isWarmupDone
-                                            ? 'bg-transparent text-slate-200 cursor-grab active:cursor-grabbing'
-                                            : 'bg-transparent text-slate-200'
+                                            ? 'bg-indigo-500/15 border border-indigo-500/30 text-slate-200 cursor-grab active:cursor-grabbing'
+                                            : 'bg-slate-800/50 border border-slate-700/30 text-slate-200'
                                         : dragOverSlot === idx
                                             ? 'bg-indigo-500/10 border border-indigo-500/50 border-dashed text-indigo-400'
                                             : 'bg-transparent border border-slate-800/50 border-dashed text-slate-500'
@@ -215,11 +214,11 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                 </div>
 
                 {/* Actions */}
-                <div className="mt-auto">
+                <div className="mt-auto h-[42px]">
                     {isMatchStarted ? (
                         <button
                             onClick={() => onEndMatch(court.id)}
-                            className="w-full py-2.5 flex items-center justify-center gap-2 rounded-lg font-medium text-sm
+                            className="w-full h-full flex items-center justify-center gap-2 rounded-lg font-medium text-sm
                              bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 border border-red-500/20 transition-colors"
                         >
                             <LogOut className="w-4 h-4" />
@@ -229,7 +228,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                         <button
                             onClick={() => onStartMatch(court.id)}
                             disabled={!canStart}
-                            className={`w-full py-2.5 flex items-center justify-center gap-2 rounded-lg font-medium text-sm transition-all border
+                            className={`w-full h-full flex items-center justify-center gap-2 rounded-lg font-medium text-sm transition-all border
                         ${canStart
                                     ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 border-emerald-500/20'
                                     : 'bg-slate-500/5 text-slate-500 cursor-not-allowed border-slate-700/50'
@@ -247,7 +246,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                     : '打球囉'}
                         </button>
                     ) : (
-                        <div className="w-full py-2.5 flex items-center justify-center gap-2 rounded-lg font-medium text-sm
+                        <div className="w-full h-full flex items-center justify-center gap-2 rounded-lg font-medium text-sm
                             bg-amber-500/10 text-amber-400 border border-amber-500/20">
                             <Users className="w-4 h-4" />
                             等待中 ({playersOnCourt.length}/{MAX_PLAYERS_PER_COURT})

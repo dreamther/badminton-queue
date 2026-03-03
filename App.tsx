@@ -873,14 +873,14 @@ export default function App() {
                                 {chunk.map((item, idx) => (
                                   <React.Fragment key={idx}>
                                     {item.type === 'player' ? (
-                                      <div
+                                    <div
                                         draggable
                                         onDragStart={(e) => {
                                           e.dataTransfer.setData('text/plain', item.data.id);
                                           e.dataTransfer.setData('source', 'queue');
                                           e.dataTransfer.effectAllowed = 'move';
                                         }}
-                                        className={`relative group/player min-w-0 transition-all cursor-grab active:cursor-grabbing ${dragOverSlotKey === `${chunkIdx}-${idx}` ? 'ring-2 ring-indigo-500/70 rounded-lg' : ''}`}
+                                        className={`relative group/player min-w-0 h-10 transition-all cursor-grab active:cursor-grabbing ${dragOverSlotKey === `${chunkIdx}-${idx}` ? 'ring-2 ring-indigo-500/70 rounded-lg' : ''}`}
                                         onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; }}
                                         onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverSlotKey(`${chunkIdx}-${idx}`); }}
                                         onDragLeave={(e) => { e.stopPropagation(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverSlotKey(null); }}
@@ -904,7 +904,7 @@ export default function App() {
                                         <button
                                           onClick={() => removeFromQueue(item.data.id)}
                                           title="讓球員休息 (移出佇列)"
-                                          className="w-full h-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] hover:bg-slate-700/40 transition-colors text-left min-w-0"
+                                          className="w-full h-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] bg-slate-800/50 hover:bg-slate-700/60 transition-colors text-left min-w-0 border border-slate-700/30"
                                         >
                                           <span className="flex items-center gap-1.5 text-sm font-medium text-slate-300 group-hover/player:text-amber-400 transition-colors min-w-0">
                                             <PlayerAvatar identifier={item.data.name} className="w-2.5 h-2.5 shrink-0" />
