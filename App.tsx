@@ -828,7 +828,7 @@ export default function App() {
             <div className="flex-1 overflow-y-auto flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out]">
               {/* Waiting Queue */}
               <div
-                className={`px-6 py-4 transition-colors ${dragOverSlotKey === 'container' ? 'bg-indigo-500/10 ring-2 ring-inset ring-indigo-500/50 rounded-xl' : ''}`}
+                className={`p-4 transition-colors ${dragOverSlotKey === 'container' ? 'bg-indigo-500/10 ring-2 ring-inset ring-indigo-500/50 rounded-xl' : ''}`}
                 onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
                 onDragEnter={(e) => { e.preventDefault(); if (e.currentTarget === e.target) setDragOverSlotKey('container'); }}
                 onDragLeave={(e) => {
@@ -960,7 +960,7 @@ export default function App() {
               <div className="h-px bg-slate-800 mx-6 my-2"></div>
 
               {/* Bench / Idle Section */}
-              <div className="px-6 py-4 flex-1 flex flex-col">
+              <div className="p-4 flex-1 flex flex-col">
                 <div className="space-y-4 mb-3">
                   {/* Header with Search Icon */}
                   <div className="flex items-center justify-between min-h-[32px]">
@@ -1009,60 +1009,57 @@ export default function App() {
                   )}
                 </div>
 
-                <div className="pl-7">
-
-                  <div className="flex-1 overflow-y-auto space-y-4">
-                    {filteredIdlePlayers.length === 0 ? (
-                      <div className="py-8 text-center text-slate-500 text-sm -ml-7">
-                        <p>{restAreaSearchTerm ? '沒有符合的球員' : '休息區空空如也'}</p>
-                        {!restAreaSearchTerm && <p className="text-xs mt-1 opacity-70">請至「報到區」進行報到</p>}
-                      </div>
-                    ) : (
-                      filteredIdlePlayers.map(player => {
-                        return (
-                          <div
-                            key={player.id}
-                            draggable
-                            onDragStart={(e) => {
-                              e.dataTransfer.setData('text/plain', player.id);
-                              e.dataTransfer.effectAllowed = 'move';
-                            }}
-                            className="flex items-center justify-between py-2 px-2 rounded-lg border transition-all group
-                              bg-transparent border-transparent hover:bg-slate-800/50 hover:border-slate-800 cursor-grab active:cursor-grabbing"
-                          >
-                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <div className="flex flex-col min-w-0">
-                                  <div className="flex items-center gap-1.5">
-                                    <PlayerAvatar identifier={player.name} className="w-3.5 h-3.5 shrink-0" />
-                                    <span className="text-sm text-slate-300 truncate">
-                                      {player.name}
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="scale-90 origin-left shrink-0" onClick={(e) => e.stopPropagation()}>
-                                  <LevelSelector
-                                    level={player.level}
-                                    onChange={(l) => updatePlayerLevel(player.id, l)}
-                                  />
+                <div className="flex-1 overflow-y-auto space-y-4">
+                  {filteredIdlePlayers.length === 0 ? (
+                    <div className="py-8 text-center text-slate-500 text-sm -ml-7">
+                      <p>{restAreaSearchTerm ? '沒有符合的球員' : '休息區空空如也'}</p>
+                      {!restAreaSearchTerm && <p className="text-xs mt-1 opacity-70">請至「報到區」進行報到</p>}
+                    </div>
+                  ) : (
+                    filteredIdlePlayers.map(player => {
+                      return (
+                        <div
+                          key={player.id}
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('text/plain', player.id);
+                            e.dataTransfer.effectAllowed = 'move';
+                          }}
+                          className="flex items-center justify-between py-2 px-2 rounded-lg border transition-all group
+                            bg-transparent border-transparent hover:bg-slate-800/50 hover:border-slate-800 cursor-grab active:cursor-grabbing"
+                        >
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <div className="flex flex-col min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <PlayerAvatar identifier={player.name} className="w-3.5 h-3.5 shrink-0" />
+                                  <span className="text-sm text-slate-300 truncate">
+                                    {player.name}
+                                  </span>
                                 </div>
                               </div>
-                            </div>
-
-                            <div className="flex gap-1 pl-2">
-                              <button
-                                onClick={() => deletePlayer(player.id)}
-                                className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors opacity-0 group-hover:opacity-100"
-                                title="早退 (回到會員列表)"
-                              >
-                                <LogOut className="w-3.5 h-3.5" />
-                              </button>
+                              <div className="scale-90 origin-left shrink-0" onClick={(e) => e.stopPropagation()}>
+                                <LevelSelector
+                                  level={player.level}
+                                  onChange={(l) => updatePlayerLevel(player.id, l)}
+                                />
+                              </div>
                             </div>
                           </div>
-                        );
-                      })
-                    )}
-                  </div>
+
+                          <div className="flex gap-1 pl-2">
+                            <button
+                              onClick={() => deletePlayer(player.id)}
+                              className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                              title="早退 (回到會員列表)"
+                            >
+                              <LogOut className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>
