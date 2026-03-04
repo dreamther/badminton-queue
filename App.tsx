@@ -774,7 +774,7 @@ export default function App() {
         className={`
           fixed lg:relative inset-y-0 left-0 z-40
           bg-slate-950 border-r border-slate-800 flex flex-col shrink-0 shadow-2xl lg:shadow-none
-          transition-transform duration-300 ease-in-out w-72 lg:w-[22rem] xl:w-[24rem]
+          transition-transform duration-300 ease-in-out w-[90%] sm:w-[25rem]
           ${isSidebarOpen
             ? 'translate-x-0'
             : '-translate-x-full lg:translate-x-0'
