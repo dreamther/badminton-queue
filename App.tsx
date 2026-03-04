@@ -902,15 +902,24 @@ export default function App() {
                                         }}
                                       >
                                         <button
-                                          onClick={() => removeFromQueue(item.data.id)}
-                                          title="讓球員休息 (移出佇列)"
-                                          className="w-full h-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] bg-slate-800/50 hover:bg-slate-700/60 transition-colors text-left min-w-0 border border-slate-700/30"
+                                          onClick={() => {}}
+                                          title="排隊成員"
+                                          className="w-full h-full flex items-center justify-between px-2.5 py-1.5 rounded-[10px] bg-slate-800/50 hover:bg-slate-700/60 transition-colors text-left min-w-0 border border-slate-700/30"
                                         >
-                                          <span className="flex items-center gap-1.5 text-sm font-medium text-slate-300 group-hover/player:text-amber-400 transition-colors min-w-0">
+                                          <span className="flex items-center gap-1.5 text-sm font-medium text-slate-300 min-w-0">
                                             <PlayerAvatar identifier={item.data.name} className="w-2.5 h-2.5 shrink-0" />
                                             <span className="truncate">{item.data.name}</span>
                                           </span>
-                                          <Coffee className="w-3.5 h-3.5 text-slate-500 opacity-0 group-hover/player:opacity-100 group-hover/player:text-amber-500 transition-all shrink-0" />
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              removeFromQueue(item.data.id);
+                                            }}
+                                            className="p-1 text-slate-500 hover:text-amber-400 transition-colors -mr-1"
+                                            title="讓球員休息 (移出佇列)"
+                                          >
+                                            <Coffee className="w-3.5 h-3.5" />
+                                          </button>
                                         </button>
                                       </div>
                                     ) : (
