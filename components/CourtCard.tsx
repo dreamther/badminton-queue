@@ -178,7 +178,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                 className={`h-10 flex items-center gap-2 px-2 rounded-lg text-sm transition-all cursor-pointer
                                 ${player
                                         ? selectedPlayerForMove === player.id
-                                            ? 'ring-2 ring-blue-400 bg-indigo-500/15 border border-indigo-500/30 text-slate-200'
+                                            ? 'ring-2 ring-inset ring-blue-400 bg-indigo-500/15 border border-indigo-500/30 text-slate-200'
                                             : dragOverSlot === idx
                                                 ? 'bg-indigo-500/10 border border-indigo-500/50 border-dashed text-indigo-400 cursor-grab active:cursor-grabbing'
                                                 : !isWarmupDone
@@ -187,7 +187,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                         : dragOverSlot === idx
                                             ? 'bg-indigo-500/10 border border-indigo-500/50 border-dashed text-indigo-400'
                                             : selectedPlayerForMove !== null && !isWarmupDone
-                                                ? 'border border-emerald-500 bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/50'
+                                                ? 'border border-emerald-500 bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/50'
                                                 : 'bg-transparent border border-slate-800/50 border-dashed text-slate-500'
                                     }`}
                                 onClick={() => {
@@ -235,7 +235,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                         <span className="truncate font-medium">{player.name}</span>
                                     </>
                                 ) : (
-                                    <span className="text-xs w-full text-center opacity-50">{selectedPlayerForMove ? '移動到此' : '空位'}</span>
+                                    <span className="text-xs w-full text-center opacity-50">{selectedPlayerForMove && !isWarmupDone ? '移動到此' : '空位'}</span>
                                 )}
                             </div>
                         );

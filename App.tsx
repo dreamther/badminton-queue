@@ -956,9 +956,9 @@ export default function App() {
                                         }}
                                         className={`relative group/player min-w-0 h-10 transition-all ${
                                           selectedPlayerForMove === item.data.id
-                                            ? 'cursor-pointer ring-2 ring-blue-400 rounded-lg'
+                                            ? 'cursor-pointer ring-2 ring-inset ring-blue-400 rounded-lg'
                                             : dragOverSlotKey === `${chunkIdx}-${idx}`
-                                              ? 'cursor-grab active:cursor-grabbing ring-2 ring-indigo-500/70 rounded-lg'
+                                              ? 'cursor-grab active:cursor-grabbing ring-2 ring-inset ring-indigo-500/70 rounded-lg'
                                               : 'cursor-grab active:cursor-grabbing'
                                         }`}
                                         onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; }}
@@ -1005,7 +1005,7 @@ export default function App() {
                                           dragOverSlotKey === `${chunkIdx}-${idx}`
                                             ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400'
                                             : selectedPlayerForMove !== null
-                                              ? 'border-emerald-500 bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/50'
+                                              ? 'border-emerald-500 bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/50'
                                               : 'border-slate-800/50 text-slate-500'
                                         }`}
                                         title={selectedPlayerForMove ? '點擊移動成員到此' : '空位 - 拖曳球員到此處或點擊選擇'}
@@ -1145,7 +1145,7 @@ export default function App() {
                           }}
                           className={`flex items-center justify-between py-2 px-2 rounded-lg border transition-all group
                             ${selectedPlayerForMove === player.id
-                              ? 'bg-slate-800/50 border-slate-800 ring-2 ring-blue-400 cursor-pointer'
+                              ? 'bg-slate-800/50 border-slate-800 ring-2 ring-inset ring-blue-400 cursor-pointer'
                               : selectedPlayerForMove !== null
                                 ? 'bg-slate-800/50 border-slate-800 hover:border-slate-700 cursor-pointer'
                                 : 'bg-transparent border-transparent hover:bg-slate-800/50 hover:border-slate-800 cursor-grab active:cursor-grabbing'
