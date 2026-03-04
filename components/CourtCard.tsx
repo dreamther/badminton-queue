@@ -15,6 +15,9 @@ interface CourtCardProps {
     canStartMatch?: boolean;
     onDropPlayer?: (courtId: number, playerId: string) => void;
     isWarmupDone?: boolean;
+    selectedPlayerForMove?: string | null;
+    onSelectPlayer?: (playerId: string | null) => void;
+    onMovePlayerToSlot?: (playerId: string, courtId: number, slotIdx: number) => void;
 }
 
 export const CourtCard: React.FC<CourtCardProps> = ({
@@ -28,7 +31,10 @@ export const CourtCard: React.FC<CourtCardProps> = ({
     isAutoAnnounce = true,
     canStartMatch = true,
     onDropPlayer,
-    isWarmupDone = false
+    isWarmupDone = false,
+    selectedPlayerForMove = null,
+    onSelectPlayer,
+    onMovePlayerToSlot
 }) => {
     const [elapsed, setElapsed] = useState<string>('00:00');
     const [isEditing, setIsEditing] = useState(false);
@@ -169,15 +175,38 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                         return (
                             <div
                                 key={`slot-${idx}`}
-                                className={`h-10 flex items-center gap-2 px-2 rounded-lg text-sm transition-all
+                                className={`h-10 flex items-center gap-2 px-2 rounded-lg text-sm transition-all cursor-pointer
                                 ${player
-                                        ? !isWarmupDone
-                                            ? 'bg-indigo-500/15 border border-indigo-500/30 text-slate-200 cursor-grab active:cursor-grabbing'
-                                            : 'bg-slate-800/50 border border-slate-700/30 text-slate-200'
+                                        ? selectedPlayerForMove === player.id
+                                            ? 'ring-2 ring-blue-400 bg-indigo-500/15 border border-indigo-500/30 text-slate-200'
+                                            : dragOverSlot === idx
+                                                ? 'bg-indigo-500/10 border border-indigo-500/50 border-dashed text-indigo-400 cursor-grab active:cursor-grabbing'
+                                                : !isWarmupDone
+                                                    ? 'bg-indigo-500/15 border border-indigo-500/30 text-slate-200 cursor-grab active:cursor-grabbing'
+                                                    : 'bg-slate-800/50 border border-slate-700/30 text-slate-200'
                                         : dragOverSlot === idx
                                             ? 'bg-indigo-500/10 border border-indigo-500/50 border-dashed text-indigo-400'
-                                            : 'bg-transparent border border-slate-800/50 border-dashed text-slate-500'
+                                            : selectedPlayerForMove !== null && !isWarmupDone
+                                                ? 'border border-emerald-500 bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/50'
+                                                : 'bg-transparent border border-slate-800/50 border-dashed text-slate-500'
                                     }`}
+                                onClick={() => {
+                                    if (onSelectPlayer && !isWarmupDone) {
+                                        // 有球員的位子：只在沒有選中任何人時可以選擇
+                                        if (player) {
+                                            if (selectedPlayerForMove === null) {
+                                                onSelectPlayer(player.id);
+                                            } else if (selectedPlayerForMove === player.id) {
+                                                onSelectPlayer(null);
+                                            }
+                                        }
+                                        // 空位：只在已經選中某人時可以點擊移動
+                                        else if (selectedPlayerForMove && onMovePlayerToSlot) {
+                                            onMovePlayerToSlot(selectedPlayerForMove, court.id, idx);
+                                            onSelectPlayer(null);
+                                        }
+                                    }
+                                }}
                                 {...(player && !isWarmupDone ? {
                                     draggable: true,
                                     onDragStart: (e: React.DragEvent) => {
@@ -206,7 +235,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                         <span className="truncate font-medium">{player.name}</span>
                                     </>
                                 ) : (
-                                    <span className="text-xs w-full text-center opacity-50">空位</span>
+                                    <span className="text-xs w-full text-center opacity-50">{selectedPlayerForMove ? '移動到此' : '空位'}</span>
                                 )}
                             </div>
                         );

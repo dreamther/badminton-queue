@@ -73,6 +73,9 @@ export default function App() {
 
   // Drag and drop state removed
 
+  // Click-to-move mode state
+  const [selectedPlayerForMove, setSelectedPlayerForMove] = useState<string | null>(null);
+
   // --- Persistence ---
   useEffect(() => {
     localStorage.setItem('badminton_players', JSON.stringify(players));
@@ -93,6 +96,17 @@ export default function App() {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // --- Keyboard Handler for Escape Key ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedPlayerForMove) {
+        setSelectedPlayerForMove(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedPlayerForMove]);
 
   // --- Derived Lists ---
   const queue = useMemo(() => {
@@ -724,6 +738,66 @@ export default function App() {
     }));
   }, [courts, removePlayerFromCourt]);
 
+  // Move a player to a specific slot in a court (supports cross-court moves)
+  const movePlayerToCourtSlot = useCallback((playerId: string, courtId: number, slotIdx: number) => {
+    // First, remove from queue if they're queued
+    setQueueSlots(prev => {
+      const newSlots = prev.map(id => id === playerId ? null : id);
+      while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
+      return newSlots;
+    });
+
+    // Update player status to playing
+    setPlayers(prev => prev.map(p =>
+      p.id === playerId ? { ...p, status: 'playing' } : p
+    ));
+
+    // Update courts
+    setCourts(prev => prev.map(c => {
+      // Target court: add or reorder the player
+      if (c.id === courtId) {
+        const currentIdx = c.playerIds.indexOf(playerId);
+        
+        // If player is already in this court, reorder them
+        if (currentIdx !== -1) {
+          const newPlayerIds = c.playerIds.filter(id => id !== playerId);
+          const adjustedSlotIdx = slotIdx > currentIdx ? slotIdx - 1 : slotIdx;
+          newPlayerIds.splice(adjustedSlotIdx, 0, playerId);
+          
+          return {
+            ...c,
+            playerIds: newPlayerIds
+          };
+        } else {
+          // If player is not in this court, add them
+          const newPlayerIds = [...c.playerIds];
+          if (slotIdx <= newPlayerIds.length) {
+            newPlayerIds.splice(slotIdx, 0, playerId);
+          } else {
+            newPlayerIds.push(playerId);
+          }
+          
+          return {
+            ...c,
+            playerIds: newPlayerIds,
+            startTime: newPlayerIds.length >= MAX_PLAYERS_PER_COURT ? c.startTime : null
+          };
+        }
+      } else {
+        // Other courts: remove the player if they're here
+        const newPlayerIds = c.playerIds.filter(id => id !== playerId);
+        if (newPlayerIds.length !== c.playerIds.length) {
+          return {
+            ...c,
+            playerIds: newPlayerIds,
+            startTime: newPlayerIds.length >= MAX_PLAYERS_PER_COURT ? c.startTime : null
+          };
+        }
+        return c;
+      }
+    }));
+  }, []);
+
   // --- Components ---
 
   const LevelSelector = ({ level, onChange, disabled = false }: { level: SkillLevel, onChange: (l: SkillLevel) => void, disabled?: boolean }) => {
@@ -880,7 +954,13 @@ export default function App() {
                                           e.dataTransfer.setData('source', 'queue');
                                           e.dataTransfer.effectAllowed = 'move';
                                         }}
-                                        className={`relative group/player min-w-0 h-10 transition-all cursor-grab active:cursor-grabbing ${dragOverSlotKey === `${chunkIdx}-${idx}` ? 'ring-2 ring-indigo-500/70 rounded-lg' : ''}`}
+                                        className={`relative group/player min-w-0 h-10 transition-all ${
+                                          selectedPlayerForMove === item.data.id
+                                            ? 'cursor-pointer ring-2 ring-blue-400 rounded-lg'
+                                            : dragOverSlotKey === `${chunkIdx}-${idx}`
+                                              ? 'cursor-grab active:cursor-grabbing ring-2 ring-indigo-500/70 rounded-lg'
+                                              : 'cursor-grab active:cursor-grabbing'
+                                        }`}
                                         onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; }}
                                         onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverSlotKey(`${chunkIdx}-${idx}`); }}
                                         onDragLeave={(e) => { e.stopPropagation(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverSlotKey(null); }}
@@ -888,21 +968,18 @@ export default function App() {
                                           e.preventDefault();
                                           e.stopPropagation();
                                           setDragOverSlotKey(null);
-                                          const playerId = e.dataTransfer.getData('text/plain');
-                                          if (playerId && playerId !== item.data.id) {
-                                            const flatIdx = chunkIdx * 4 + idx;
-                                            const source = e.dataTransfer.getData('source');
-                                            if (source === 'court') removePlayerFromCourt(playerId);
-                                            if (source === 'queue') {
-                                              moveInQueue(playerId, flatIdx);
-                                            } else {
-                                              insertIntoQueueAt(playerId, flatIdx);
-                                            }
+                                          // Cannot drop on an occupied slot, do nothing.
+                                        }}
+                                        onClick={() => {
+                                          if (selectedPlayerForMove === item.data.id) {
+                                            setSelectedPlayerForMove(null);
+                                          } else if (selectedPlayerForMove === null) {
+                                            setSelectedPlayerForMove(item.data.id);
                                           }
+                                          // If another player is selected for move, clicking here does nothing.
                                         }}
                                       >
-                                        <button
-                                          onClick={() => {}}
+                                        <div
                                           title="排隊成員"
                                           className="w-full h-full flex items-center justify-between px-2.5 py-1.5 rounded-[10px] bg-slate-800/50 hover:bg-slate-700/60 transition-colors text-left min-w-0 border border-slate-700/30"
                                         >
@@ -920,13 +997,18 @@ export default function App() {
                                           >
                                             <Coffee className="w-3.5 h-3.5" />
                                           </button>
-                                        </button>
+                                        </div>
                                       </div>
                                     ) : (
                                       <div
-                                        className={`h-10 flex items-center justify-center rounded-lg border border-dashed text-slate-500 transition-all
-                                          ${dragOverSlotKey === `${chunkIdx}-${idx}` ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-slate-800/50'}`}
-                                        title="空位 - 拖曳球員到此處"
+                                        className={`h-10 flex items-center justify-center rounded-lg border border-dashed transition-all cursor-pointer ${
+                                          dragOverSlotKey === `${chunkIdx}-${idx}`
+                                            ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400'
+                                            : selectedPlayerForMove !== null
+                                              ? 'border-emerald-500 bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/50'
+                                              : 'border-slate-800/50 text-slate-500'
+                                        }`}
+                                        title={selectedPlayerForMove ? '點擊移動成員到此' : '空位 - 拖曳球員到此處或點擊選擇'}
                                         onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; }}
                                         onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverSlotKey(`${chunkIdx}-${idx}`); }}
                                         onDragLeave={(e) => { e.stopPropagation(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverSlotKey(null); }}
@@ -938,6 +1020,8 @@ export default function App() {
                                           if (playerId) {
                                             const flatIdx = chunkIdx * 4 + idx;
                                             const source = e.dataTransfer.getData('source');
+                                            // Only allow moving from court during warmup phase
+                                            if (source === 'court' && isWarmupDone) return;
                                             if (source === 'court') removePlayerFromCourt(playerId);
                                             if (source === 'queue') {
                                               moveInQueue(playerId, flatIdx);
@@ -946,8 +1030,26 @@ export default function App() {
                                             }
                                           }
                                         }}
+                                        onClick={() => {
+                                          if (selectedPlayerForMove) {
+                                            const selectedPlayer = players.find(p => p.id === selectedPlayerForMove);
+                                            // Only allow moving from court during warmup phase
+                                            if (selectedPlayer?.status === 'playing' && isWarmupDone) return;
+                                            const flatIdx = chunkIdx * 4 + idx;
+                                            const source = selectedPlayer?.status;
+                                            if (source === 'playing') {
+                                              removePlayerFromCourt(selectedPlayerForMove);
+                                              insertIntoQueueAt(selectedPlayerForMove, flatIdx);
+                                            } else if (source === 'queued') {
+                                              moveInQueue(selectedPlayerForMove, flatIdx);
+                                            } else if (source === 'idle') {
+                                              insertIntoQueueAt(selectedPlayerForMove, flatIdx);
+                                            }
+                                            setSelectedPlayerForMove(null);
+                                          }
+                                        }}
                                       >
-                                        <span className="text-xs opacity-50">空位</span>
+                                        <span className="text-xs opacity-70">{selectedPlayerForMove ? '移動到此' : '空位'}</span>
                                       </div>
                                     )}
                                   </React.Fragment>
@@ -1034,8 +1136,20 @@ export default function App() {
                             e.dataTransfer.setData('text/plain', player.id);
                             e.dataTransfer.effectAllowed = 'move';
                           }}
-                          className="flex items-center justify-between py-2 px-2 rounded-lg border transition-all group
-                            bg-transparent border-transparent hover:bg-slate-800/50 hover:border-slate-800 cursor-grab active:cursor-grabbing"
+                          onClick={() => {
+                            if (selectedPlayerForMove === player.id) {
+                              setSelectedPlayerForMove(null);
+                            } else {
+                              setSelectedPlayerForMove(player.id);
+                            }
+                          }}
+                          className={`flex items-center justify-between py-2 px-2 rounded-lg border transition-all group
+                            ${selectedPlayerForMove === player.id
+                              ? 'bg-slate-800/50 border-slate-800 ring-2 ring-blue-400 cursor-pointer'
+                              : selectedPlayerForMove !== null
+                                ? 'bg-slate-800/50 border-slate-800 hover:border-slate-700 cursor-pointer'
+                                : 'bg-transparent border-transparent hover:bg-slate-800/50 hover:border-slate-800 cursor-grab active:cursor-grabbing'
+                          }`}
                         >
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -1382,6 +1496,9 @@ export default function App() {
                 canStartMatch={isQueueReady}
                 onDropPlayer={dropPlayerToCourt}
                 isWarmupDone={isWarmupDone}
+                selectedPlayerForMove={selectedPlayerForMove}
+                onSelectPlayer={setSelectedPlayerForMove}
+                onMovePlayerToSlot={movePlayerToCourtSlot}
               />
             ))}
           </div>
