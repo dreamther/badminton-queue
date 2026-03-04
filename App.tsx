@@ -899,7 +899,7 @@ export default function App() {
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Tab Content: Queue Management */}
           {activeTab === 'queue' && (
-            <div className="flex-1 overflow-y-auto flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out]">
+            <div className="flex-1 overflow-y-auto scrollbar-gutter-stable flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out]">
               {/* Waiting Queue */}
               <div
                 className={`p-4 transition-colors ${dragOverSlotKey === 'container' ? 'bg-indigo-500/10 ring-2 ring-inset ring-indigo-500/50 rounded-xl' : ''}`}
@@ -1120,7 +1120,7 @@ export default function App() {
                   )}
                 </div>
 
-                <div className="flex-1 overflow-y-auto space-y-4">
+                <div className="flex-1 overflow-y-auto scrollbar-gutter-stable space-y-4">
                   {filteredIdlePlayers.length === 0 ? (
                     <div className="py-8 text-center text-slate-500 text-sm -ml-7">
                       <p>{restAreaSearchTerm ? '沒有符合的球員' : '休息區空空如也'}</p>
@@ -1190,7 +1190,7 @@ export default function App() {
 
           {/* Tab Content: Member List */}
           {activeTab === 'members' && (
-            <div className="flex-1 overflow-y-auto flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out] bg-slate-950">
+            <div className="flex-1 overflow-y-auto scrollbar-gutter-stable flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out] bg-slate-950">
               {/* Sticky header: member list title + search + add/import */}
               <div className="px-6 pt-4 pb-3 sticky top-0 bg-slate-950/95 backdrop-blur z-10 space-y-2">
                 {/* Member List Header with Search Icon */}
@@ -1480,7 +1480,7 @@ export default function App() {
         </div >
 
         {/* Grid */}
-        < div className="p-4 sm:p-8 overflow-y-auto flex-1" >
+        < div className="p-4 sm:p-8 overflow-y-auto scrollbar-gutter-stable flex-1" >
           <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-6 pb-10">
             {courts.map(court => (
               <CourtCard
