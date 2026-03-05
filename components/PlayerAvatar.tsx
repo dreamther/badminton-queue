@@ -1,39 +1,39 @@
-import React, { useMemo } from 'react';
+import React from 'react';
+import { User } from 'lucide-react';
+
+// A deterministic hashing function to consistently assign a shape and color based on a string (player name or id)
+const hashCode = (str: string) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash);
+};
+
+// Available colors (Blue to Purple spectrum)
+const COLORS = [
+    'text-blue-400',
+    'text-blue-500',
+    'text-indigo-400',
+    'text-indigo-500',
+    'text-violet-400',
+    'text-violet-500',
+    'text-purple-400',
+    'text-purple-500',
+    'text-fuchsia-400',
+    'text-fuchsia-500',
+];
 
 interface PlayerAvatarProps {
-  name: string;
-  size?: 'sm' | 'md' | 'lg';
-  className?: string;
+    identifier: string; // The string used for hashing (name or id)
+    className?: string; // Optional extra classes for sizing (e.g., 'w-3 h-3')
 }
 
-export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({ name, size = 'md', className = '' }) => {
-  const initials = name.slice(0, 2).toUpperCase();
-  
-  // Deterministic color based on name
-  const bgColor = useMemo(() => {
-    const colors = [
-      'bg-red-500', 'bg-orange-500', 'bg-amber-500', 
-      'bg-green-500', 'bg-emerald-500', 'bg-teal-500', 
-      'bg-cyan-500', 'bg-sky-500', 'bg-blue-500', 
-      'bg-indigo-500', 'bg-violet-500', 'bg-purple-500', 
-      'bg-fuchsia-500', 'bg-pink-500', 'bg-rose-500'
-    ];
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return colors[Math.abs(hash) % colors.length];
-  }, [name]);
+export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({ identifier, className = 'w-3.5 h-3.5' }) => {
+    const hash = hashCode(identifier);
+    const colorClass = COLORS[hash % COLORS.length];
 
-  const sizeClasses = {
-    sm: 'w-6 h-6 text-xs',
-    md: 'w-8 h-8 text-sm',
-    lg: 'w-10 h-10 text-base',
-  };
-
-  return (
-    <div className={`${sizeClasses[size]} ${bgColor} ${className} rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0`}>
-      {initials}
-    </div>
-  );
+    return <User className={`${className} ${colorClass} shrink-0`} />;
 };
