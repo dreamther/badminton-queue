@@ -73,6 +73,9 @@ export default function App() {
 
   // Drag and drop state removed
 
+  // Click-to-move mode state
+  const [selectedPlayerForMove, setSelectedPlayerForMove] = useState<string | null>(null);
+
   // --- Persistence ---
   useEffect(() => {
     localStorage.setItem('badminton_players', JSON.stringify(players));
@@ -93,6 +96,17 @@ export default function App() {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // --- Keyboard Handler for Escape Key ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedPlayerForMove) {
+        setSelectedPlayerForMove(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedPlayerForMove]);
 
   // --- Derived Lists ---
   const queue = useMemo(() => {
@@ -670,6 +684,27 @@ export default function App() {
     }));
   }, []);
 
+  // Handle Warmup Toggle with validation
+  const handleWarmupToggle = useCallback(() => {
+    if (!isWarmupDone) {
+      // 熱身中 - 需要檢查場地是否滿場
+      if (idleCourtsCount > 0) {
+        // 場地未滿
+        alert('目前場地尚未滿場，請保持熱身階段🔥');
+        return;
+      }
+      // 場地已滿，詢問是否結束熱身
+      if (confirm('確定要結束熱身嗎？')) {
+        setIsWarmupDone(true);
+      }
+    } else {
+      // 已熱身 - 直接詢問是否回到熱身，忽略場地滿場判斷
+      if (confirm('確定要回到熱身階段嗎？')) {
+        setIsWarmupDone(false);
+      }
+    }
+  }, [idleCourtsCount, isWarmupDone]);
+
   // Drop a player directly onto a court from rest area, queue, or another court
   const dropPlayerToCourt = useCallback((courtId: number, playerId: string) => {
     const court = courts.find(c => c.id === courtId);
@@ -702,6 +737,66 @@ export default function App() {
       };
     }));
   }, [courts, removePlayerFromCourt]);
+
+  // Move a player to a specific slot in a court (supports cross-court moves)
+  const movePlayerToCourtSlot = useCallback((playerId: string, courtId: number, slotIdx: number) => {
+    // First, remove from queue if they're queued
+    setQueueSlots(prev => {
+      const newSlots = prev.map(id => id === playerId ? null : id);
+      while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
+      return newSlots;
+    });
+
+    // Update player status to playing
+    setPlayers(prev => prev.map(p =>
+      p.id === playerId ? { ...p, status: 'playing' } : p
+    ));
+
+    // Update courts
+    setCourts(prev => prev.map(c => {
+      // Target court: add or reorder the player
+      if (c.id === courtId) {
+        const currentIdx = c.playerIds.indexOf(playerId);
+        
+        // If player is already in this court, reorder them
+        if (currentIdx !== -1) {
+          const newPlayerIds = c.playerIds.filter(id => id !== playerId);
+          const adjustedSlotIdx = slotIdx > currentIdx ? slotIdx - 1 : slotIdx;
+          newPlayerIds.splice(adjustedSlotIdx, 0, playerId);
+          
+          return {
+            ...c,
+            playerIds: newPlayerIds
+          };
+        } else {
+          // If player is not in this court, add them
+          const newPlayerIds = [...c.playerIds];
+          if (slotIdx <= newPlayerIds.length) {
+            newPlayerIds.splice(slotIdx, 0, playerId);
+          } else {
+            newPlayerIds.push(playerId);
+          }
+          
+          return {
+            ...c,
+            playerIds: newPlayerIds,
+            startTime: newPlayerIds.length >= MAX_PLAYERS_PER_COURT ? c.startTime : null
+          };
+        }
+      } else {
+        // Other courts: remove the player if they're here
+        const newPlayerIds = c.playerIds.filter(id => id !== playerId);
+        if (newPlayerIds.length !== c.playerIds.length) {
+          return {
+            ...c,
+            playerIds: newPlayerIds,
+            startTime: newPlayerIds.length >= MAX_PLAYERS_PER_COURT ? c.startTime : null
+          };
+        }
+        return c;
+      }
+    }));
+  }, []);
 
   // --- Components ---
 
@@ -741,7 +836,7 @@ export default function App() {
       {/* Mobile Backdrop for Sidebar */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 md:hidden animate-[fadeIn_0.2s_ease-out]"
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden animate-[fadeIn_0.2s_ease-out]"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
@@ -751,12 +846,12 @@ export default function App() {
       {/* Desktop: Relative flow, permanently visible */}
       <aside
         className={`
-          fixed md:relative inset-y-0 left-0 z-40
-          bg-slate-950 border-r border-slate-800 flex flex-col shrink-0 shadow-2xl md:shadow-none
-          transition-transform duration-300 ease-in-out w-72 md:w-[22rem] xl:w-[24rem]
+          fixed lg:relative inset-y-0 left-0 z-40
+          bg-slate-950 border-r border-slate-800 flex flex-col shrink-0 shadow-2xl lg:shadow-none
+          transition-transform duration-300 ease-in-out w-[90%] sm:w-[25rem]
           ${isSidebarOpen
             ? 'translate-x-0'
-            : '-translate-x-full md:translate-x-0'
+            : '-translate-x-full lg:translate-x-0'
           }
         `}
       >
@@ -804,10 +899,10 @@ export default function App() {
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Tab Content: Queue Management */}
           {activeTab === 'queue' && (
-            <div className="flex-1 overflow-y-auto flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out]">
+            <div className="flex-1 overflow-y-auto scrollbar-gutter-stable flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out]">
               {/* Waiting Queue */}
               <div
-                className={`px-6 py-4 transition-colors ${dragOverSlotKey === 'container' ? 'bg-indigo-500/10 ring-2 ring-inset ring-indigo-500/50 rounded-xl' : ''}`}
+                className={`p-4 transition-colors ${dragOverSlotKey === 'container' ? 'bg-indigo-500/10 ring-2 ring-inset ring-indigo-500/50 rounded-xl' : ''}`}
                 onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
                 onDragEnter={(e) => { e.preventDefault(); if (e.currentTarget === e.target) setDragOverSlotKey('container'); }}
                 onDragLeave={(e) => {
@@ -852,14 +947,20 @@ export default function App() {
                                 {chunk.map((item, idx) => (
                                   <React.Fragment key={idx}>
                                     {item.type === 'player' ? (
-                                      <div
+                                    <div
                                         draggable
                                         onDragStart={(e) => {
                                           e.dataTransfer.setData('text/plain', item.data.id);
                                           e.dataTransfer.setData('source', 'queue');
                                           e.dataTransfer.effectAllowed = 'move';
                                         }}
-                                        className={`relative group/player min-w-0 transition-all cursor-grab active:cursor-grabbing ${dragOverSlotKey === `${chunkIdx}-${idx}` ? 'ring-2 ring-indigo-500/70 rounded-lg' : ''}`}
+                                        className={`relative group/player min-w-0 h-10 transition-all ${
+                                          selectedPlayerForMove === item.data.id
+                                            ? 'cursor-pointer ring-2 ring-inset ring-blue-400 rounded-lg'
+                                            : dragOverSlotKey === `${chunkIdx}-${idx}`
+                                              ? 'cursor-grab active:cursor-grabbing ring-2 ring-inset ring-indigo-500/70 rounded-lg'
+                                              : 'cursor-grab active:cursor-grabbing'
+                                        }`}
                                         onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; }}
                                         onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverSlotKey(`${chunkIdx}-${idx}`); }}
                                         onDragLeave={(e) => { e.stopPropagation(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverSlotKey(null); }}
@@ -867,36 +968,47 @@ export default function App() {
                                           e.preventDefault();
                                           e.stopPropagation();
                                           setDragOverSlotKey(null);
-                                          const playerId = e.dataTransfer.getData('text/plain');
-                                          if (playerId && playerId !== item.data.id) {
-                                            const flatIdx = chunkIdx * 4 + idx;
-                                            const source = e.dataTransfer.getData('source');
-                                            if (source === 'court') removePlayerFromCourt(playerId);
-                                            if (source === 'queue') {
-                                              moveInQueue(playerId, flatIdx);
-                                            } else {
-                                              insertIntoQueueAt(playerId, flatIdx);
-                                            }
+                                          // Cannot drop on an occupied slot, do nothing.
+                                        }}
+                                        onClick={() => {
+                                          if (selectedPlayerForMove === item.data.id) {
+                                            setSelectedPlayerForMove(null);
+                                          } else if (selectedPlayerForMove === null) {
+                                            setSelectedPlayerForMove(item.data.id);
                                           }
+                                          // If another player is selected for move, clicking here does nothing.
                                         }}
                                       >
-                                        <button
-                                          onClick={() => removeFromQueue(item.data.id)}
-                                          title="讓球員休息 (移出佇列)"
-                                          className="w-full h-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] hover:bg-slate-700/40 transition-colors text-left min-w-0"
+                                        <div
+                                          title="排隊成員"
+                                          className="w-full h-full flex items-center justify-between px-2.5 py-1.5 rounded-[10px] bg-slate-800/50 hover:bg-slate-700/60 transition-colors text-left min-w-0 border border-slate-700/30"
                                         >
-                                          <span className="flex items-center gap-1.5 text-sm font-medium text-slate-300 group-hover/player:text-amber-400 transition-colors min-w-0">
+                                          <span className="flex items-center gap-1.5 text-sm font-medium text-slate-300 min-w-0">
                                             <PlayerAvatar identifier={item.data.name} className="w-2.5 h-2.5 shrink-0" />
                                             <span className="truncate">{item.data.name}</span>
                                           </span>
-                                          <Coffee className="w-3.5 h-3.5 text-slate-500 opacity-0 group-hover/player:opacity-100 group-hover/player:text-amber-500 transition-all shrink-0" />
-                                        </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              removeFromQueue(item.data.id);
+                                            }}
+                                            className="p-1 text-slate-500 hover:text-amber-400 transition-colors -mr-1"
+                                            title="讓球員休息 (移出佇列)"
+                                          >
+                                            <Coffee className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
                                       </div>
                                     ) : (
                                       <div
-                                        className={`h-10 flex items-center justify-center rounded-lg border border-dashed text-slate-500 transition-all
-                                          ${dragOverSlotKey === `${chunkIdx}-${idx}` ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-slate-800/50'}`}
-                                        title="空位 - 拖曳球員到此處"
+                                        className={`h-10 flex items-center justify-center rounded-lg border border-dashed transition-all cursor-pointer ${
+                                          dragOverSlotKey === `${chunkIdx}-${idx}`
+                                            ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400'
+                                            : selectedPlayerForMove !== null
+                                              ? 'border-emerald-500 bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/50'
+                                              : 'border-slate-800/50 text-slate-500'
+                                        }`}
+                                        title={selectedPlayerForMove ? '點擊移動成員到此' : '空位 - 拖曳球員到此處或點擊選擇'}
                                         onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; }}
                                         onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverSlotKey(`${chunkIdx}-${idx}`); }}
                                         onDragLeave={(e) => { e.stopPropagation(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverSlotKey(null); }}
@@ -908,6 +1020,8 @@ export default function App() {
                                           if (playerId) {
                                             const flatIdx = chunkIdx * 4 + idx;
                                             const source = e.dataTransfer.getData('source');
+                                            // Only allow moving from court during warmup phase
+                                            if (source === 'court' && isWarmupDone) return;
                                             if (source === 'court') removePlayerFromCourt(playerId);
                                             if (source === 'queue') {
                                               moveInQueue(playerId, flatIdx);
@@ -916,8 +1030,26 @@ export default function App() {
                                             }
                                           }
                                         }}
+                                        onClick={() => {
+                                          if (selectedPlayerForMove) {
+                                            const selectedPlayer = players.find(p => p.id === selectedPlayerForMove);
+                                            // Only allow moving from court during warmup phase
+                                            if (selectedPlayer?.status === 'playing' && isWarmupDone) return;
+                                            const flatIdx = chunkIdx * 4 + idx;
+                                            const source = selectedPlayer?.status;
+                                            if (source === 'playing') {
+                                              removePlayerFromCourt(selectedPlayerForMove);
+                                              insertIntoQueueAt(selectedPlayerForMove, flatIdx);
+                                            } else if (source === 'queued') {
+                                              moveInQueue(selectedPlayerForMove, flatIdx);
+                                            } else if (source === 'idle') {
+                                              insertIntoQueueAt(selectedPlayerForMove, flatIdx);
+                                            }
+                                            setSelectedPlayerForMove(null);
+                                          }
+                                        }}
                                       >
-                                        <span className="text-xs opacity-50">空位</span>
+                                        <span className="text-xs opacity-70">{selectedPlayerForMove ? '移動到此' : '空位'}</span>
                                       </div>
                                     )}
                                   </React.Fragment>
@@ -939,7 +1071,7 @@ export default function App() {
               <div className="h-px bg-slate-800 mx-6 my-2"></div>
 
               {/* Bench / Idle Section */}
-              <div className="px-6 py-4 flex-1 flex flex-col">
+              <div className="p-4 flex-1 flex flex-col">
                 <div className="space-y-4 mb-3">
                   {/* Header with Search Icon */}
                   <div className="flex items-center justify-between min-h-[32px]">
@@ -988,60 +1120,69 @@ export default function App() {
                   )}
                 </div>
 
-                <div className="pl-7">
-
-                  <div className="flex-1 overflow-y-auto space-y-4">
-                    {filteredIdlePlayers.length === 0 ? (
-                      <div className="py-8 text-center text-slate-500 text-sm -ml-7">
-                        <p>{restAreaSearchTerm ? '沒有符合的球員' : '休息區空空如也'}</p>
-                        {!restAreaSearchTerm && <p className="text-xs mt-1 opacity-70">請至「報到區」進行報到</p>}
-                      </div>
-                    ) : (
-                      filteredIdlePlayers.map(player => {
-                        return (
-                          <div
-                            key={player.id}
-                            draggable
-                            onDragStart={(e) => {
-                              e.dataTransfer.setData('text/plain', player.id);
-                              e.dataTransfer.effectAllowed = 'move';
-                            }}
-                            className="flex items-center justify-between py-2 px-2 rounded-lg border transition-all group
-                              bg-transparent border-transparent hover:bg-slate-800/50 hover:border-slate-800 cursor-grab active:cursor-grabbing"
-                          >
-                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <div className="flex flex-col min-w-0">
-                                  <div className="flex items-center gap-1.5">
-                                    <PlayerAvatar identifier={player.name} className="w-3.5 h-3.5 shrink-0" />
-                                    <span className="text-sm text-slate-300 truncate">
-                                      {player.name}
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="scale-90 origin-left shrink-0" onClick={(e) => e.stopPropagation()}>
-                                  <LevelSelector
-                                    level={player.level}
-                                    onChange={(l) => updatePlayerLevel(player.id, l)}
-                                  />
+                <div className="flex-1 overflow-y-auto scrollbar-gutter-stable space-y-4">
+                  {filteredIdlePlayers.length === 0 ? (
+                    <div className="py-8 text-center text-slate-500 text-sm -ml-7">
+                      <p>{restAreaSearchTerm ? '沒有符合的球員' : '休息區空空如也'}</p>
+                      {!restAreaSearchTerm && <p className="text-xs mt-1 opacity-70">請至「報到區」進行報到</p>}
+                    </div>
+                  ) : (
+                    filteredIdlePlayers.map(player => {
+                      return (
+                        <div
+                          key={player.id}
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('text/plain', player.id);
+                            e.dataTransfer.effectAllowed = 'move';
+                          }}
+                          onClick={() => {
+                            if (selectedPlayerForMove === player.id) {
+                              setSelectedPlayerForMove(null);
+                            } else {
+                              setSelectedPlayerForMove(player.id);
+                            }
+                          }}
+                          className={`flex items-center justify-between py-2 px-2 rounded-lg border transition-all group
+                            ${selectedPlayerForMove === player.id
+                              ? 'bg-slate-800/50 border-slate-800 ring-2 ring-inset ring-blue-400 cursor-pointer'
+                              : selectedPlayerForMove !== null
+                                ? 'bg-slate-800/50 border-slate-800 hover:border-slate-700 cursor-pointer'
+                                : 'bg-transparent border-transparent hover:bg-slate-800/50 hover:border-slate-800 cursor-grab active:cursor-grabbing'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <div className="flex flex-col min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <PlayerAvatar identifier={player.name} className="w-3.5 h-3.5 shrink-0" />
+                                  <span className="text-sm text-slate-300 truncate">
+                                    {player.name}
+                                  </span>
                                 </div>
                               </div>
-                            </div>
-
-                            <div className="flex gap-1 pl-2">
-                              <button
-                                onClick={() => deletePlayer(player.id)}
-                                className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors opacity-0 group-hover:opacity-100"
-                                title="早退 (回到會員列表)"
-                              >
-                                <LogOut className="w-3.5 h-3.5" />
-                              </button>
+                              <div className="scale-90 origin-left shrink-0" onClick={(e) => e.stopPropagation()}>
+                                <LevelSelector
+                                  level={player.level}
+                                  onChange={(l) => updatePlayerLevel(player.id, l)}
+                                />
+                              </div>
                             </div>
                           </div>
-                        );
-                      })
-                    )}
-                  </div>
+
+                          <div className="flex gap-1 pl-2">
+                            <button
+                              onClick={() => deletePlayer(player.id)}
+                              className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                              title="早退 (回到會員列表)"
+                            >
+                              <LogOut className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>
@@ -1049,7 +1190,7 @@ export default function App() {
 
           {/* Tab Content: Member List */}
           {activeTab === 'members' && (
-            <div className="flex-1 overflow-y-auto flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out] bg-slate-950">
+            <div className="flex-1 overflow-y-auto scrollbar-gutter-stable flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out] bg-slate-950">
               {/* Sticky header: member list title + search + add/import */}
               <div className="px-6 pt-4 pb-3 sticky top-0 bg-slate-950/95 backdrop-blur z-10 space-y-2">
                 {/* Member List Header with Search Icon */}
@@ -1266,7 +1407,7 @@ export default function App() {
             {/* Sidebar Toggle Button */}
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className={`md:hidden p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors ${isSidebarOpen ? 'bg-slate-800/50 text-white' : ''}`}
+              className={`lg:hidden p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors ${isSidebarOpen ? 'bg-slate-800/50 text-white' : ''}`}
               title={isSidebarOpen ? "收納側邊欄" : "展開側邊欄"}
             >
               <PanelLeft className="w-5 h-5" />
@@ -1312,21 +1453,18 @@ export default function App() {
               </button>
             </div>
 
-            {/* Global Warmup Lock */}
+            {/* Global Warmup Status */}
             <button
-              onClick={() => setIsWarmupDone(!isWarmupDone)}
-              disabled={idleCourtsCount > 0 && !isWarmupDone}
+              onClick={handleWarmupToggle}
               className={`flex items-center justify-center gap-2 px-3 h-8 text-xs font-medium rounded-lg transition-colors border
                 ${isWarmupDone
                   ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
-                  : idleCourtsCount === 0
-                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
-                    : 'bg-slate-500/5 text-slate-500 cursor-not-allowed border-slate-700/50'
+                  : 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
                 }`}
-              title={isWarmupDone ? '點擊解除鎖定，允許移動球員' : '要滣場才能點擊'}
+              title={isWarmupDone ? '已熱身' : '熱身中'}
             >
-              {isWarmupDone ? <Lock className="w-3.5 h-3.5" /> : <Flame className="w-3.5 h-3.5" />}
-              <span className="hidden sm:inline">{isWarmupDone ? '已鎖定' : '熱身結束'}</span>
+              {isWarmupDone ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Flame className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{isWarmupDone ? '已熱身' : '熱身中'}</span>
             </button>
 
             <button
@@ -1342,8 +1480,8 @@ export default function App() {
         </div >
 
         {/* Grid */}
-        < div className="p-4 sm:p-8 overflow-y-auto flex-1" >
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-10">
+        < div className="p-4 sm:p-8 overflow-y-auto scrollbar-gutter-stable flex-1" >
+          <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-6 pb-10">
             {courts.map(court => (
               <CourtCard
                 key={court.id}
@@ -1358,6 +1496,9 @@ export default function App() {
                 canStartMatch={isQueueReady}
                 onDropPlayer={dropPlayerToCourt}
                 isWarmupDone={isWarmupDone}
+                selectedPlayerForMove={selectedPlayerForMove}
+                onSelectPlayer={setSelectedPlayerForMove}
+                onMovePlayerToSlot={movePlayerToCourtSlot}
               />
             ))}
           </div>
