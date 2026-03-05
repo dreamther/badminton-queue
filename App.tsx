@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Users, Activity, Coffee, ArrowRight, RotateCcw, Trash2, Trophy, Plus, Minus, Volume2, VolumeX, X, Swords, UserCheck, Search, CheckCircle2, ChevronDown, ChevronRight, Unlink, ArrowUp, PanelLeft, LogOut, UserX, ChevronUp, Zap, UserPlus, Upload } from 'lucide-react';
+import { Users, Activity, Coffee, ArrowRight, RotateCcw, Trash2, Trophy, Plus, Minus, Volume2, VolumeX, X, Swords, UserCheck, Search, CheckCircle2, ChevronDown, ChevronRight, Unlink, ArrowUp, PanelLeft, LogOut, UserX, ChevronUp, Flame, Lock, UserPlus, Upload, Settings, MoreVertical } from 'lucide-react';
 import { Player, Court, Member, INITIAL_COURT_COUNT, MAX_PLAYERS_PER_COURT, SkillLevel, SKILL_LEVELS } from './types';
 import { CourtCard } from './components/CourtCard';
 import { PlayerAvatar } from './components/PlayerAvatar';
@@ -7,29 +7,18 @@ import { PlayerAvatar } from './components/PlayerAvatar';
 type Tab = 'queue' | 'members';
 // test3
 
-// Helper to generate consistent colors for groups
-const getGroupColor = (groupId: string) => {
-  const colors = [
-    'bg-indigo-500', 'bg-pink-500', 'bg-emerald-500',
-    'bg-orange-500', 'bg-cyan-500', 'bg-violet-500',
-    'bg-yellow-500', 'bg-rose-500', 'bg-sky-500'
-  ];
-  let hash = 0;
-  for (let i = 0; i < groupId.length; i++) {
-    hash = groupId.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
-};
+
 
 export default function App() {
   // --- State ---
-  const [activeTab, setActiveTab] = useState<Tab>('queue');
+  const [activeTab, setActiveTab] = useState<Tab>('members');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); // New: Sidebar toggle state
   const [currentTime, setCurrentTime] = useState(new Date()); // New: Clock state
   const [isAutoAnnounce, setIsAutoAnnounce] = useState(true); // New: Auto announce toggle
 
-  // Grouping & Selection State
-  const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set());
+  const [dragOverSlotKey, setDragOverSlotKey] = useState<string | null>(null);
+  const [queueSlots, setQueueSlots] = useState<(string | null)[]>([]);
+  const [isWarmupDone, setIsWarmupDone] = useState(false);
   const [isCheckedInExpanded, setIsCheckedInExpanded] = useState(false);
   const [isMemberListExpanded, setIsMemberListExpanded] = useState(true);
 
@@ -42,14 +31,13 @@ export default function App() {
   const [checkInSuccessName, setCheckInSuccessName] = useState<string | null>(null);
 
   // Queue Display State
-  const [isQueueExpanded, setIsQueueExpanded] = useState(false); // New: Collapse state for queue
 
   const [players, setPlayers] = useState<Player[]>(() => {
     const saved = localStorage.getItem('badminton_players');
     if (saved) {
       const parsed = JSON.parse(saved);
       // Migration: ensure level exists
-      return parsed.map((p: any) => ({ ...p, level: p.level || 'beginner' }));
+      return parsed.map((p: any) => ({ ...p, level: p.level || 'intermediate' }));
     }
     return [];
   });
@@ -71,20 +59,22 @@ export default function App() {
     if (saved) {
       const parsed = JSON.parse(saved);
       // Migration: ensure level exists
-      return parsed.map((m: any) => ({ ...m, level: m.level || 'beginner' }));
+      return parsed.map((m: any) => ({ ...m, level: m.level || 'intermediate' }));
     }
     return [];
   });
 
   const [memberSearchTerm, setMemberSearchTerm] = useState('');
   const [newMemberName, setNewMemberName] = useState('');
-  const [newMemberLevel, setNewMemberLevel] = useState<SkillLevel>('beginner');
+  const [newMemberLevel, setNewMemberLevel] = useState<SkillLevel>('intermediate');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [restAreaSearchTerm, setRestAreaSearchTerm] = useState('');
   const [isRestAreaSearchExpanded, setIsRestAreaSearchExpanded] = useState(false);
 
-  // Drag and drop state
-  const [draggedPlayerId, setDraggedPlayerId] = useState<string | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  // Drag and drop state removed
+
+  // Click-to-move mode state
+  const [selectedPlayerForMove, setSelectedPlayerForMove] = useState<string | null>(null);
 
   // --- Persistence ---
   useEffect(() => {
@@ -107,117 +97,25 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
+  // --- Keyboard Handler for Escape Key ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedPlayerForMove) {
+        setSelectedPlayerForMove(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedPlayerForMove]);
+
   // --- Derived Lists ---
   const queue = useMemo(() => {
-    const queued = players.filter(p => p.status === 'queued');
-
-    // Sort by joinedAt first
-    const sorted = [...queued].sort((a, b) => a.joinedAt - b.joinedAt);
-
-    // Build items with join time tracking
-    interface QueueItem {
-      type: 'group' | 'individual';
-      players: Player[];
-      joinTime: number;
-    }
-
-    const items: QueueItem[] = [];
-    const processedIds = new Set<string>();
-    const processedGroupIds = new Set<string>();
-
-    for (const p of sorted) {
-      if (processedIds.has(p.id)) continue;
-
-      if (p.groupId) {
-        if (processedGroupIds.has(p.groupId)) continue;
-
-        const groupMembers = sorted.filter(m => m.groupId === p.groupId);
-        items.push({
-          type: 'group',
-          players: groupMembers,
-          joinTime: Math.min(...groupMembers.map(m => m.joinedAt))
-        });
-        groupMembers.forEach(m => processedIds.add(m.id));
-        processedGroupIds.add(p.groupId);
-      } else {
-        items.push({
-          type: 'individual',
-          players: [p],
-          joinTime: p.joinedAt
-        });
-        processedIds.add(p.id);
-      }
-    }
-
-    // Sort by join time
-    items.sort((a, b) => a.joinTime - b.joinTime);
-
-    // Find the cutoff: last group's join time
-    const lastGroupIndex = items.map((item, idx) => item.type === 'group' ? idx : -1).filter(idx => idx >= 0).pop();
-    const cutoffTime = lastGroupIndex !== undefined ? items[lastGroupIndex].joinTime : Infinity;
-
-    // Separate: early items (before/including last group) and late individuals
-    const earlyItems: QueueItem[] = [];
-    const lateIndividuals: QueueItem[] = [];
-
-    for (const item of items) {
-      if (item.joinTime <= cutoffTime) {
-        earlyItems.push(item);
-      } else if (item.type === 'individual') {
-        lateIndividuals.push(item);
-      }
-    }
-
-    // Build result: process early items and track group boundaries
-    const result: Player[] = [];
-    const groupBoundaries: number[] = []; // Positions where groups end (multiples of 4)
-    let currentPos = 0;
-
-    for (const item of earlyItems) {
-      if (item.type === 'group') {
-        // Check if group fits in current 4-slot
-        const currentSlot = Math.floor(currentPos / 4);
-        const slotStart = currentSlot * 4;
-        const slotRemaining = 4 - (currentPos - slotStart);
-
-        if (slotRemaining < item.players.length && currentPos % 4 !== 0) {
-          // Group doesn't fit, mark boundary and start new slot
-          groupBoundaries.push(slotStart + 4);
-          currentPos = slotStart + 4;
-        }
-
-        result.push(...item.players);
-        currentPos += item.players.length;
-      } else {
-        result.push(...item.players);
-        currentPos++;
-      }
-    }
-
-    // Fill gaps with late individuals
-    const finalResult: Player[] = [];
-    let lateIndex = 0;
-
-    for (let i = 0; i < result.length; i += 4) {
-      const groupSlice = result.slice(i, Math.min(i + 4, result.length));
-      finalResult.push(...groupSlice);
-
-      let slotsNeeded = 4 - groupSlice.length;
-      while (slotsNeeded > 0 && lateIndex < lateIndividuals.length) {
-        finalResult.push(...lateIndividuals[lateIndex].players);
-        lateIndex++;
-        slotsNeeded--;
-      }
-    }
-
-    // Add remaining late individuals
-    while (lateIndex < lateIndividuals.length) {
-      finalResult.push(...lateIndividuals[lateIndex].players);
-      lateIndex++;
-    }
-
-    return finalResult;
-  }, [players]);
+    const playerMap = new Map(players.map(p => [p.id, p]));
+    return queueSlots
+      .filter((id): id is string => id !== null)
+      .map(id => playerMap.get(id))
+      .filter((p): p is Player => p !== undefined);
+  }, [players, queueSlots]);
   const idlePlayers = useMemo(() => players.filter(p => p.status === 'idle').sort((a, b) => b.joinedAt - a.joinedAt), [players]);
 
   // Filtered idle players based on search term
@@ -226,39 +124,12 @@ export default function App() {
     return idlePlayers.filter(p => p.name.toLowerCase().includes(restAreaSearchTerm.toLowerCase()));
   }, [idlePlayers, restAreaSearchTerm]);
   const totalActivePlayers = useMemo(() => players.filter(p => p.status === 'playing').length, [players]);
-  const idleCourtsCount = useMemo(() => courts.filter(c => c.playerIds.length === 0).length, [courts]);
+  const idleCourtsCount = useMemo(() => courts.filter(c => c.startTime === null).length, [courts]);
 
   // --- Match Calculation Logic ---
-  // Calculate the next batch of players (Greedy Fit)
-  const getNextMatchBatch = useCallback((currentQueue: Player[]) => {
-    const batch: Player[] = [];
-    const processedGroups = new Set<string>();
-
-    for (const p of currentQueue) {
-      // Stop if we have enough players
-      if (batch.length >= MAX_PLAYERS_PER_COURT) break;
-
-      if (p.groupId) {
-        // If we already processed this group (either added or skipped), ignore subsequent members in the loop
-        if (processedGroups.has(p.groupId)) continue;
-
-        // Find all members of this group
-        const groupMembers = currentQueue.filter(m => m.groupId === p.groupId);
-
-        // Check if the WHOLE group fits into the remaining slots
-        if (batch.length + groupMembers.length <= MAX_PLAYERS_PER_COURT) {
-          batch.push(...groupMembers);
-        }
-        // If they don't fit, we skip them. They wait for a court where they can fit entirely.
-
-        // Mark group as processed
-        processedGroups.add(p.groupId);
-      } else {
-        // Individuals always fit 1 slot (if available)
-        batch.push(p);
-      }
-    }
-    return batch;
+  // Get the first 4 non-null players from queue (slot order)
+  const getNextMatchBatch = useCallback((q: Player[]) => {
+    return q.slice(0, MAX_PLAYERS_PER_COURT);
   }, []);
 
   // Next Match Group Calculation (Who is on deck?)
@@ -294,41 +165,31 @@ export default function App() {
     return { checkedInMembers: checkedIn, notCheckedInMembers: notCheckedIn };
   }, [players, filteredMembers]);
 
-  // --- Queue Display Logic (Match-Based Grouping) ---
-  // Group players by who will actually play together in matches
+  // --- Queue Display Logic (Slot-Based) ---
   const queueDisplayItems = useMemo(() => {
-    const displayResult: ({ type: 'player', data: Player } | { type: 'empty', groupId: string })[] = [];
+    const playerMap = new Map<string, Player>(players.map(p => [p.id, p]));
+    const displayResult: ({ type: 'player', data: Player } | { type: 'empty', id: string })[] = [];
 
-    // Process queue in chunks of 4 (match groups)
-    let remainingQueue = [...queue];
-    let groupIndex = 0;
-
-    while (remainingQueue.length > 0) {
-      // Get next batch using the same logic as match start
-      const nextBatch = getNextMatchBatch(remainingQueue);
-
-      if (nextBatch.length === 0) break; // Safety check
-
-      // Add this batch as a visual group
-      nextBatch.forEach(p => {
-        displayResult.push({ type: 'player', data: p });
-      });
-
-      // Fill remaining slots with empty placeholders
-      const slotsToFill = 4 - nextBatch.length;
-      for (let i = 0; i < slotsToFill; i++) {
-        displayResult.push({ type: 'empty', groupId: `filler-${groupIndex}-${i}` });
+    // Always show at least (courts + 1) groups of 4 slots
+    const minSlots = (courts.length + 1) * 4;
+    const slotsFromQueue = queueSlots.length > 0 ? Math.ceil(queueSlots.length / 4) * 4 : 0;
+    const totalSlots = Math.max(minSlots, slotsFromQueue);
+    for (let i = 0; i < totalSlots; i++) {
+      const id = queueSlots[i];
+      if (id) {
+        const player = playerMap.get(id);
+        if (player) {
+          displayResult.push({ type: 'player', data: player });
+        } else {
+          displayResult.push({ type: 'empty', id: `slot-${i}` });
+        }
+      } else {
+        displayResult.push({ type: 'empty', id: `slot-${i}` });
       }
-
-      // Remove processed players from remaining queue
-      const processedIds = new Set(nextBatch.map(p => p.id));
-      remainingQueue = remainingQueue.filter(p => !processedIds.has(p.id));
-
-      groupIndex++;
     }
 
     return displayResult;
-  }, [queue, getNextMatchBatch]);
+  }, [queueSlots, players, courts.length]);
 
   // --- Chunked Queue for Collapsed View ---
   const chunkedQueueItems = useMemo(() => {
@@ -338,6 +199,8 @@ export default function App() {
     }
     return chunks;
   }, [queueDisplayItems]);
+
+
 
 
   // --- Helper Functions ---
@@ -383,7 +246,7 @@ export default function App() {
     };
     setMembers(prev => [newMember, ...prev]);
     setNewMemberName('');
-    setNewMemberLevel('beginner'); // Reset to default
+    setNewMemberLevel('intermediate'); // Reset to default
   }, [members, newMemberLevel]);
 
   // Batch Import: Parse CSV and create members
@@ -404,7 +267,7 @@ export default function App() {
         return;
       }
 
-      const levelIndex = headers.findIndex(h => h === '等級' || h === 'level' || h === '技能');
+      const levelIndex = headers.findIndex(h => h === '等級' || h === '狀態' || h === 'level' || h === '技能');
 
       // Process each row
       const newMembers: Member[] = [];
@@ -426,18 +289,16 @@ export default function App() {
         }
 
         // Parse skill level
-        let level: SkillLevel = 'beginner';
+        let level: SkillLevel = 'intermediate';
         if (levelIndex !== -1 && values[levelIndex]) {
           const levelValue = values[levelIndex].trim().toLowerCase();
           // Support both English and Chinese skill level names
-          if (levelValue === 'advanced' || levelValue === '進階' || levelValue === '高級' || levelValue === '高階') {
-            level = 'advanced';
-          } else if (levelValue === 'intermediate' || levelValue === '中階' || levelValue === '中级') {
+          if (levelValue === 'intermediate' || levelValue === '一般' || levelValue === '零打' || levelValue === '中階' || levelValue === '中级') {
             level = 'intermediate';
-          } else if (levelValue === 'beginner' || levelValue === '初階' || levelValue === '初级') {
+          } else if (levelValue === 'beginner' || levelValue === '初階' || levelValue === '初级' || levelValue === '季打') {
             level = 'beginner';
           }
-          // If none match, default to 'beginner' (already set above)
+          // If none match, default to 'intermediate' (already set above)
         }
 
         newMembers.push({
@@ -552,268 +413,115 @@ export default function App() {
     }
   }, []);
 
-  // Move queue item (player or group) up in the queue
+  // Move player up in the queue
   const moveQueueItemUp = useCallback((playerId: string) => {
-    const queuedPlayers = players.filter(p => p.status === 'queued').sort((a, b) => a.joinedAt - b.joinedAt);
-    const playerIndex = queuedPlayers.findIndex(p => p.id === playerId);
+    setQueueSlots(prev => {
+      const idx = prev.indexOf(playerId);
+      if (idx <= 0) return prev;
+      // Find the previous non-null slot
+      let prevIdx = idx - 1;
+      while (prevIdx >= 0 && prev[prevIdx] === null) prevIdx--;
+      if (prevIdx < 0) return prev;
+      const newSlots = [...prev];
+      [newSlots[prevIdx], newSlots[idx]] = [newSlots[idx], newSlots[prevIdx]];
+      return newSlots;
+    });
+  }, []);
 
-    if (playerIndex <= 0) return; // Already at top or not found
-
-    const player = queuedPlayers[playerIndex];
-    const groupId = player.groupId;
-
-    // Get all players in this item (individual or group)
-    const itemPlayers = groupId
-      ? queuedPlayers.filter(p => p.groupId === groupId)
-      : [player];
-
-    // Find the first player in this item
-    const firstItemIndex = queuedPlayers.findIndex(p => itemPlayers.includes(p));
-
-    if (firstItemIndex <= 0) return; // Already at top
-
-    // Find the previous item (player or group)
-    let prevItemIndex = firstItemIndex - 1;
-    const prevPlayer = queuedPlayers[prevItemIndex];
-    const prevGroupId = prevPlayer.groupId;
-
-    const prevItemPlayers = prevGroupId
-      ? queuedPlayers.filter(p => p.groupId === prevGroupId)
-      : [prevPlayer];
-
-    // Find the first player in the previous item
-    const prevFirstIndex = queuedPlayers.findIndex(p => prevItemPlayers.includes(p));
-
-    // Calculate new timestamps
-    const prevItemFirstTime = queuedPlayers[prevFirstIndex].joinedAt;
-    const itemFirstTime = queuedPlayers[firstItemIndex].joinedAt;
-
-    // Swap timestamps between the two items
-    setPlayers(prev => prev.map(p => {
-      if (itemPlayers.find(ip => ip.id === p.id)) {
-        // Move current item to previous item's position
-        const offset = itemPlayers.indexOf(itemPlayers.find(ip => ip.id === p.id)!);
-        return { ...p, joinedAt: prevItemFirstTime + offset };
-      }
-      if (prevItemPlayers.find(pp => pp.id === p.id)) {
-        // Move previous item to current item's position
-        const offset = prevItemPlayers.indexOf(prevItemPlayers.find(pp => pp.id === p.id)!);
-        return { ...p, joinedAt: itemFirstTime + offset };
-      }
-      return p;
-    }));
-  }, [players]);
-
-  // Move queue item (player or group) down in the queue
+  // Move player down in the queue
   const moveQueueItemDown = useCallback((playerId: string) => {
-    const queuedPlayers = players.filter(p => p.status === 'queued').sort((a, b) => a.joinedAt - b.joinedAt);
-    const playerIndex = queuedPlayers.findIndex(p => p.id === playerId);
-
-    if (playerIndex === -1) return; // Not found
-
-    const player = queuedPlayers[playerIndex];
-    const groupId = player.groupId;
-
-    // Get all players in this item (individual or group)
-    const itemPlayers = groupId
-      ? queuedPlayers.filter(p => p.groupId === groupId)
-      : [player];
-
-    // Find the last player in this item
-    const lastItemIndex = queuedPlayers.findIndex(p => p === itemPlayers[itemPlayers.length - 1]);
-
-    if (lastItemIndex >= queuedPlayers.length - 1) return; // Already at bottom
-
-    // Find the next item (player or group)
-    let nextItemIndex = lastItemIndex + 1;
-    const nextPlayer = queuedPlayers[nextItemIndex];
-    const nextGroupId = nextPlayer.groupId;
-
-    const nextItemPlayers = nextGroupId
-      ? queuedPlayers.filter(p => p.groupId === nextGroupId)
-      : [nextPlayer];
-
-    // Find the first player in the current item
-    const firstItemIndex = queuedPlayers.findIndex(p => itemPlayers.includes(p));
-
-    // Calculate new timestamps
-    const itemFirstTime = queuedPlayers[firstItemIndex].joinedAt;
-    const nextItemFirstTime = queuedPlayers[nextItemIndex].joinedAt;
-
-    // Swap timestamps between the two items
-    setPlayers(prev => prev.map(p => {
-      if (itemPlayers.find(ip => ip.id === p.id)) {
-        // Move current item to next item's position
-        const offset = itemPlayers.indexOf(itemPlayers.find(ip => ip.id === p.id)!);
-        return { ...p, joinedAt: nextItemFirstTime + offset };
-      }
-      if (nextItemPlayers.find(np => np.id === p.id)) {
-        // Move next item to current item's position
-        const offset = nextItemPlayers.indexOf(nextItemPlayers.find(np => np.id === p.id)!);
-        return { ...p, joinedAt: itemFirstTime + offset };
-      }
-      return p;
-    }));
-  }, [players]);
-
-  // Drag and drop handlers for queue reordering
-  const handleDragStart = useCallback((e: React.DragEvent, playerId: string) => {
-    setDraggedPlayerId(playerId);
-    e.dataTransfer.effectAllowed = 'move';
-    // Add a slight delay to allow the drag image to be created
-    setTimeout(() => {
-      (e.target as HTMLElement).style.opacity = '0.5';
-    }, 0);
-  }, []);
-
-  const handleDragEnd = useCallback((e: React.DragEvent) => {
-    (e.target as HTMLElement).style.opacity = '1';
-    setDraggedPlayerId(null);
-    setDragOverIndex(null);
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent, targetIndex: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setDragOverIndex(targetIndex);
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent, targetPlayerId: string) => {
-    e.preventDefault();
-
-    if (!draggedPlayerId || draggedPlayerId === targetPlayerId) {
-      setDraggedPlayerId(null);
-      setDragOverIndex(null);
-      return;
-    }
-
-    const queuedPlayers = players.filter(p => p.status === 'queued').sort((a, b) => a.joinedAt - b.joinedAt);
-
-    const draggedPlayer = queuedPlayers.find(p => p.id === draggedPlayerId);
-    const targetPlayer = queuedPlayers.find(p => p.id === targetPlayerId);
-
-    if (!draggedPlayer || !targetPlayer) return;
-
-    // Get all players in dragged item (individual or group)
-    const draggedGroupId = draggedPlayer.groupId;
-    const draggedItemPlayers = draggedGroupId
-      ? queuedPlayers.filter(p => p.groupId === draggedGroupId)
-      : [draggedPlayer];
-
-    // Get all players in target item (individual or group)
-    const targetGroupId = targetPlayer.groupId;
-    const targetItemPlayers = targetGroupId
-      ? queuedPlayers.filter(p => p.groupId === targetGroupId)
-      : [targetPlayer];
-
-    // Find indices
-    const draggedFirstIndex = queuedPlayers.findIndex(p => draggedItemPlayers.includes(p));
-    const targetFirstIndex = queuedPlayers.findIndex(p => targetItemPlayers.includes(p));
-
-    if (draggedFirstIndex === targetFirstIndex) return;
-
-    // Get timestamps
-    const draggedFirstTime = queuedPlayers[draggedFirstIndex].joinedAt;
-    const targetFirstTime = queuedPlayers[targetFirstIndex].joinedAt;
-
-    // Swap timestamps
-    setPlayers(prev => prev.map(p => {
-      if (draggedItemPlayers.find(ip => ip.id === p.id)) {
-        const offset = draggedItemPlayers.indexOf(draggedItemPlayers.find(ip => ip.id === p.id)!);
-        return { ...p, joinedAt: targetFirstTime + offset };
-      }
-      if (targetItemPlayers.find(tp => tp.id === p.id)) {
-        const offset = targetItemPlayers.indexOf(targetItemPlayers.find(tp => tp.id === p.id)!);
-        return { ...p, joinedAt: draggedFirstTime + offset };
-      }
-      return p;
-    }));
-
-    setDraggedPlayerId(null);
-    setDragOverIndex(null);
-  }, [draggedPlayerId, players]);
-
-  // Toggle Selection for Batch Actions
-  const togglePlayerSelection = useCallback((playerId: string) => {
-    setSelectedPlayerIds(prev => {
-      const next = new Set(prev);
-      if (next.has(playerId)) {
-        next.delete(playerId);
-      } else {
-        if (next.size >= MAX_PLAYERS_PER_COURT) {
-          alert(`最多只能選擇 ${MAX_PLAYERS_PER_COURT} 人一起排隊`);
-          return prev;
-        }
-        next.add(playerId);
-      }
-      return next;
+    setQueueSlots(prev => {
+      const idx = prev.indexOf(playerId);
+      if (idx === -1 || idx >= prev.length - 1) return prev;
+      // Find the next non-null slot
+      let nextIdx = idx + 1;
+      while (nextIdx < prev.length && prev[nextIdx] === null) nextIdx++;
+      if (nextIdx >= prev.length) return prev;
+      const newSlots = [...prev];
+      [newSlots[idx], newSlots[nextIdx]] = [newSlots[nextIdx], newSlots[idx]];
+      return newSlots;
     });
   }, []);
 
-  // Batch Join Queue with Fill Logic
-  const batchJoinQueue = useCallback(() => {
-    if (selectedPlayerIds.size === 0) return;
-
-    setPlayers(prev => {
-      const now = Date.now();
-      // Always create a new group if > 1 selected, otherwise undefined
-      const newGroupId = selectedPlayerIds.size > 1 ? crypto.randomUUID() : undefined;
-
-      return prev.map(p => {
-        if (selectedPlayerIds.has(p.id)) {
-          return {
-            ...p,
-            status: 'queued',
-            groupId: newGroupId,
-            joinedAt: now,
-          };
-        }
-        return p;
-      });
-    });
-
-    setSelectedPlayerIds(new Set()); // Clear selection
-  }, [selectedPlayerIds]);
 
   const joinQueue = useCallback((playerId: string) => {
-    setPlayers(prev => {
-      return prev.map(p =>
-        p.id === playerId ? {
-          ...p,
-          status: 'queued',
-          groupId: undefined, // Always individual, no fill
-          joinedAt: Date.now()
-        } : p
-      );
-    });
-  }, []);
-
-  const unbindPlayer = useCallback((playerId: string) => {
+    // Append to end of queueSlots
+    setQueueSlots(prev => [...prev, playerId]);
     setPlayers(prev => prev.map(p =>
-      // When unbinding, reduce joinedAt slightly to make them appear BEFORE (above) the group they left
-      p.id === playerId ? { ...p, groupId: undefined, joinedAt: p.joinedAt - 1 } : p
+      p.id === playerId ? { ...p, status: 'queued', joinedAt: Date.now() } : p
     ));
   }, []);
 
-  const removeFromQueue = useCallback((playerId: string) => {
+  const insertIntoQueueAt = useCallback((playerId: string, position: number) => {
+    setQueueSlots(prev => {
+      const newSlots = [...prev];
+      // Extend array if needed
+      while (newSlots.length <= position) newSlots.push(null);
+      // If slot is empty (null), place directly. Otherwise, insert and shift.
+      if (newSlots[position] === null) {
+        newSlots[position] = playerId;
+      } else {
+        newSlots.splice(position, 0, playerId);
+      }
+      return newSlots;
+    });
     setPlayers(prev => prev.map(p =>
-      p.id === playerId ? { ...p, status: 'idle', groupId: undefined } : p
+      p.id === playerId ? { ...p, status: 'queued', joinedAt: Date.now() } : p
+    ));
+  }, []);
+
+  // Move an existing queued player to a new slot position
+  const moveInQueue = useCallback((playerId: string, toPosition: number) => {
+    setQueueSlots(prev => {
+      const newSlots = [...prev];
+      const fromIdx = newSlots.indexOf(playerId);
+      if (fromIdx === -1) return prev;
+      // Remove from current position (leave null)
+      newSlots[fromIdx] = null;
+      // Extend if needed
+      while (newSlots.length <= toPosition) newSlots.push(null);
+      // If target is empty, place directly. Otherwise swap.
+      if (newSlots[toPosition] === null) {
+        newSlots[toPosition] = playerId;
+      } else {
+        // Swap: move the target player to the old position
+        const targetId = newSlots[toPosition];
+        newSlots[toPosition] = playerId;
+        newSlots[fromIdx] = targetId;
+      }
+      // Trim trailing nulls
+      while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
+      return newSlots;
+    });
+  }, []);
+
+  const removeFromQueue = useCallback((playerId: string) => {
+    if (!confirm('確定要讓此球員回到休息區嗎？')) return;
+    // Set slot to null (preserve position gaps)
+    setQueueSlots(prev => {
+      const newSlots = prev.map(id => id === playerId ? null : id);
+      // Trim trailing nulls
+      while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
+      return newSlots;
+    });
+    setPlayers(prev => prev.map(p =>
+      p.id === playerId ? { ...p, status: 'idle' } : p
     ));
   }, []);
 
   // Remove from session (Check out) -> "Early Leave"
   const deletePlayer = useCallback((playerId: string) => {
     if (confirm('確定要讓此球員早退嗎？（將回到會員列表）')) {
+      setQueueSlots(prev => {
+        const newSlots = prev.map(id => id === playerId ? null : id);
+        while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
+        return newSlots;
+      });
       setPlayers(prev => prev.filter(p => p.id !== playerId));
       setCourts(prev => prev.map(c => ({
         ...c,
         playerIds: c.playerIds.filter(id => id !== playerId)
       })));
-      setSelectedPlayerIds(prev => {
-        const next = new Set(prev);
-        next.delete(playerId);
-        return next;
-      });
     }
   }, []);
 
@@ -823,12 +531,12 @@ export default function App() {
     if (queuedCount === 0) return;
 
     if (confirm(`確定要讓排隊中的 ${queuedCount} 人全部回到休息區嗎？`)) {
+      setQueueSlots([]);
       setPlayers(prev => prev.map(p =>
         p.status === 'queued'
-          ? { ...p, status: 'idle', groupId: undefined }
+          ? { ...p, status: 'idle' }
           : p
       ));
-      setSelectedPlayerIds(new Set());
     }
   }, [players]);
 
@@ -839,27 +547,22 @@ export default function App() {
 
     if (confirm(`確定要讓休息區的 ${idleCount} 人全部離開球場嗎？\n他們將回到會員列表。`)) {
       setPlayers(prev => prev.filter(p => p.status !== 'idle'));
-      // Also clear selections just in case
-      setSelectedPlayerIds(new Set());
     }
   }, [players]);
 
   // Reset Session (End of Game Day)
   const resetSession = useCallback(() => {
-    if (confirm('確定要結束所有比賽嗎？\n所有場上和排隊的球員將會回到休息區。')) {
-      // Move everyone to idle (Bench)
-      setPlayers(prev => prev.map(p => ({
-        ...p,
-        status: 'idle',
-        groupId: undefined
-      })));
+    if (confirm('確定要結束所有比賽嗎？\n所有場上和排隊的球員將會回到會員列表。')) {
+      // Move everyone back to member list (remove from players state)
+      setPlayers([]);
+      setQueueSlots([]);
+      setIsWarmupDone(false);
 
       setCourts(prev => prev.map(c => ({
         ...c,
         playerIds: [],
         startTime: null
       })));
-      setSelectedPlayerIds(new Set());
     }
   }, []);
 
@@ -941,6 +644,13 @@ export default function App() {
       playerIds.includes(p.id) ? { ...p, status: 'playing' } : p
     ));
 
+    // Remove matched players from queueSlots
+    setQueueSlots(prev => {
+      const newSlots = prev.map(id => playerIds.includes(id!) ? null : id);
+      while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
+      return newSlots;
+    });
+
     setCourts(prev => prev.map(c =>
       c.id === courtId ? { ...c, playerIds, startTime: Date.now() } : c
     ));
@@ -958,9 +668,135 @@ export default function App() {
     ));
 
     setPlayers(prev => prev.map(p =>
-      finishedPlayerIds.includes(p.id) ? { ...p, status: 'idle', groupId: undefined } : p
+      finishedPlayerIds.includes(p.id) ? { ...p, status: 'idle' } : p
     ));
   }, [courts]);
+
+  // Remove a player from their court (used when dragging away)
+  const removePlayerFromCourt = useCallback((playerId: string) => {
+    setCourts(prev => prev.map(c => {
+      const newPlayerIds = c.playerIds.filter(id => id !== playerId);
+      return {
+        ...c,
+        playerIds: newPlayerIds,
+        startTime: newPlayerIds.length === 0 ? null : c.startTime
+      };
+    }));
+  }, []);
+
+  // Handle Warmup Toggle with validation
+  const handleWarmupToggle = useCallback(() => {
+    if (!isWarmupDone) {
+      // 熱身中 - 需要檢查場地是否滿場
+      if (idleCourtsCount > 0) {
+        // 場地未滿
+        alert('目前場地尚未滿場，請保持熱身階段🔥');
+        return;
+      }
+      // 場地已滿，詢問是否結束熱身
+      if (confirm('確定要結束熱身嗎？')) {
+        setIsWarmupDone(true);
+      }
+    } else {
+      // 已熱身 - 直接詢問是否回到熱身，忽略場地滿場判斷
+      if (confirm('確定要回到熱身階段嗎？')) {
+        setIsWarmupDone(false);
+      }
+    }
+  }, [idleCourtsCount, isWarmupDone]);
+
+  // Drop a player directly onto a court from rest area, queue, or another court
+  const dropPlayerToCourt = useCallback((courtId: number, playerId: string) => {
+    const court = courts.find(c => c.id === courtId);
+    if (!court || court.playerIds.length >= MAX_PLAYERS_PER_COURT) return;
+    if (court.playerIds.includes(playerId)) return;
+
+    // Remove from queue if they were queued
+    setQueueSlots(prev => {
+      const newSlots = prev.map(id => id === playerId ? null : id);
+      while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
+      return newSlots;
+    });
+
+    // Remove from any other court (drag between courts)
+    removePlayerFromCourt(playerId);
+
+    // Set player status to playing
+    setPlayers(prev => prev.map(p =>
+      p.id === playerId ? { ...p, status: 'playing' } : p
+    ));
+
+    // Add to court — only start match timer when reaching 4 players
+    setCourts(prev => prev.map(c => {
+      if (c.id !== courtId) return c;
+      const newPlayerIds = [...c.playerIds, playerId];
+      return {
+        ...c,
+        playerIds: newPlayerIds,
+        startTime: newPlayerIds.length >= MAX_PLAYERS_PER_COURT ? (c.startTime || Date.now()) : c.startTime
+      };
+    }));
+  }, [courts, removePlayerFromCourt]);
+
+  // Move a player to a specific slot in a court (supports cross-court moves)
+  const movePlayerToCourtSlot = useCallback((playerId: string, courtId: number, slotIdx: number) => {
+    // First, remove from queue if they're queued
+    setQueueSlots(prev => {
+      const newSlots = prev.map(id => id === playerId ? null : id);
+      while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
+      return newSlots;
+    });
+
+    // Update player status to playing
+    setPlayers(prev => prev.map(p =>
+      p.id === playerId ? { ...p, status: 'playing' } : p
+    ));
+
+    // Update courts
+    setCourts(prev => prev.map(c => {
+      // Target court: add or reorder the player
+      if (c.id === courtId) {
+        const currentIdx = c.playerIds.indexOf(playerId);
+        
+        // If player is already in this court, reorder them
+        if (currentIdx !== -1) {
+          const newPlayerIds = c.playerIds.filter(id => id !== playerId);
+          const adjustedSlotIdx = slotIdx > currentIdx ? slotIdx - 1 : slotIdx;
+          newPlayerIds.splice(adjustedSlotIdx, 0, playerId);
+          
+          return {
+            ...c,
+            playerIds: newPlayerIds
+          };
+        } else {
+          // If player is not in this court, add them
+          const newPlayerIds = [...c.playerIds];
+          if (slotIdx <= newPlayerIds.length) {
+            newPlayerIds.splice(slotIdx, 0, playerId);
+          } else {
+            newPlayerIds.push(playerId);
+          }
+          
+          return {
+            ...c,
+            playerIds: newPlayerIds,
+            startTime: newPlayerIds.length >= MAX_PLAYERS_PER_COURT ? (c.startTime || Date.now()) : null
+          };
+        }
+      } else {
+        // Other courts: remove the player if they're here
+        const newPlayerIds = c.playerIds.filter(id => id !== playerId);
+        if (newPlayerIds.length !== c.playerIds.length) {
+          return {
+            ...c,
+            playerIds: newPlayerIds,
+            startTime: newPlayerIds.length >= MAX_PLAYERS_PER_COURT ? c.startTime : null
+          };
+        }
+        return c;
+      }
+    }));
+  }, []);
 
   // --- Components ---
 
@@ -969,7 +805,7 @@ export default function App() {
       e.stopPropagation(); // Prevent row selection
       if (disabled) return;
 
-      const levels: SkillLevel[] = ['beginner', 'intermediate', 'advanced'];
+      const levels: SkillLevel[] = ['beginner', 'intermediate'];
       const currentIndex = levels.indexOf(level);
       const nextIndex = (currentIndex + 1) % levels.length;
       onChange(levels[nextIndex]);
@@ -1007,21 +843,21 @@ export default function App() {
 
       {/* Sidebar */}
       {/* Mobile: Fixed/Absolute with translate transform for slide effect */}
-      {/* Desktop: Relative flow with width transition */}
+      {/* Desktop: Relative flow, permanently visible */}
       <aside
         className={`
           fixed lg:relative inset-y-0 left-0 z-40
           bg-slate-950 border-r border-slate-800 flex flex-col shrink-0 shadow-2xl lg:shadow-none
-          transition-all duration-300 ease-in-out
+          transition-transform duration-300 ease-in-out w-[90%] sm:w-[25rem]
           ${isSidebarOpen
-            ? 'translate-x-0 w-80 lg:w-96'
-            : '-translate-x-full lg:translate-x-0 lg:w-0 lg:border-r-0'
+            ? 'translate-x-0'
+            : '-translate-x-full lg:translate-x-0'
           }
         `}
       >
 
         {/* App Header */}
-        <div className={`p-6 pb-4 bg-slate-950 ${!isSidebarOpen && 'lg:hidden'}`}>
+        <div className="px-6 pt-6 pb-4 bg-slate-950">
           <div className="flex items-center gap-3 mb-1">
             <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-2 rounded-lg shadow-lg shadow-indigo-500/20">
               <Trophy className="w-5 h-5 text-white" />
@@ -1030,23 +866,13 @@ export default function App() {
           </div>
 
           {/* Stats Summary */}
-          <div className="flex gap-4 text-xs text-slate-400 mt-3 px-1">
+          <div className="flex gap-4 text-xs text-slate-400 mt-3">
             <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> 今日打球人數: {players.length}</span>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className={`flex border-b border-slate-800 px-2 ${!isSidebarOpen && 'lg:hidden'}`}>
-          <button
-            onClick={() => setActiveTab('queue')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'queue'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-700'
-              }`}
-          >
-            <Swords className="w-4 h-4" />
-            排隊區
-          </button>
+        <div className="flex border-b border-slate-800 px-2">
           <button
             onClick={() => setActiveTab('members')}
             className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'members'
@@ -1057,230 +883,199 @@ export default function App() {
             <Users className="w-4 h-4" />
             報到區
           </button>
+          <button
+            onClick={() => setActiveTab('queue')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'queue'
+              ? 'border-indigo-500 text-indigo-400'
+              : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-700'
+              }`}
+          >
+            <Swords className="w-4 h-4" />
+            排隊區
+          </button>
         </div>
 
         {/* Content Container - Hide on desktop when closed to prevent content reflow issues during transition */}
-        <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${!isSidebarOpen && 'lg:hidden'}`}>
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Tab Content: Queue Management */}
           {activeTab === 'queue' && (
-            <div className="flex-1 overflow-y-auto flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out]">
+            <div className="flex-1 overflow-y-auto scrollbar-gutter-stable flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out]">
               {/* Waiting Queue */}
-              <div className="p-4">
-                <div className="flex items-center justify-between mb-3 px-1">
-                  <button
-                    onClick={() => setIsQueueExpanded(!isQueueExpanded)}
-                    className="flex items-center gap-2 text-sm font-semibold text-indigo-400 hover:text-indigo-300 transition-colors group"
-                  >
-                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)]"></div>
+              <div
+                className={`p-4 transition-colors ${dragOverSlotKey === 'container' ? 'bg-indigo-500/10 ring-2 ring-inset ring-indigo-500/50 rounded-xl' : ''}`}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                onDragEnter={(e) => { e.preventDefault(); if (e.currentTarget === e.target) setDragOverSlotKey('container'); }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setDragOverSlotKey(null);
+                  }
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOverSlotKey(null);
+                  const playerId = e.dataTransfer.getData('text/plain');
+                  if (!playerId) return;
+                  const source = e.dataTransfer.getData('source');
+                  if (source === 'court') {
+                    removePlayerFromCourt(playerId);
+                    joinQueue(playerId);
+                  } else {
+                    joinQueue(playerId);
+                  }
+                }}
+              >
+                <div className="flex items-center justify-between mb-3 min-h-[32px]">
+                  <h2 className="text-sm font-semibold text-slate-400">
                     等待上場 ({queue.length})
-                    {isQueueExpanded ? <ChevronDown className="w-4 h-4 text-indigo-400/70 group-hover:text-indigo-300" /> : <ChevronUp className="w-4 h-4 text-indigo-400/70 group-hover:text-indigo-300" />}
-                  </button>
-
+                  </h2>
                 </div>
 
                 <div className="space-y-2">
                   {queueDisplayItems.length === 0 ? (
                     <div className="py-8 text-center border-2 border-dashed border-slate-800 rounded-xl text-slate-500 text-sm bg-slate-900/50">
                       目前沒有人在排隊
-                      <div className="text-xs mt-1 opacity-70">請從下方休息區加入</div>
+                      <div className="text-xs mt-1 opacity-70">從下方休息區拖曳球員到此處</div>
                     </div>
                   ) : (
-                    isQueueExpanded ? (
-                      // Expanded View (Vertical List)
-                      queueDisplayItems.map((item, idx) => {
-                        // Divider Logic: Every 4 visual items
-                        const showDivider = (idx + 1) % 4 === 0 && idx < queueDisplayItems.length - 1;
-
-                        if (item.type === 'empty') {
-                          const groupColor = getGroupColor(item.groupId);
-                          return (
-                            <React.Fragment key={`empty-${item.groupId}-${idx}`}>
-                              <div className="relative flex group animate-[fadeIn_0.3s_ease-out]">
-                                {/* Continue group line */}
-                                <div className={`absolute left-0 top-0 bottom-0 w-1 ${groupColor} z-10
-                                                            ${(idx + 1) % 4 === 0 ? 'rounded-bl-md' : ''}
-                                                        `}></div>
-
-                                <div className="flex-1 flex items-center justify-center p-3 bg-slate-900/10 border border-slate-800/30 border-dashed rounded-r-xl rounded-l-none ml-2">
-                                  <div className="flex items-center gap-2 opacity-20">
-                                    <UserX className="w-4 h-4" />
-                                    <span className="text-xs font-medium">空位</span>
-                                  </div>
-                                </div>
-                              </div>
-                              {showDivider && (
-                                <div className="relative py-2 flex items-center justify-center opacity-50">
-                                  <div className="absolute inset-0 flex items-center">
-                                    <div className="w-full border-t border-slate-600 border-dashed"></div>
-                                  </div>
-                                  <div className="relative bg-slate-950 px-2 text-[10px] text-slate-400 font-mono">
-                                    第 {(idx + 1) / 4 + 1} 組
-                                  </div>
-                                </div>
-                              )}
-                            </React.Fragment>
-                          )
-                        }
-
-                        const player = item.data;
-                        // Determine grouping visuals
-                        const isGrouped = !!player.groupId;
-
-                        // Check if PREVIOUS item was same group (visual continuity)
-                        const prevItem = idx > 0 ? queueDisplayItems[idx - 1] : null;
-                        const prevSameGroup = isGrouped && prevItem?.type === 'player' && prevItem.data.groupId === player.groupId;
-
-                        // Check if NEXT item is same group (including empty slots for that group)
-                        const nextItem = idx < queueDisplayItems.length - 1 ? queueDisplayItems[idx + 1] : null;
-                        const nextSameGroup = isGrouped && (
-                          (nextItem?.type === 'player' && nextItem.data.groupId === player.groupId) ||
-                          (nextItem?.type === 'empty' && nextItem.groupId === player.groupId)
-                        );
-
-                        const groupColor = player.groupId ? getGroupColor(player.groupId) : 'bg-indigo-500';
-
-                        return (
-                          <React.Fragment key={player.id}>
-                            <div
-                              className={`relative flex group transition-all animate-[fadeIn_0.3s_ease-out] ${dragOverIndex === idx ? 'scale-105' : ''
-                                }`}
-                              draggable={!isGrouped || !prevSameGroup}
-                              onDragStart={(e) => (!isGrouped || !prevSameGroup) && handleDragStart(e, player.id)}
-                              onDragEnd={handleDragEnd}
-                              onDragOver={(e) => handleDragOver(e, idx)}
-                              onDrop={(e) => handleDrop(e, player.id)}
-                            >
-                              {/* Group Indicator Line */}
-                              {isGrouped && (
-                                <div className={`absolute left-0 w-1 ${groupColor} rounded-l-sm z-10
-                                                            ${prevSameGroup ? 'top-0' : 'top-1 rounded-tl-md'}
-                                                            ${nextSameGroup ? 'bottom-0' : 'bottom-1 rounded-bl-md'}
-                                                        `}></div>
-                              )}
-
-                              <div className={`flex-1 flex items-center justify-between p-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl ml-2 transition-all
-                                                        ${isGrouped ? 'border-l-0 rounded-l-none' : ''}
-                                                        ${draggedPlayerId === player.id ? 'opacity-50' : ''}
-                                                        ${dragOverIndex === idx ? 'border-indigo-500 shadow-lg shadow-indigo-500/20' : ''}
-                                                        ${(!isGrouped || !prevSameGroup) ? 'cursor-move' : ''}
-                                                    `}>
-                                <div className="flex items-center gap-3 overflow-hidden">
-                                  <span className="font-mono text-xs text-slate-500 w-4 text-center shrink-0">{idx + 1}</span>
-                                  <PlayerAvatar name={player.name} size="sm" />
-                                  <div className="flex flex-col min-w-0">
-                                    <span className="font-medium text-sm truncate">{player.name}</span>
-                                  </div>
-                                  <div className="scale-90 origin-left">
-                                    <LevelSelector
-                                      level={player.level}
-                                      onChange={(l) => updatePlayerLevel(player.id, l)}
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    onClick={() => removeFromQueue(player.id)}
-                                    className="text-slate-600 hover:text-amber-500 opacity-0 group-hover:opacity-100 transition-all p-1.5 hover:bg-slate-700 rounded-lg"
-                                    title="暫時休息 (移出佇列)"
-                                  >
-                                    <Coffee className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Queue Divider: Add line every 4 VISUAL items */}
-                            {showDivider && (
-                              <div className="relative py-2 flex items-center justify-center opacity-50">
-                                <div className="absolute inset-0 flex items-center">
-                                  <div className="w-full border-t border-slate-600 border-dashed"></div>
-                                </div>
-                                <div className="relative bg-slate-950 px-2 text-[10px] text-slate-400 font-mono">
-                                  第 {(idx + 1) / 4 + 1} 組
-                                </div>
-                              </div>
-                            )}
-                          </React.Fragment>
-                        );
-                      })
-                    ) : (
-                      // Collapsed View (Horizontal Groups)
-                      chunkedQueueItems.map((chunk, chunkIdx) => {
-                        const firstItem = chunk[0];
-                        const groupId = (firstItem.type === 'player' && firstItem.data.groupId) || (firstItem.type === 'empty' ? firstItem.groupId : undefined);
-                        const groupColor = groupId ? getGroupColor(groupId) : 'bg-indigo-500';
-                        const isGrouped = !!groupId;
-
-                        // Logic to determine tags
-                        const playersInChunk = chunk
-                          .filter(item => item.type === 'player')
-                          .map(item => (item as { type: 'player', data: Player }).data);
-
-                        const advancedCount = playersInChunk.filter(p => p.level === 'advanced').length;
-                        const beginnerCount = playersInChunk.filter(p => p.level === 'beginner').length;
-
-                        let matchTag = null;
-                        if (advancedCount >= 3) {
-                          matchTag = (
-                            <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-rose-500/20 border border-rose-500/30 text-rose-300 text-[10px] font-bold animate-pulse ml-auto shrink-0">
-                              <Zap className="w-3 h-3 fill-current" />
-                              激鬥場
-                            </div>
-                          );
-                        } else if (beginnerCount >= 3) {
-                          matchTag = (
-                            <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold ml-auto shrink-0">
-                              <Coffee className="w-3 h-3" />
-                              休閒場
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <div key={chunkIdx} className="relative flex items-center mb-2 animate-[fadeIn_0.3s_ease-out]">
-                            {/* Group Indicator (Small strip on left) */}
-                            {isGrouped && (
-                              <div className={`absolute left-0 top-1 bottom-1 w-1 ${groupColor} rounded-l-md z-10`}></div>
-                            )}
-
-                            <div className={`flex-1 flex items-center p-2 bg-slate-900 border border-slate-800 rounded-xl ml-2 gap-3 ${isGrouped ? 'border-l-0 rounded-l-none' : ''}`}>
+                    chunkedQueueItems.map((chunk, chunkIdx) => {
+                      return (
+                        <React.Fragment key={chunkIdx}>
+                          <div className="relative flex items-center py-2 animate-[fadeIn_0.3s_ease-out]">
+                            <div className="flex-1 flex items-center gap-3 min-w-0 overflow-hidden">
                               <span className="font-mono text-xs text-slate-500 w-4 text-center shrink-0">{chunkIdx + 1}</span>
-                              <div className="flex items-center gap-2">
+                              <div className="grid grid-cols-2 gap-3 min-w-0 flex-1">
                                 {chunk.map((item, idx) => (
-                                  <div key={idx}>
+                                  <React.Fragment key={idx}>
                                     {item.type === 'player' ? (
-                                      <div title={item.data.name}>
-                                        <PlayerAvatar name={item.data.name} size="sm" className="ring-1 ring-slate-900" />
+                                    <div
+                                        draggable
+                                        onDragStart={(e) => {
+                                          e.dataTransfer.setData('text/plain', item.data.id);
+                                          e.dataTransfer.setData('source', 'queue');
+                                          e.dataTransfer.effectAllowed = 'move';
+                                        }}
+                                        className={`relative group/player min-w-0 h-10 transition-all ${
+                                          selectedPlayerForMove === item.data.id
+                                            ? 'cursor-pointer ring-2 ring-inset ring-blue-400 rounded-lg'
+                                            : dragOverSlotKey === `${chunkIdx}-${idx}`
+                                              ? 'cursor-grab active:cursor-grabbing ring-2 ring-inset ring-indigo-500/70 rounded-lg'
+                                              : 'cursor-grab active:cursor-grabbing'
+                                        }`}
+                                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; }}
+                                        onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverSlotKey(`${chunkIdx}-${idx}`); }}
+                                        onDragLeave={(e) => { e.stopPropagation(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverSlotKey(null); }}
+                                        onDrop={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          setDragOverSlotKey(null);
+                                          // Cannot drop on an occupied slot, do nothing.
+                                        }}
+                                        onClick={() => {
+                                          if (selectedPlayerForMove === item.data.id) {
+                                            setSelectedPlayerForMove(null);
+                                          } else if (selectedPlayerForMove === null) {
+                                            setSelectedPlayerForMove(item.data.id);
+                                          }
+                                          // If another player is selected for move, clicking here does nothing.
+                                        }}
+                                      >
+                                        <div
+                                          title="排隊成員"
+                                          className="w-full h-full flex items-center justify-between px-2.5 py-1.5 rounded-[10px] bg-slate-800/50 hover:bg-slate-700/60 transition-colors text-left min-w-0 border border-slate-700/30"
+                                        >
+                                          <span className="flex items-center gap-1.5 text-sm font-medium text-slate-300 min-w-0">
+                                            <PlayerAvatar identifier={item.data.name} className="w-2.5 h-2.5 shrink-0" />
+                                            <span className="truncate">{item.data.name}</span>
+                                          </span>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              removeFromQueue(item.data.id);
+                                            }}
+                                            className="p-1 text-slate-500 hover:text-amber-400 transition-colors -mr-1"
+                                            title="讓球員休息 (移出佇列)"
+                                          >
+                                            <Coffee className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
                                       </div>
                                     ) : (
-                                      <div className="w-6 h-6 rounded-full border border-dashed border-slate-600 flex items-center justify-center opacity-30" title="空位">
-                                        <UserX className="w-3 h-3" />
+                                      <div
+                                        className={`h-10 flex items-center justify-center rounded-lg border border-dashed transition-all cursor-pointer ${
+                                          dragOverSlotKey === `${chunkIdx}-${idx}`
+                                            ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400'
+                                            : selectedPlayerForMove !== null
+                                              ? 'border-emerald-500 bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/50'
+                                              : 'border-slate-800/50 text-slate-500'
+                                        }`}
+                                        title={selectedPlayerForMove ? '點擊移動成員到此' : '空位 - 拖曳球員到此處或點擊選擇'}
+                                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; }}
+                                        onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverSlotKey(`${chunkIdx}-${idx}`); }}
+                                        onDragLeave={(e) => { e.stopPropagation(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverSlotKey(null); }}
+                                        onDrop={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          setDragOverSlotKey(null);
+                                          const playerId = e.dataTransfer.getData('text/plain');
+                                          if (playerId) {
+                                            const flatIdx = chunkIdx * 4 + idx;
+                                            const source = e.dataTransfer.getData('source');
+                                            // Only allow moving from court during warmup phase
+                                            if (source === 'court' && isWarmupDone) return;
+                                            if (source === 'court') removePlayerFromCourt(playerId);
+                                            if (source === 'queue') {
+                                              moveInQueue(playerId, flatIdx);
+                                            } else {
+                                              insertIntoQueueAt(playerId, flatIdx);
+                                            }
+                                          }
+                                        }}
+                                        onClick={() => {
+                                          if (selectedPlayerForMove) {
+                                            const selectedPlayer = players.find(p => p.id === selectedPlayerForMove);
+                                            // Only allow moving from court during warmup phase
+                                            if (selectedPlayer?.status === 'playing' && isWarmupDone) return;
+                                            const flatIdx = chunkIdx * 4 + idx;
+                                            const source = selectedPlayer?.status;
+                                            if (source === 'playing') {
+                                              removePlayerFromCourt(selectedPlayerForMove);
+                                              insertIntoQueueAt(selectedPlayerForMove, flatIdx);
+                                            } else if (source === 'queued') {
+                                              moveInQueue(selectedPlayerForMove, flatIdx);
+                                            } else if (source === 'idle') {
+                                              insertIntoQueueAt(selectedPlayerForMove, flatIdx);
+                                            }
+                                            setSelectedPlayerForMove(null);
+                                          }
+                                        }}
+                                      >
+                                        <span className="text-xs opacity-70">{selectedPlayerForMove ? '移動到此' : '空位'}</span>
                                       </div>
                                     )}
-                                  </div>
+                                  </React.Fragment>
                                 ))}
                               </div>
-                              {matchTag}
                             </div>
                           </div>
-                        )
-                      })
-                    )
+                          {chunkIdx < chunkedQueueItems.length - 1 && (
+                            <div className="mx-2 h-px bg-slate-800/50"></div>
+                          )}
+                        </React.Fragment>
+                      )
+                    })
                   )}
                 </div>
               </div>
 
               {/* Divider */}
-              <div className="h-px bg-slate-800 mx-4 my-2"></div>
+              <div className="h-px bg-slate-800 mx-6 my-2"></div>
 
               {/* Bench / Idle Section */}
               <div className="p-4 flex-1 flex flex-col">
                 <div className="space-y-4 mb-3">
                   {/* Header with Search Icon */}
-                  <div className="flex items-center justify-between px-1">
-                    <h2 className="text-sm font-semibold text-slate-400 flex items-center gap-2">
-                      <Coffee className="w-3.5 h-3.5" />
+                  <div className="flex items-center justify-between min-h-[32px]">
+                    <h2 className="text-sm font-semibold text-slate-400">
                       休息區 ({idlePlayers.length})
                     </h2>
                     <button
@@ -1290,97 +1085,81 @@ export default function App() {
                           setRestAreaSearchTerm('');
                         }
                       }}
-                      className="h-8 p-1.5 rounded-lg transition-all"
+                      className={`p-1.5 rounded-lg transition-colors ${isRestAreaSearchExpanded
+                        ? 'bg-slate-700 text-white'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                        }`}
                       title="搜尋休息區"
                     >
-                      <Search className={`w-4 h-4 transition-colors ${isRestAreaSearchExpanded ? 'text-indigo-500' : 'text-slate-500 hover:text-slate-400'}`} />
+                      <Search className="w-4 h-4" />
                     </button>
                   </div>
 
                   {/* Search Input */}
                   {isRestAreaSearchExpanded && (
-                    <div className="flex items-center gap-2 h-10 animate-[fadeIn_0.2s_ease-out]">
-                      <div className="relative flex-1">
-                        <input
-                          type="text"
-                          placeholder="搜尋球員..."
-                          className="w-full h-10 pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 placeholder-slate-500 text-sm"
-                          value={restAreaSearchTerm}
-                          onChange={e => setRestAreaSearchTerm(e.target.value)}
-                          autoFocus
-                        />
-                        <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                      </div>
-                      <button
-                        onClick={() => setRestAreaSearchTerm('')}
-                        className={`h-10 px-3 py-2 border rounded-lg transition-colors flex items-center gap-1 shrink-0 text-xs font-medium
-                          ${restAreaSearchTerm
-                            ? 'bg-indigo-600 hover:bg-indigo-500 border-indigo-500 text-white'
-                            : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-400 hover:text-slate-300'
-                          }`}
-                      >
-                        <X className="w-4 h-4" />
-                        清除
-                      </button>
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        placeholder="搜尋休息區..."
+                        className="w-full h-10 pl-9 pr-10 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 placeholder-slate-500 text-sm"
+                        value={restAreaSearchTerm}
+                        onChange={e => setRestAreaSearchTerm(e.target.value)}
+                        autoFocus
+                      />
+                      <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                      {restAreaSearchTerm && (
+                        <button
+                          onClick={() => setRestAreaSearchTerm('')}
+                          className="absolute right-2 top-2 p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-md transition-colors"
+                          title="清除字元"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
 
-                {/* Batch Action Bar - Moved to Top */}
-                {selectedPlayerIds.size > 0 && (
-                  <div className="mb-3 pt-1">
-                    <button
-                      onClick={batchJoinQueue}
-                      className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium text-sm shadow-lg shadow-indigo-900/20 flex items-center justify-center gap-2 transition-all animate-[slideUp_0.2s_ease-out]"
-                    >
-                      <ArrowUp className="w-4 h-4" />
-                      將選擇的 {selectedPlayerIds.size} 人一起排隊
-                    </button>
-                  </div>
-                )}
-
-                <div className="flex-1 overflow-y-auto space-y-2">
+                <div className="flex-1 overflow-y-auto scrollbar-gutter-stable space-y-4">
                   {filteredIdlePlayers.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-10 text-slate-600 text-xs border border-dashed border-slate-800 rounded-xl">
+                    <div className="py-8 text-center text-slate-500 text-sm -ml-7">
                       <p>{restAreaSearchTerm ? '沒有符合的球員' : '休息區空空如也'}</p>
-                      {!restAreaSearchTerm && <p className="mt-1">請至「報到區」進行報到</p>}
+                      {!restAreaSearchTerm && <p className="text-xs mt-1 opacity-70">請至「報到區」進行報到</p>}
                     </div>
                   ) : (
                     filteredIdlePlayers.map(player => {
-                      const isSelected = selectedPlayerIds.has(player.id);
                       return (
                         <div
                           key={player.id}
-                          className={`flex items-center justify-between p-2 rounded-lg border transition-all group
-                                                ${isSelected
-                              ? 'bg-indigo-900/20 border-indigo-500/30'
-                              : 'bg-transparent border-transparent hover:bg-slate-800/50 hover:border-slate-800'}
-                                            `}
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('text/plain', player.id);
+                            e.dataTransfer.effectAllowed = 'move';
+                          }}
+                          onClick={() => {
+                            if (selectedPlayerForMove === player.id) {
+                              setSelectedPlayerForMove(null);
+                            } else {
+                              setSelectedPlayerForMove(player.id);
+                            }
+                          }}
+                          className={`flex items-center justify-between py-2 px-2 rounded-lg border transition-all group
+                            ${selectedPlayerForMove === player.id
+                              ? 'bg-slate-800/50 border-slate-800 ring-2 ring-inset ring-blue-400 cursor-pointer'
+                              : selectedPlayerForMove !== null
+                                ? 'bg-slate-800/50 border-slate-800 hover:border-slate-700 cursor-pointer'
+                                : 'bg-transparent border-transparent hover:bg-slate-800/50 hover:border-slate-800 cursor-grab active:cursor-grabbing'
+                          }`}
                         >
                           <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className="flex items-center h-5 shrink-0">
-                              <label className="relative flex items-center cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={() => togglePlayerSelection(player.id)}
-                                  className="sr-only peer"
-                                />
-                                <div className="w-4 h-4 rounded-full border-2 border-indigo-500 bg-transparent peer-checked:bg-indigo-500 peer-checked:border-indigo-500 transition-all flex items-center justify-center">
-                                  {isSelected && (
-                                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                  )}
-                                </div>
-                              </label>
-                            </div>
-                            <div className="flex items-center gap-3 cursor-pointer flex-1 min-w-0" onClick={() => togglePlayerSelection(player.id)}>
-                              <PlayerAvatar name={player.name} size="sm" className={isSelected ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-slate-900' : ''} />
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
                               <div className="flex flex-col min-w-0">
-                                <span className={`text-sm transition-colors truncate ${isSelected ? 'text-indigo-200 font-medium' : 'text-slate-300'}`}>
-                                  {player.name}
-                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  <PlayerAvatar identifier={player.name} className="w-3.5 h-3.5 shrink-0" />
+                                  <span className="text-sm text-slate-300 truncate">
+                                    {player.name}
+                                  </span>
+                                </div>
                               </div>
                               <div className="scale-90 origin-left shrink-0" onClick={(e) => e.stopPropagation()}>
                                 <LevelSelector
@@ -1391,25 +1170,14 @@ export default function App() {
                             </div>
                           </div>
 
-                          <div className="flex gap-1 pl-2 border-l border-slate-800/50">
-                            {!selectedPlayerIds.size && (
-                              <>
-                                <button
-                                  onClick={() => joinQueue(player.id)}
-                                  className="p-1.5 text-indigo-400 hover:bg-indigo-500/10 rounded-md transition-colors opacity-60 group-hover:opacity-100"
-                                  title="加入排隊"
-                                >
-                                  <ArrowUp className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => deletePlayer(player.id)}
-                                  className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors opacity-0 group-hover:opacity-100"
-                                  title="早退 (回到會員列表)"
-                                >
-                                  <LogOut className="w-3.5 h-3.5" />
-                                </button>
-                              </>
-                            )}
+                          <div className="flex gap-1 pl-2">
+                            <button
+                              onClick={() => deletePlayer(player.id)}
+                              className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                              title="早退 (回到會員列表)"
+                            >
+                              <LogOut className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </div>
                       );
@@ -1422,267 +1190,206 @@ export default function App() {
 
           {/* Tab Content: Member List */}
           {activeTab === 'members' && (
-            <div className="flex-1 overflow-y-auto flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out] bg-slate-950">
-              {/* Search / Add - Icons on Right, Toggle Functionality Below */}
-              <div className="p-4 sticky top-0 bg-slate-950/95 backdrop-blur z-10">
-                <div className="space-y-2">
-                  {/* Icon Row - Always Visible */}
-                  <div className="flex items-center justify-end gap-2">
+            <div className="flex-1 overflow-y-auto scrollbar-gutter-stable flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out] bg-slate-950">
+              {/* Sticky header: member list title + search + add/import */}
+              <div className="px-6 pt-4 pb-3 sticky top-0 bg-slate-950/95 backdrop-blur z-10 space-y-2">
+                {/* Member List Header with Search Icon */}
+                <div className="flex items-center justify-between min-h-[32px]">
+                  <h2 className="text-sm font-semibold text-slate-400">
+                    會員列表 ({notCheckedInMembers.length})
+                  </h2>
+                  <div className="flex items-center gap-1 -mr-1.5">
                     <button
                       onClick={() => {
                         setIsSearchExpanded(!isSearchExpanded);
-                        if (!isSearchExpanded) {
-                          setIsAddMemberExpanded(false);
-                          setIsBatchImportExpanded(false);
+                        if (isSearchExpanded) {
+                          setMemberSearchTerm('');
                         }
                       }}
-                      className="h-10 p-2 rounded-lg transition-all"
+                      className={`p-1.5 rounded-lg transition-colors ${isSearchExpanded
+                        ? 'bg-slate-700 text-white'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                        }`}
                       title="搜尋會員"
                     >
-                      <Search className={`w-4 h-4 transition-colors ${isSearchExpanded ? 'text-indigo-500' : 'text-slate-500 hover:text-slate-400'}`} />
+                      <Search className="w-4 h-4" />
                     </button>
-                    <button
-                      onClick={() => {
-                        setIsAddMemberExpanded(!isAddMemberExpanded);
-                        if (!isAddMemberExpanded) {
-                          setIsSearchExpanded(false);
-                          setIsBatchImportExpanded(false);
-                        }
-                      }}
-                      className="h-10 p-2 rounded-lg transition-all"
-                      title="新增會員"
-                    >
-                      <UserPlus className={`w-4 h-4 transition-colors ${isAddMemberExpanded ? 'text-indigo-500' : 'text-slate-500 hover:text-slate-400'}`} />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsBatchImportExpanded(!isBatchImportExpanded);
-                        if (!isBatchImportExpanded) {
-                          setIsSearchExpanded(false);
-                          setIsAddMemberExpanded(false);
-                        }
-                      }}
-                      className="h-10 p-2 rounded-lg transition-all"
-                      title="批次匯入會員"
-                    >
-                      <Upload className={`w-4 h-4 transition-colors ${isBatchImportExpanded ? 'text-indigo-500' : 'text-slate-500 hover:text-slate-400'}`} />
-                    </button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".csv"
-                      onChange={handleBatchImport}
-                      className="hidden"
-                    />
-                  </div>
 
-                  {/* Functionality Row - Conditionally Visible */}
-                  {isSearchExpanded && (
-                    <div className="flex items-center gap-2 h-10 animate-[fadeIn_0.2s_ease-out]">
-                      <div className="relative flex-1">
-                        <input
-                          type="text"
-                          placeholder="搜尋會員..."
-                          className="w-full h-10 pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 placeholder-slate-500 text-sm"
-                          value={memberSearchTerm}
-                          onChange={e => setMemberSearchTerm(e.target.value)}
-                          autoFocus
-                        />
-                        <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                      </div>
+                    {/* Settings Dropdown */}
+                    <div className="relative">
                       <button
-                        onClick={() => setMemberSearchTerm('')}
-                        className={`h-10 px-3 py-2 border rounded-lg transition-colors flex items-center gap-1 shrink-0 text-xs font-medium
-                          ${memberSearchTerm
-                            ? 'bg-indigo-600 hover:bg-indigo-500 border-indigo-500 text-white'
-                            : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-400 hover:text-slate-300'
+                        onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                        className={`p-1.5 rounded-lg transition-colors ${isSettingsOpen
+                          ? 'bg-slate-700 text-white'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800'
                           }`}
+                        title="會員設定"
                       >
-                        <X className="w-4 h-4" />
-                        清除
+                        <MoreVertical className="w-4 h-4" />
                       </button>
-                    </div>
-                  )}
 
-                  {isAddMemberExpanded && (
-                    <div className="flex items-center gap-2 h-10 animate-[fadeIn_0.2s_ease-out]">
-                      <div className="relative flex-1">
-                        <input
-                          type="text"
-                          placeholder="輸入新會員姓名"
-                          className="w-full h-10 pl-9 pr-20 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 placeholder-slate-500 text-sm"
-                          value={newMemberName}
-                          onChange={e => setNewMemberName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && newMemberName) {
-                              createMember(newMemberName);
-                            }
-                          }}
-                          autoFocus
-                        />
-                        <UserPlus className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                        {/* Skill Level Selector - Inside Input */}
-                        <button
-                          onClick={() => {
-                            const levels: SkillLevel[] = ['beginner', 'intermediate', 'advanced'];
-                            const currentIndex = levels.indexOf(newMemberLevel);
-                            const nextIndex = (currentIndex + 1) % levels.length;
-                            setNewMemberLevel(levels[nextIndex]);
-                          }}
-                          className={`absolute right-2 top-1.5 h-7 px-2 py-0.5 rounded text-[10px] font-bold border transition-all select-none
-                            ${SKILL_LEVELS[newMemberLevel].bg} ${SKILL_LEVELS[newMemberLevel].color} ${SKILL_LEVELS[newMemberLevel].border}
-                            cursor-pointer hover:brightness-110 shadow-sm`}
-                          title="點擊切換程度"
-                        >
-                          {SKILL_LEVELS[newMemberLevel].label}
-                        </button>
-                      </div>
-                      <button
-                        onMouseDown={(e) => {
-                          // Prevent blur event from firing on input
-                          e.preventDefault();
-                        }}
-                        onClick={() => createMember(newMemberName)}
-                        disabled={!newMemberName}
-                        className={`h-10 px-3 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1 shrink-0
-                                ${!newMemberName ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-500'}
-                            `}
-                      >
-                        <Plus className="w-4 h-4" />
-                        新增
-                      </button>
-                    </div>
-                  )}
-
-                  {isBatchImportExpanded && (
-                    <div className="flex items-center gap-3 animate-[fadeIn_0.2s_ease-out]">
-                      {/* CSV Format Hint with Hover Tooltip - Left Side */}
-                      <div className="flex-1 relative group">
-                        <div className="h-10 bg-slate-800 border border-slate-700 rounded-lg px-3 flex items-center text-sm text-slate-400 cursor-help">
-                          CSV 格式範例：<span className="font-mono text-slate-300 ml-1">姓名,等級</span>
-                        </div>
-                        {/* Hover Tooltip */}
-                        <div className="absolute left-0 top-full mt-2 w-full bg-slate-900 border border-slate-700 rounded-lg p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-20 shadow-xl">
-                          <div className="bg-slate-950 rounded p-2 font-mono text-xs text-slate-300">
-                            <div className="text-emerald-400">姓名,等級</div>
-                            <div>張三,初階</div>
-                            <div>李四,中階</div>
-                            <div>王五,高階</div>
-                          </div>
-                          <div className="text-xs text-slate-500 mt-2">
-                            等級可選：初階 / 中階 / 高階
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Upload Button - Right Side */}
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="h-10 px-3 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg transition-colors hover:bg-indigo-500 flex items-center gap-1 shrink-0"
-                      >
-                        <Upload className="w-4 h-4" />
-                        匯入
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex-1 p-4 space-y-6 bg-slate-950">
-                {/* Checked In Section */}
-                {checkedInMembers.length > 0 && (
-                  <div>
-                    <button
-                      onClick={() => setIsCheckedInExpanded(!isCheckedInExpanded)}
-                      className="w-full flex items-center justify-between text-xs font-semibold text-green-400 mb-2 uppercase tracking-wider hover:bg-slate-800/50 p-1 rounded transition-colors"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        已報到 ({checkedInMembers.length})
-                      </div>
-                      {isCheckedInExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                    </button>
-
-                    {isCheckedInExpanded && (
-                      <div className="grid grid-cols-1 gap-2 animate-[fadeIn_0.2s_ease-out]">
-                        {checkedInMembers.map(member => {
-                          // Find the active player record to get the ID
-                          const activePlayer = players.find(p => p.name === member.name);
-                          return (
-                            <div key={member.id} className="flex items-center justify-between p-2.5 bg-green-900/10 border border-green-500/20 rounded-lg">
-                              <div className="flex items-center gap-3">
-                                <PlayerAvatar name={member.name} size="sm" />
-                                <span className="text-sm font-medium text-green-100">{member.name}</span>
-                                <div className="scale-90 origin-left">
-                                  <LevelSelector level={member.level} onChange={(l) => updateMemberLevel(member.id, l)} />
+                      {isSettingsOpen && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={() => setIsSettingsOpen(false)}
+                          />
+                          <div className="absolute right-0 top-full mt-2 w-56 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                            <div className="p-2">
+                              {/* Import CSV Button */}
+                              <button
+                                onClick={() => {
+                                  fileInputRef.current?.click();
+                                  setIsSettingsOpen(false);
+                                }}
+                                className="w-full flex inset-y-0 items-start gap-3 p-2 hover:bg-slate-800 rounded-md transition-colors text-left group"
+                              >
+                                <div className="p-1.5 bg-emerald-500/10 text-emerald-400 rounded-md group-hover:bg-emerald-500 group-hover:text-white transition-colors mt-0.5">
+                                  <Upload className="w-4 h-4" />
                                 </div>
-                              </div>
-                              {activePlayer && (
-                                <button
-                                  onClick={() => deletePlayer(activePlayer.id)}
-                                  className="px-2 py-1 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white text-xs rounded border border-red-500/20 transition-colors flex items-center gap-1"
-                                >
-                                  <LogOut className="w-3 h-3" />
-                                  早退
-                                </button>
-                              )}
+                                <div>
+                                  <div className="text-sm font-medium text-slate-200 group-hover:text-white transition-colors">匯入名單 (.csv)</div>
+                                  <div className="text-[10px] text-slate-500 mt-1">
+                                    格式：姓名,狀態(季打／零打)
+                                  </div>
+                                </div>
+                              </button>
+
+                              {/* Divider */}
+                              <div className="h-px bg-slate-800 my-1 mx-2" />
+
+                              {/* Reset List Button */}
+                              <button
+                                onClick={() => {
+                                  if (confirm('確定要清空會員列表中「尚未報到」的名單嗎？\n已經報到（在休息區或場上）的球員將不會被刪除。')) {
+                                    const activeNames = new Set(players.map(p => p.name));
+                                    setMembers(prev => prev.filter(m => activeNames.has(m.name)));
+                                  }
+                                  setIsSettingsOpen(false);
+                                }}
+                                className="w-full flex items-center gap-3 p-2 hover:bg-slate-800 rounded-md transition-colors text-left group"
+                              >
+                                <div className="p-1.5 bg-red-500/10 text-red-400 rounded-md group-hover:bg-red-500 group-hover:text-white transition-colors">
+                                  <Trash2 className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <div className="text-sm font-medium text-slate-200 group-hover:text-white transition-colors">名單重置</div>
+                                  <div className="text-[10px] text-slate-500 mt-0.5">清空所有會員紀錄</div>
+                                </div>
+                              </button>
                             </div>
-                          )
-                        })}
-                      </div>
-                    )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Search Input - expands when toggled */}
+                {isSearchExpanded && (
+                  <div className="flex items-center gap-2 h-10 animate-[fadeIn_0.2s_ease-out] pt-1 mb-8">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        placeholder="搜尋會員..."
+                        className="w-full h-10 pl-9 pr-10 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 placeholder-slate-500 text-sm"
+                        value={memberSearchTerm}
+                        onChange={e => setMemberSearchTerm(e.target.value)}
+                        autoFocus
+                      />
+                      <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                      {memberSearchTerm && (
+                        <button
+                          onClick={() => setMemberSearchTerm('')}
+                          className="absolute right-2 top-2 p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-md transition-colors"
+                          title="清除字元"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
 
+                {/* Add Member Form & Batch Import */}
+                <div className="flex items-center gap-2 h-10">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      placeholder="輸入姓名"
+                      maxLength={10}
+                      className="w-full h-10 pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 placeholder-slate-500 text-sm"
+                      value={newMemberName}
+                      onChange={e => setNewMemberName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && newMemberName) {
+                          createMember(newMemberName);
+                        }
+                      }}
+                    />
+                    <UserPlus className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                  </div>
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => createMember(newMemberName)}
+                    disabled={!newMemberName}
+                    className={`h-10 w-[96px] bg-indigo-600 text-white text-xs font-medium rounded-lg transition-colors shrink-0 flex items-center justify-center
+                      ${!newMemberName ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-500'}`}
+                  >
+                    新增會員
+                  </button>
+                </div>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                onChange={handleBatchImport}
+                className="hidden"
+              />
+
+              <div className="flex-1 px-6 py-4 space-y-6 bg-slate-950">
+                {/* Checked In Section - hidden */}
+
                 {/* Member List Section */}
                 <div>
-                  <button
-                    onClick={() => setIsMemberListExpanded(!isMemberListExpanded)}
-                    className="w-full flex items-center justify-between text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wider hover:bg-slate-800/50 p-1 rounded transition-colors"
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <Users className="w-3.5 h-3.5" />
-                      會員列表 ({notCheckedInMembers.length})
+                  {notCheckedInMembers.length === 0 ? (
+                    <div className="text-center py-8 text-slate-600 text-sm animate-[fadeIn_0.2s_ease-out]">
+                      {memberSearchTerm ? '找不到符合的會員' : '尚未新增會員'}
                     </div>
-                    {isMemberListExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                  </button>
-
-                  {isMemberListExpanded && (
-                    notCheckedInMembers.length === 0 ? (
-                      <div className="text-center py-8 text-slate-600 text-sm animate-[fadeIn_0.2s_ease-out]">
-                        {memberSearchTerm ? '找不到符合的會員' : '尚未新增會員'}
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 gap-2 animate-[fadeIn_0.2s_ease-out]">
-                        {notCheckedInMembers.map(member => (
-                          <div key={member.id} className="group flex items-center justify-between p-2.5 hover:bg-slate-800 rounded-lg transition-colors border border-transparent hover:border-slate-700">
-                            <div className="flex items-center gap-3">
-                              <PlayerAvatar name={member.name} size="sm" className="grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all" />
-                              <span className="text-sm text-slate-300 group-hover:text-white">{member.name}</span>
-                              <div className="scale-90 origin-left">
-                                <LevelSelector level={member.level} onChange={(l) => updateMemberLevel(member.id, l)} />
-                              </div>
-                            </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-2 animate-[fadeIn_0.2s_ease-out]">
+                      {notCheckedInMembers.map(member => (
+                        <div key={member.id} className="group flex items-center justify-between py-2 rounded-lg border border-transparent">
+                          <div className="flex items-center gap-3 pl-3">
                             <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => checkInMember(member)}
-                                className="px-3 py-1.5 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded-md text-xs font-medium transition-all flex items-center gap-1.5"
-                              >
-                                <UserCheck className="w-3.5 h-3.5" />
-                                報到
-                              </button>
-                              <button
-                                onClick={() => removeMember(member.id)}
-                                className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-md opacity-0 group-hover:opacity-100 transition-all"
-                                title="刪除會員"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              <PlayerAvatar identifier={member.name} className="w-2.5 h-2.5 shrink-0" />
+                              <span className="text-sm text-slate-300">{member.name}</span>
+                            </div>
+                            <div className="scale-90 origin-left">
+                              <span className={`px-2 py-1 rounded text-[10px] font-bold border ${SKILL_LEVELS[member.level].bg} ${SKILL_LEVELS[member.level].color} ${SKILL_LEVELS[member.level].border}`}>
+                                {SKILL_LEVELS[member.level].label}
+                              </span>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    )
+                          <div className="flex items-center justify-end gap-1 w-24 shrink-0">
+                            <button
+                              onClick={() => checkInMember(member)}
+                              className="h-10 flex-1 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded-lg text-xs font-medium transition-all"
+                            >
+                              報到
+                            </button>
+                            <button
+                              onClick={() => removeMember(member.id)}
+                              className="h-10 w-10 flex items-center justify-center text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100 shrink-0"
+                              title="刪除會員"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
@@ -1690,17 +1397,17 @@ export default function App() {
           )}
         </div>
 
-      </aside>
+      </aside >
 
       {/* Main Content: Courts Grid */}
-      <main className="flex-1 flex flex-col min-w-0 h-full relative z-0">
+      < main className="flex-1 flex flex-col min-w-0 h-full relative z-0" >
         {/* Toolbar */}
-        <div className="h-16 border-b border-slate-800 flex items-center px-4 sm:px-8 justify-between bg-slate-900/50 backdrop-blur-sm sticky top-0 z-10 shrink-0">
+        < div className="h-16 border-b border-slate-800 flex items-center px-4 sm:px-8 justify-between bg-slate-900/50 backdrop-blur-sm sticky top-0 z-10 shrink-0" >
           <div className="flex items-center gap-4">
             {/* Sidebar Toggle Button */}
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className={`p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors ${isSidebarOpen ? 'bg-slate-800/50 text-white' : ''}`}
+              className={`lg:hidden p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors ${isSidebarOpen ? 'bg-slate-800/50 text-white' : ''}`}
               title={isSidebarOpen ? "收納側邊欄" : "展開側邊欄"}
             >
               <PanelLeft className="w-5 h-5" />
@@ -1721,59 +1428,60 @@ export default function App() {
               </span>
             )}
 
-            <div className="h-4 w-px bg-slate-700 hidden sm:block"></div>
-
-            <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700">
-              <button
-                onClick={removeCourt}
-                className="p-1.5 hover:bg-slate-700 text-slate-400 hover:text-red-400 rounded-md transition-colors"
-                title="減少場地"
-              >
-                <Minus className="w-4 h-4" />
-              </button>
-              <span className="px-3 text-xs font-mono text-slate-400 border-l border-r border-slate-700/50 mx-1">
-                {courts.length} 面
-              </span>
-              <button
-                onClick={addCourt}
-                className="p-1.5 hover:bg-slate-700 text-slate-400 hover:text-indigo-400 rounded-md transition-colors"
-                title="新增場地"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-            </div>
           </div>
           <div className="flex items-center gap-3 text-sm">
-            {/* Auto Announce Toggle */}
-            <button
-              onClick={() => setIsAutoAnnounce(!isAutoAnnounce)}
-              className={`p-2 rounded-md transition-colors mr-2 ${isAutoAnnounce
-                ? 'text-indigo-400 hover:bg-indigo-500/10'
-                : 'text-slate-600 hover:text-slate-400 hover:bg-slate-800'
-                }`}
-              title={isAutoAnnounce ? "關閉語音播報" : "開啟語音播報"}
-            >
-              {isAutoAnnounce ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-            </button>
+            {/* Court adjustments moved here */}
+            <div className="flex items-center bg-slate-950 rounded-lg border border-slate-800 h-8">
+              <button
+                onClick={removeCourt}
+                className="w-8 h-full flex items-center justify-center hover:bg-slate-800 text-slate-400 hover:text-red-400 rounded-l-lg transition-colors"
+                title="減少場地"
+              >
+                <Minus className="w-3.5 h-3.5" />
+              </button>
+              <div className="w-px h-4 bg-slate-800/50"></div>
+              <span className="px-2 text-xs font-mono text-slate-400 flex items-center justify-center min-w-[3rem]">
+                {courts.length} 面
+              </span>
+              <div className="w-px h-4 bg-slate-800/50"></div>
+              <button
+                onClick={addCourt}
+                className="w-8 h-full flex items-center justify-center hover:bg-slate-800 text-slate-400 hover:text-indigo-400 rounded-r-lg transition-colors"
+                title="新增場地"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
 
-            <span className="text-slate-500 font-mono text-sm hidden sm:block mr-2">
-              {currentTime.toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })}
-            </span>
+            {/* Global Warmup Status */}
+            <button
+              onClick={handleWarmupToggle}
+              className={`flex items-center justify-center gap-2 px-3 h-8 text-xs font-medium rounded-lg transition-colors border
+                ${isWarmupDone
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                  : 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
+                }`}
+              title={isWarmupDone ? '已熱身' : '熱身中'}
+            >
+              {isWarmupDone ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Flame className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{isWarmupDone ? '已熱身' : '熱身中'}</span>
+            </button>
 
             <button
               onClick={resetSession}
-              className="flex items-center gap-2 px-3 py-1.5 bg-transparent text-red-400 border border-red-500/50 hover:bg-red-500 hover:text-white hover:border-red-500 text-xs font-medium rounded-lg transition-colors ml-2"
-              title="將場上及排隊球員全部移回休息區"
+              className="flex items-center justify-center gap-2 px-3 h-8 bg-transparent text-red-400 border border-red-500/50 hover:bg-red-500 hover:text-white hover:border-red-500 text-xs font-medium rounded-lg transition-colors"
+              title="將場上及排隊球員全部移回會員列表"
             >
               <LogOut className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">打球結束</span>
             </button>
+
           </div>
-        </div>
+        </div >
 
         {/* Grid */}
-        <div className="p-4 sm:p-8 overflow-y-auto flex-1">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-10">
+        < div className="p-4 sm:p-8 overflow-y-auto scrollbar-gutter-stable flex-1" >
+          <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-6 pb-10">
             {courts.map(court => (
               <CourtCard
                 key={court.id}
@@ -1786,30 +1494,38 @@ export default function App() {
                 onAnnounce={announceCourtPlayers}
                 isAutoAnnounce={isAutoAnnounce}
                 canStartMatch={isQueueReady}
+                onDropPlayer={dropPlayerToCourt}
+                isWarmupDone={isWarmupDone}
+                selectedPlayerForMove={selectedPlayerForMove}
+                onSelectPlayer={setSelectedPlayerForMove}
+                onMovePlayerToSlot={movePlayerToCourtSlot}
               />
             ))}
           </div>
-        </div>
-      </main>
+        </div >
+      </main >
 
       {/* Check-in Success Modal */}
-      {checkInSuccessName && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-          <div className="bg-slate-900 border-2 border-emerald-500 rounded-xl px-8 py-6 shadow-2xl animate-[fadeIn_0.3s_ease-out] pointer-events-auto">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center">
-                <CheckCircle2 className="w-7 h-7 text-emerald-400" />
-              </div>
-              <div>
-                <div className="text-lg font-bold text-white mb-1">報到成功！</div>
-                <div className="text-sm text-slate-300">
-                  <span className="font-semibold text-emerald-400">{checkInSuccessName}</span> 已成功報到
+      {
+        checkInSuccessName && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+            <div className="bg-slate-900 border-2 border-emerald-500 rounded-xl px-8 py-6 shadow-2xl animate-[fadeIn_0.3s_ease-out] pointer-events-auto">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                  <CheckCircle2 className="w-7 h-7 text-emerald-400" />
+                </div>
+                <div>
+                  <div className="text-lg font-bold text-white mb-1">報到成功！</div>
+                  <div className="text-sm text-slate-300">
+                    <span className="font-semibold text-emerald-400">{checkInSuccessName}</span> 已成功報到
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">請至排隊區加入等待</div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 }
