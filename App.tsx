@@ -780,7 +780,7 @@ export default function App() {
           return {
             ...c,
             playerIds: newPlayerIds,
-            startTime: newPlayerIds.length >= MAX_PLAYERS_PER_COURT ? c.startTime : null
+            startTime: newPlayerIds.length >= MAX_PLAYERS_PER_COURT ? (c.startTime || Date.now()) : null
           };
         }
       } else {
