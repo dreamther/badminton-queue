@@ -18,6 +18,7 @@ interface CourtCardProps {
     selectedPlayerForMove?: string | null;
     onSelectPlayer?: (playerId: string | null) => void;
     onMovePlayerToSlot?: (playerId: string, courtId: number, slotIdx: number) => void;
+    canMovePlayer?: (playerId: string) => boolean;
 }
 
 export const CourtCard: React.FC<CourtCardProps> = ({
@@ -34,7 +35,8 @@ export const CourtCard: React.FC<CourtCardProps> = ({
     isWarmupDone = false,
     selectedPlayerForMove = null,
     onSelectPlayer,
-    onMovePlayerToSlot
+    onMovePlayerToSlot,
+    canMovePlayer
 }) => {
     const [elapsed, setElapsed] = useState<string>('00:00');
     const [isEditing, setIsEditing] = useState(false);
@@ -192,12 +194,15 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                     }`}
                                 onClick={() => {
                                     if (onSelectPlayer && !isWarmupDone) {
-                                        // 有球員的位子：只在沒有選中任何人時可以選擇
+                                        // 有球員的位子：只在沒有選中任何人時可以選擇，且必須有權限移動該球員
                                         if (player) {
-                                            if (selectedPlayerForMove === null) {
-                                                onSelectPlayer(player.id);
-                                            } else if (selectedPlayerForMove === player.id) {
-                                                onSelectPlayer(null);
+                                            const hasPermission = canMovePlayer ? canMovePlayer(player.id) : true;
+                                            if (hasPermission) {
+                                                if (selectedPlayerForMove === null) {
+                                                    onSelectPlayer(player.id);
+                                                } else if (selectedPlayerForMove === player.id) {
+                                                    onSelectPlayer(null);
+                                                }
                                             }
                                         }
                                         // 空位：只在已經選中某人時可以點擊移動
@@ -207,7 +212,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                         }
                                     }
                                 }}
-                                {...(player && !isWarmupDone ? {
+                                {...(player && !isWarmupDone && (!canMovePlayer || canMovePlayer(player.id)) ? {
                                     draggable: true,
                                     onDragStart: (e: React.DragEvent) => {
                                         e.dataTransfer.setData('text/plain', player.id);

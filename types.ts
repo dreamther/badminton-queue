@@ -16,6 +16,13 @@ export interface Player {
   joinedAt: number;
 }
 
+export type UserRole = 'admin' | 'player';
+
+export interface CurrentUser {
+  role: UserRole;
+  memberId?: string;
+}
+
 export interface Court {
   id: number;
   name: string;
