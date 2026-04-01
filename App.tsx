@@ -127,8 +127,15 @@ export default function App() {
   const canMovePlayer = useCallback((playerId: string) => {
     if (!currentUser) return false;
     if (currentUser.role === 'admin') return true;
-    return currentUser.memberId === playerId;
-  }, [currentUser]);
+    
+    const member = members.find(m => m.id === currentUser.memberId);
+    if (!member) return false;
+    
+    const player = players.find(p => p.id === playerId);
+    if (!player) return false;
+    
+    return player.name === member.name;
+  }, [currentUser, members, players]);
 
   // --- Derived Lists ---
   const queue = useMemo(() => {
@@ -926,7 +933,10 @@ export default function App() {
                   loginFilteredMembers.map(member => (
                     <button
                       key={member.id}
-                      onClick={() => setCurrentUser({ role: 'player', memberId: member.id })}
+                      onClick={() => {
+                        setCurrentUser({ role: 'player', memberId: member.id });
+                        checkInMember(member);
+                      }}
                       className="w-full flex items-center gap-3 p-3 bg-slate-950/50 hover:bg-slate-800 border border-slate-800 rounded-lg transition-colors text-left group"
                     >
                       <PlayerAvatar identifier={member.name} className="w-8 h-8 shrink-0" />
