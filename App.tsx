@@ -621,7 +621,7 @@ export default function App() {
         return prev;
       }
       const lastCourt = prev[prev.length - 1];
-      if (lastCourt.playerIds.length > 0) {
+      if (lastCourt.playerIds.some(id => id !== null)) {
         alert(`無法移除 ${lastCourt.name}：場上還有人`);
         return prev;
       }
@@ -642,7 +642,7 @@ export default function App() {
 
   const announceCourtPlayers = useCallback((courtId: number) => {
     const court = courts.find(c => c.id === courtId);
-    if (!court || court.playerIds.length === 0) return;
+    if (!court || !court.playerIds.some(id => id !== null)) return;
 
     const playerNames = court.playerIds
       .map(id => players.find(p => p.id === id)?.name)
@@ -710,11 +710,13 @@ export default function App() {
   // Remove a player from their court (used when dragging away)
   const removePlayerFromCourt = useCallback((playerId: string) => {
     setCourts(prev => prev.map(c => {
-      const newPlayerIds = c.playerIds.filter(id => id !== playerId);
+      if (!c.playerIds.includes(playerId)) return c;
+      const newPlayerIds = c.playerIds.map(id => id === playerId ? null : id);
+      while (newPlayerIds.length > 0 && newPlayerIds[newPlayerIds.length - 1] === null) newPlayerIds.pop();
       return {
         ...c,
         playerIds: newPlayerIds,
-        startTime: newPlayerIds.length === 0 ? null : c.startTime
+        startTime: newPlayerIds.filter(id => id !== null).length >= MAX_PLAYERS_PER_COURT ? c.startTime : null
       };
     }));
   }, []);
@@ -744,7 +746,7 @@ export default function App() {
   const dropPlayerToCourt = useCallback((courtId: number, playerId: string) => {
     setSelectedPlayerForMove(null); // Force clear on drop
     const court = courts.find(c => c.id === courtId);
-    if (!court || court.playerIds.length >= MAX_PLAYERS_PER_COURT) return;
+    if (!court || court.playerIds.filter(id => id !== null).length >= MAX_PLAYERS_PER_COURT) return;
     if (court.playerIds.includes(playerId)) return;
 
     // Remove from queue if they were queued
@@ -765,11 +767,17 @@ export default function App() {
     // Add to court — only start match timer when reaching 4 players
     setCourts(prev => prev.map(c => {
       if (c.id !== courtId) return c;
-      const newPlayerIds = [...c.playerIds, playerId];
+      const newPlayerIds = [...c.playerIds];
+      const nextEmptySlot = newPlayerIds.indexOf(null);
+      if (nextEmptySlot !== -1) {
+        newPlayerIds[nextEmptySlot] = playerId;
+      } else {
+        newPlayerIds.push(playerId);
+      }
       return {
         ...c,
         playerIds: newPlayerIds,
-        startTime: newPlayerIds.length >= MAX_PLAYERS_PER_COURT ? (c.startTime || Date.now()) : c.startTime
+        startTime: newPlayerIds.filter(id => id !== null).length >= MAX_PLAYERS_PER_COURT ? (c.startTime || Date.now()) : c.startTime
       };
     }));
   }, [courts, removePlayerFromCourt]);
@@ -791,47 +799,48 @@ export default function App() {
 
     // Update courts
     setCourts(prev => prev.map(c => {
-      // Target court: add or reorder the player
-      if (c.id === courtId) {
-        const currentIdx = c.playerIds.indexOf(playerId);
-        
-        // If player is already in this court, reorder them
-        if (currentIdx !== -1) {
-          const newPlayerIds = c.playerIds.filter(id => id !== playerId);
-          const adjustedSlotIdx = slotIdx > currentIdx ? slotIdx - 1 : slotIdx;
-          newPlayerIds.splice(adjustedSlotIdx, 0, playerId);
-          
-          return {
-            ...c,
-            playerIds: newPlayerIds
-          };
-        } else {
-          // If player is not in this court, add them
-          const newPlayerIds = [...c.playerIds];
-          if (slotIdx <= newPlayerIds.length) {
-            newPlayerIds.splice(slotIdx, 0, playerId);
-          } else {
-            newPlayerIds.push(playerId);
-          }
-          
-          return {
-            ...c,
-            playerIds: newPlayerIds,
-            startTime: newPlayerIds.length >= MAX_PLAYERS_PER_COURT ? (c.startTime || Date.now()) : null
-          };
-        }
-      } else {
-        // Other courts: remove the player if they're here
+      // Other courts: remove the player if they're here
+      if (c.id !== courtId) {
         const newPlayerIds = c.playerIds.filter(id => id !== playerId);
         if (newPlayerIds.length !== c.playerIds.length) {
           return {
             ...c,
             playerIds: newPlayerIds,
-            startTime: newPlayerIds.length >= MAX_PLAYERS_PER_COURT ? c.startTime : null
+            startTime: newPlayerIds.filter(id => id !== null).length >= MAX_PLAYERS_PER_COURT ? c.startTime : null
           };
         }
         return c;
       }
+
+      // Target court: place player at exact slotIdx (0-based, within MAX_PLAYERS_PER_COURT)
+      // Work with a nullable fixed-length array to preserve positions
+      const slots: (string | null)[] = Array.from({ length: MAX_PLAYERS_PER_COURT }, (_, i) => c.playerIds[i] ?? null);
+
+      // Remove player from their current slot (if any)
+      const currentSlot = slots.indexOf(playerId);
+      if (currentSlot !== -1) slots[currentSlot] = null;
+
+      // Place them at the target slot
+      const targetIdx = Math.min(slotIdx, MAX_PLAYERS_PER_COURT - 1);
+      // If target slot is already occupied by someone else, swap
+      if (slots[targetIdx] !== null && slots[targetIdx] !== playerId) {
+        if (currentSlot !== -1) {
+          // Swap: put the displaced player where the dragged player came from
+          slots[currentSlot] = slots[targetIdx];
+        }
+      }
+      slots[targetIdx] = playerId;
+
+      // Compact: filter out nulls for storage, but preserve relative order? NO! We want to keep nulls as placeholders.
+      // But we should trim trailing nulls so array size stays minimal.
+      const newPlayerIds = [...slots];
+      while (newPlayerIds.length > 0 && newPlayerIds[newPlayerIds.length - 1] === null) newPlayerIds.pop();
+
+      return {
+        ...c,
+        playerIds: newPlayerIds,
+        startTime: newPlayerIds.filter(id => id !== null).length >= MAX_PLAYERS_PER_COURT ? (c.startTime || Date.now()) : null
+      };
     }));
   }, []);
 
@@ -1663,7 +1672,7 @@ export default function App() {
               <CourtCard
                 key={court.id}
                 court={court}
-                playersOnCourt={court.playerIds.map(id => players.find(p => p.id === id)!)}
+                playersOnCourt={court.playerIds.map(id => id ? players.find(p => p.id === id)! : null as any)}
                 queueLength={queue.length}
                 onStartMatch={startMatch}
                 onEndMatch={endMatch}

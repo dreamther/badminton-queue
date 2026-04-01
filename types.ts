@@ -26,7 +26,7 @@ export interface CurrentUser {
 export interface Court {
   id: number;
   name: string;
-  playerIds: string[];
+  playerIds: (string | null)[];
   startTime: number | null;
 }
 
