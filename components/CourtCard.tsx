@@ -43,7 +43,8 @@ export const CourtCard: React.FC<CourtCardProps> = ({
     const [editName, setEditName] = useState(court.name);
     const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
 
-    const hasPlayers = playersOnCourt.length > 0;
+    const activePlayersCount = playersOnCourt.filter(Boolean).length;
+    const hasPlayers = activePlayersCount > 0;
     const isMatchStarted = court.startTime !== null;
 
     // Can start if queue has valid match group and court is empty
@@ -162,7 +163,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                     {hasPlayers && !isMatchStarted && (
                         <div className="flex items-center gap-1 text-xs text-amber-400 bg-amber-950/50 px-1.5 py-0.5 rounded">
                             <Users className="w-3 h-3" />
-                            {playersOnCourt.length}/{MAX_PLAYERS_PER_COURT}
+                            {activePlayersCount}/{MAX_PLAYERS_PER_COURT}
                         </div>
                     )}
                 </div>
@@ -224,7 +225,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                         if (onSelectPlayer) onSelectPlayer(null);
                                     }
                                 } : {})}
-                                {...(!player && onDropPlayer && !isWarmupDone ? {
+                                {...(!player && !isWarmupDone && (onMovePlayerToSlot || onDropPlayer) ? {
                                     onDragOver: (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; },
                                     onDragEnter: (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setDragOverSlot(idx); },
                                     onDragLeave: (e: React.DragEvent) => { e.stopPropagation(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverSlot(null); },
@@ -233,7 +234,13 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                         e.stopPropagation();
                                         setDragOverSlot(null);
                                         const playerId = e.dataTransfer.getData('text/plain');
-                                        if (playerId) onDropPlayer(court.id, playerId);
+                                        if (playerId) {
+                                            if (onMovePlayerToSlot) {
+                                                onMovePlayerToSlot(playerId, court.id, idx);
+                                            } else if (onDropPlayer) {
+                                                onDropPlayer(court.id, playerId);
+                                            }
+                                        }
                                     }
                                 } : {})}
                             >
@@ -286,7 +293,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                         <div className="w-full h-full flex items-center justify-center gap-2 rounded-lg font-medium text-sm
                             bg-amber-500/10 text-amber-400 border border-amber-500/20">
                             <Users className="w-4 h-4" />
-                            等待中 ({playersOnCourt.length}/{MAX_PLAYERS_PER_COURT})
+                            等待中 ({activePlayersCount}/{MAX_PLAYERS_PER_COURT})
                         </div>
                     )}
                 </div>
