@@ -19,6 +19,7 @@ interface CourtCardProps {
     onSelectPlayer?: (playerId: string | null) => void;
     onMovePlayerToSlot?: (playerId: string, courtId: number, slotIdx: number) => void;
     canMovePlayer?: (playerId: string) => boolean;
+    onRestPlayer?: (playerId: string) => void;
 }
 
 export const CourtCard: React.FC<CourtCardProps> = ({
@@ -36,7 +37,8 @@ export const CourtCard: React.FC<CourtCardProps> = ({
     selectedPlayerForMove = null,
     onSelectPlayer,
     onMovePlayerToSlot,
-    canMovePlayer
+    canMovePlayer,
+    onRestPlayer
 }) => {
     const [elapsed, setElapsed] = useState<string>('00:00');
     const [isEditing, setIsEditing] = useState(false);
@@ -178,7 +180,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                         return (
                             <div
                                 key={`slot-${idx}`}
-                                className={`h-10 flex items-center gap-2 px-2 rounded-lg text-sm transition-all cursor-pointer
+                                className={`group h-10 flex items-center gap-2 px-2 rounded-lg text-sm transition-all cursor-pointer
                                 ${player
                                         ? selectedPlayerForMove === player.id
                                             ? 'ring-2 ring-inset ring-blue-400 bg-indigo-500/15 border border-indigo-500/30 text-slate-200'
@@ -246,8 +248,22 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                             >
                                 {player ? (
                                     <>
-                                        <PlayerAvatar identifier={player.name} className="w-2.5 h-2.5 mr-1" />
-                                        <span className="truncate font-medium">{player.name}</span>
+                                        <div className="flex items-center flex-1 min-w-0">
+                                            <PlayerAvatar identifier={player.name} className="w-2.5 h-2.5 mr-1 shrink-0" />
+                                            <span className="truncate font-medium">{player.name}</span>
+                                        </div>
+                                        {onRestPlayer && (!canMovePlayer || canMovePlayer(player.id)) && (
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                onRestPlayer(player.id);
+                                              }}
+                                              className="p-1 -mr-1 text-slate-500 hover:text-amber-400 hover:bg-slate-800 transition-colors rounded opacity-0 group-hover:opacity-100"
+                                              title="讓球員休息"
+                                            >
+                                              <Coffee className="w-3.5 h-3.5" />
+                                            </button>
+                                        )}
                                     </>
                                 ) : (
                                     <span className="text-xs w-full text-center opacity-50">{selectedPlayerForMove && !isWarmupDone ? '移動到此' : '空位'}</span>

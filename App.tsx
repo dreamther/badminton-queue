@@ -156,15 +156,22 @@ export default function App() {
   const idleCourtsCount = useMemo(() => courts.filter(c => c.startTime === null).length, [courts]);
 
   // --- Match Calculation Logic ---
-  // Get the first 4 non-null players from queue (slot order)
-  const getNextMatchBatch = useCallback((q: Player[]) => {
-    return q.slice(0, MAX_PLAYERS_PER_COURT);
+  // Get the first group of 4 players that is fully occupied (slot order)
+  const getNextMatchBatch = useCallback((slots: (string | null)[], currentPlayers: Player[]) => {
+    const playerMap = new Map(currentPlayers.map(p => [p.id, p]));
+    for (let i = 0; i < slots.length; i += MAX_PLAYERS_PER_COURT) {
+      const chunk = slots.slice(i, i + MAX_PLAYERS_PER_COURT);
+      if (chunk.length === MAX_PLAYERS_PER_COURT && chunk.every(id => id !== null)) {
+        return chunk.map(id => playerMap.get(id!)).filter((p): p is Player => p !== undefined);
+      }
+    }
+    return [];
   }, []);
 
   // Next Match Group Calculation (Who is on deck?)
   const nextMatchPlayers = useMemo(() => {
-    return getNextMatchBatch(queue);
-  }, [queue, getNextMatchBatch]);
+    return getNextMatchBatch(queueSlots, players);
+  }, [queueSlots, players, getNextMatchBatch]);
 
   const isQueueReady = nextMatchPlayers.length === MAX_PLAYERS_PER_COURT;
 
@@ -656,7 +663,7 @@ export default function App() {
 
   const startMatch = useCallback((courtId: number) => {
     // Use the consistent match calculation logic
-    const playersToStart = getNextMatchBatch(queue);
+    const playersToStart = getNextMatchBatch(queueSlots, players);
 
     // Validation: Must have exactly 4 players to start
     if (playersToStart.length < MAX_PLAYERS_PER_COURT) {
@@ -679,9 +686,11 @@ export default function App() {
       playerIds.includes(p.id) ? { ...p, status: 'playing' } : p
     ));
 
-    // Remove matched players from queueSlots
+    // Remove matched players from queueSlots explicitly by filtering them out.
+    // This perfectly advances the trailing players by closing the gaps exactly
+    // by the amount of positions (teams) that entered the court.
     setQueueSlots(prev => {
-      const newSlots = prev.map(id => playerIds.includes(id!) ? null : id);
+      const newSlots = prev.filter(id => id === null || !playerIds.includes(id));
       while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
       return newSlots;
     });
@@ -690,7 +699,7 @@ export default function App() {
       c.id === courtId ? { ...c, playerIds, startTime: Date.now() } : c
     ));
 
-  }, [queue, courts, speak, isAutoAnnounce, getNextMatchBatch]);
+  }, [queueSlots, players, courts, speak, isAutoAnnounce, getNextMatchBatch]);
 
   const endMatch = useCallback((courtId: number) => {
     const court = courts.find(c => c.id === courtId);
@@ -720,6 +729,16 @@ export default function App() {
       };
     }));
   }, []);
+
+  // Directly put a courst player back to rest without end match
+  const restPlayerFromCourt = useCallback((playerId: string) => {
+    if (!confirm('確定要讓此球員下場休息嗎？')) return;
+    setSelectedPlayerForMove(null);
+    removePlayerFromCourt(playerId);
+    setPlayers(prev => prev.map(p =>
+      p.id === playerId ? { ...p, status: 'idle' } : p
+    ));
+  }, [removePlayerFromCourt]);
 
   // Handle Warmup Toggle with validation
   const handleWarmupToggle = useCallback(() => {
@@ -1678,6 +1697,7 @@ export default function App() {
                 onEndMatch={endMatch}
                 onRenameCourt={currentUser?.role === 'admin' ? renameCourt : undefined}
                 onAnnounce={announceCourtPlayers}
+                onRestPlayer={restPlayerFromCourt}
                 isAutoAnnounce={isAutoAnnounce}
                 canStartMatch={isQueueReady}
                 onDropPlayer={dropPlayerToCourt}
