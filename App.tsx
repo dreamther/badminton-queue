@@ -474,6 +474,7 @@ export default function App() {
 
 
   const joinQueue = useCallback((playerId: string) => {
+    setSelectedPlayerForMove(null);
     // Append to end of queueSlots
     setQueueSlots(prev => [...prev, playerId]);
     setPlayers(prev => prev.map(p =>
@@ -482,6 +483,7 @@ export default function App() {
   }, []);
 
   const insertIntoQueueAt = useCallback((playerId: string, position: number) => {
+    setSelectedPlayerForMove(null);
     setQueueSlots(prev => {
       const newSlots = [...prev];
       // Extend array if needed
@@ -501,6 +503,7 @@ export default function App() {
 
   // Move an existing queued player to a new slot position
   const moveInQueue = useCallback((playerId: string, toPosition: number) => {
+    setSelectedPlayerForMove(null);
     setQueueSlots(prev => {
       const newSlots = [...prev];
       const fromIdx = newSlots.indexOf(playerId);
@@ -526,6 +529,7 @@ export default function App() {
 
   const removeFromQueue = useCallback((playerId: string) => {
     if (!confirm('確定要讓此球員回到休息區嗎？')) return;
+    setSelectedPlayerForMove(null);
     // Set slot to null (preserve position gaps)
     setQueueSlots(prev => {
       const newSlots = prev.map(id => id === playerId ? null : id);
@@ -541,6 +545,7 @@ export default function App() {
   // Remove from session (Check out) -> "Early Leave"
   const deletePlayer = useCallback((playerId: string) => {
     if (confirm('確定要讓此球員早退嗎？（將回到會員列表）')) {
+      setSelectedPlayerForMove(prev => prev === playerId ? null : prev);
       setQueueSlots(prev => {
         const newSlots = prev.map(id => id === playerId ? null : id);
         while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
@@ -582,6 +587,7 @@ export default function App() {
   // Reset Session (End of Game Day)
   const resetSession = useCallback(() => {
     if (confirm('確定要結束所有比賽嗎？\n所有場上和排隊的球員將會回到會員列表。')) {
+      setSelectedPlayerForMove(null);
       // Move everyone back to member list (remove from players state)
       setPlayers([]);
       setQueueSlots([]);
@@ -736,6 +742,7 @@ export default function App() {
 
   // Drop a player directly onto a court from rest area, queue, or another court
   const dropPlayerToCourt = useCallback((courtId: number, playerId: string) => {
+    setSelectedPlayerForMove(null); // Force clear on drop
     const court = courts.find(c => c.id === courtId);
     if (!court || court.playerIds.length >= MAX_PLAYERS_PER_COURT) return;
     if (court.playerIds.includes(playerId)) return;
@@ -769,6 +776,7 @@ export default function App() {
 
   // Move a player to a specific slot in a court (supports cross-court moves)
   const movePlayerToCourtSlot = useCallback((playerId: string, courtId: number, slotIdx: number) => {
+    setSelectedPlayerForMove(null); // Force clear on move
     // First, remove from queue if they're queued
     setQueueSlots(prev => {
       const newSlots = prev.map(id => id === playerId ? null : id);
@@ -1052,6 +1060,7 @@ export default function App() {
                 onDrop={(e) => {
                   e.preventDefault();
                   setDragOverSlotKey(null);
+                  setSelectedPlayerForMove(null);
                   const playerId = e.dataTransfer.getData('text/plain');
                   if (!playerId) return;
                   const source = e.dataTransfer.getData('source');
@@ -1094,6 +1103,7 @@ export default function App() {
                                           e.dataTransfer.setData('source', 'queue');
                                           e.dataTransfer.effectAllowed = 'move';
                                         }}
+                                        onDragEnd={() => setSelectedPlayerForMove(null)}
                                         className={`relative group/player min-w-0 h-10 transition-all ${
                                           selectedPlayerForMove === item.data.id
                                             ? 'cursor-pointer ring-2 ring-inset ring-blue-400 rounded-lg'
@@ -1159,6 +1169,7 @@ export default function App() {
                                           e.preventDefault();
                                           e.stopPropagation();
                                           setDragOverSlotKey(null);
+                                          setSelectedPlayerForMove(null);
                                           const playerId = e.dataTransfer.getData('text/plain');
                                           if (playerId) {
                                             const flatIdx = chunkIdx * 4 + idx;
@@ -1280,6 +1291,7 @@ export default function App() {
                             e.dataTransfer.setData('text/plain', player.id);
                             e.dataTransfer.effectAllowed = 'move';
                           }}
+                          onDragEnd={() => setSelectedPlayerForMove(null)}
                           onClick={() => {
                             if (!canMovePlayer(player.id)) return;
                             if (selectedPlayerForMove === player.id) {
@@ -1319,7 +1331,10 @@ export default function App() {
                           <div className="flex gap-1 pl-2">
                             {canMovePlayer(player.id) && (
                               <button
-                                onClick={() => deletePlayer(player.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deletePlayer(player.id);
+                                }}
                                 className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors opacity-0 group-hover:opacity-100"
                                 title="早退 (回到會員列表)"
                               >

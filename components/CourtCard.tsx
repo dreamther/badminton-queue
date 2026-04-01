@@ -219,6 +219,9 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                         e.dataTransfer.setData('source', 'court');
                                         e.dataTransfer.setData('courtId', String(court.id));
                                         e.dataTransfer.effectAllowed = 'move';
+                                    },
+                                    onDragEnd: () => {
+                                        if (onSelectPlayer) onSelectPlayer(null);
                                     }
                                 } : {})}
                                 {...(!player && onDropPlayer && !isWarmupDone ? {
