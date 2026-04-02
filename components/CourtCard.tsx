@@ -20,6 +20,7 @@ interface CourtCardProps {
     onMovePlayerToSlot?: (playerId: string, courtId: number, slotIdx: number) => void;
     canMovePlayer?: (playerId: string) => boolean;
     onRestPlayer?: (playerId: string) => void;
+    currentMemberName?: string | null;
 }
 
 export const CourtCard: React.FC<CourtCardProps> = ({
@@ -38,7 +39,8 @@ export const CourtCard: React.FC<CourtCardProps> = ({
     onSelectPlayer,
     onMovePlayerToSlot,
     canMovePlayer,
-    onRestPlayer
+    onRestPlayer,
+    currentMemberName
 }) => {
     const [elapsed, setElapsed] = useState<string>('00:00');
     const [isEditing, setIsEditing] = useState(false);
@@ -186,9 +188,11 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                             ? 'ring-2 ring-inset ring-blue-400 bg-indigo-500/15 border border-indigo-500/30 text-slate-200'
                                             : dragOverSlot === idx
                                                 ? 'bg-indigo-500/10 border border-indigo-500/50 border-dashed text-indigo-400 cursor-grab active:cursor-grabbing'
-                                                : !isWarmupDone
-                                                    ? 'bg-indigo-500/15 border border-indigo-500/30 text-slate-200 cursor-grab active:cursor-grabbing'
-                                                    : 'bg-slate-800/50 border border-slate-700/30 text-slate-200'
+                                                : player.name === currentMemberName
+                                                    ? `bg-slate-100/10 border border-slate-300/30 text-white shadow-[0_0_10px_rgba(255,255,255,0.05)] hover:bg-slate-100/20 transition-all ${!isWarmupDone ? 'cursor-grab active:cursor-grabbing' : ''}`
+                                                    : !isWarmupDone
+                                                        ? 'bg-indigo-500/15 border border-indigo-500/30 text-slate-200 cursor-grab active:cursor-grabbing'
+                                                        : 'bg-slate-800/50 border border-slate-700/30 text-slate-200'
                                         : dragOverSlot === idx
                                             ? 'bg-indigo-500/10 border border-indigo-500/50 border-dashed text-indigo-400'
                                             : selectedPlayerForMove !== null && !isWarmupDone
@@ -250,7 +254,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                     <>
                                         <div className="flex items-center flex-1 min-w-0">
                                             <PlayerAvatar identifier={player.name} className="w-2.5 h-2.5 mr-1 shrink-0" />
-                                            <span className="truncate font-medium">{player.name}</span>
+                                            <span className={`truncate ${player.name === currentMemberName ? 'text-white font-bold pl-0.5' : 'font-medium'}`}>{player.name}</span>
                                         </div>
                                         {onRestPlayer && (!canMovePlayer || canMovePlayer(player.id)) && (
                                             <button

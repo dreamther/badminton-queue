@@ -159,6 +159,13 @@ export default function App() {
   }, [currentUser, members, players]);
 
   // --- Derived Lists ---
+  const currentMemberName = useMemo(() => {
+    if (currentUser?.role === 'player') {
+      return members.find(m => m.id === currentUser.memberId)?.name;
+    }
+    return null;
+  }, [currentUser, members]);
+
   const queue = useMemo(() => {
     const playerMap = new Map(players.map(p => [p.id, p]));
     return queueSlots
@@ -170,9 +177,20 @@ export default function App() {
 
   // Filtered idle players based on search term
   const filteredIdlePlayers = useMemo(() => {
-    if (!restAreaSearchTerm) return idlePlayers;
-    return idlePlayers.filter(p => p.name.toLowerCase().includes(restAreaSearchTerm.toLowerCase()));
-  }, [idlePlayers, restAreaSearchTerm]);
+    let result = idlePlayers;
+    if (restAreaSearchTerm) {
+      result = idlePlayers.filter(p => p.name.toLowerCase().includes(restAreaSearchTerm.toLowerCase()));
+    }
+    
+    if (currentMemberName) {
+      result = [...result].sort((a, b) => {
+        if (a.name === currentMemberName) return -1;
+        if (b.name === currentMemberName) return 1;
+        return 0; // maintain relative order
+      });
+    }
+    return result;
+  }, [idlePlayers, restAreaSearchTerm, currentMemberName]);
   const totalActivePlayers = useMemo(() => players.filter(p => p.status === 'playing').length, [players]);
   const idleCourtsCount = useMemo(() => courts.filter(c => c.startTime === null).length, [courts]);
 
@@ -1232,9 +1250,13 @@ export default function App() {
                                       >
                                         <div
                                           title="排隊成員"
-                                          className="w-full h-full flex items-center justify-between px-2.5 py-1.5 rounded-[10px] bg-slate-800/50 hover:bg-slate-700/60 transition-colors text-left min-w-0 border border-slate-700/30"
+                                          className={`w-full h-full flex items-center justify-between px-2.5 py-1.5 rounded-[10px] transition-colors text-left min-w-0 border ${
+                                            item.data.name === currentMemberName 
+                                              ? 'bg-slate-100/10 hover:bg-slate-100/20 border-slate-300/30 shadow-[0_0_10px_rgba(255,255,255,0.05)]' 
+                                              : 'bg-slate-800/50 hover:bg-slate-700/60 border-slate-700/30'
+                                          }`}
                                         >
-                                          <span className="flex items-center gap-1.5 text-sm font-medium text-slate-300 min-w-0">
+                                          <span className={`flex items-center gap-1.5 text-sm min-w-0 ${item.data.name === currentMemberName ? 'text-white font-bold' : 'text-slate-300 font-medium'}`}>
                                             <PlayerAvatar identifier={item.data.name} className="w-2.5 h-2.5 shrink-0" />
                                             <span className="truncate">{item.data.name}</span>
                                           </span>
@@ -1382,6 +1404,7 @@ export default function App() {
                     </div>
                   ) : (
                     filteredIdlePlayers.map(player => {
+                      const isSelf = player.name === currentMemberName;
                       return (
                         <div
                           key={player.id}
@@ -1405,7 +1428,9 @@ export default function App() {
                               ? 'bg-slate-800/50 border-slate-800 ring-2 ring-inset ring-blue-400 cursor-pointer'
                               : selectedPlayerForMove !== null
                                 ? 'bg-slate-800/50 border-slate-800 hover:border-slate-700 cursor-pointer'
-                                : canMovePlayer(player.id) ? 'bg-transparent border-transparent hover:bg-slate-800/50 hover:border-slate-800 cursor-grab active:cursor-grabbing' : 'bg-transparent border-transparent cursor-not-allowed opacity-80'
+                                : canMovePlayer(player.id) 
+                                  ? (isSelf ? 'bg-slate-100/10 border-slate-300/30 hover:bg-slate-100/15 shadow-[0_0_8px_rgba(255,255,255,0.03)] cursor-grab active:cursor-grabbing' : 'bg-transparent border-transparent hover:bg-slate-800/50 hover:border-slate-800 cursor-grab active:cursor-grabbing')
+                                  : 'bg-transparent border-transparent cursor-not-allowed opacity-80'
                           }`}
                         >
                           <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -1413,7 +1438,7 @@ export default function App() {
                               <div className="flex flex-col min-w-0">
                                 <div className="flex items-center gap-1.5">
                                   <PlayerAvatar identifier={player.name} className="w-3.5 h-3.5 shrink-0" />
-                                  <span className="text-sm text-slate-300 truncate">
+                                  <span className={`text-sm truncate ${isSelf ? 'text-white font-bold' : 'text-slate-300'}`}>
                                     {player.name}
                                   </span>
                                 </div>
@@ -1778,6 +1803,7 @@ export default function App() {
                 onSelectPlayer={setSelectedPlayerForMove}
                 onMovePlayerToSlot={movePlayerToCourtSlot}
                 canMovePlayer={canMovePlayer}
+                currentMemberName={currentMemberName}
               />
             ))}
           </div>
