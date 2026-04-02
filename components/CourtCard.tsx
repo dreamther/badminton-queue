@@ -258,7 +258,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                                 e.stopPropagation();
                                                 onRestPlayer(player.id);
                                               }}
-                                              className="p-1 -mr-1 text-slate-500 hover:text-amber-400 hover:bg-slate-800 transition-colors rounded opacity-0 group-hover:opacity-100"
+                                              className="p-1 -mr-1 text-slate-500 hover:text-amber-400 transition-colors rounded opacity-0 group-hover:opacity-100"
                                               title="讓球員休息"
                                             >
                                               <Coffee className="w-3.5 h-3.5" />

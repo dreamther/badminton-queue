@@ -18,7 +18,14 @@ export default function App() {
   const [isLoggingInAsPlayer, setIsLoggingInAsPlayer] = useState(false);
   const [loginSearchTerm, setLoginSearchTerm] = useState('');
 
-  const [activeTab, setActiveTab] = useState<Tab>('members');
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    const saved = localStorage.getItem('badminton_current_user');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return parsed.role === 'player' ? 'queue' : 'members';
+    }
+    return 'members';
+  });
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); // New: Sidebar toggle state
   const [currentTime, setCurrentTime] = useState(new Date()); // New: Clock state
   const [isAutoAnnounce, setIsAutoAnnounce] = useState(true); // New: Auto announce toggle
@@ -941,7 +948,10 @@ export default function App() {
           {!isLoggingInAsPlayer ? (
             <div className="space-y-4">
               <button
-                onClick={() => setCurrentUser({ role: 'admin' })}
+                onClick={() => {
+                  setCurrentUser({ role: 'admin' });
+                  setActiveTab('members');
+                }}
                 className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/20"
               >
                 <Users className="w-5 h-5" />
@@ -985,6 +995,7 @@ export default function App() {
                       key={member.id}
                       onClick={() => {
                         setCurrentUser({ role: 'player', memberId: member.id });
+                        setActiveTab('queue');
                         checkInMember(member);
                       }}
                       className="w-full flex items-center gap-3 p-3 bg-slate-950/50 hover:bg-slate-800 border border-slate-800 rounded-lg transition-colors text-left group"
@@ -1107,16 +1118,18 @@ export default function App() {
 
         {/* Tabs */}
         <div className="flex border-b border-slate-800 px-2">
-          <button
-            onClick={() => setActiveTab('members')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'members'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-700'
-              }`}
-          >
-            <Users className="w-4 h-4" />
-            報到區
-          </button>
+          {currentUser?.role !== 'player' && (
+            <button
+              onClick={() => setActiveTab('members')}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'members'
+                ? 'border-indigo-500 text-indigo-400'
+                : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-700'
+                }`}
+            >
+              <Users className="w-4 h-4" />
+              報到區
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('queue')}
             className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'queue'
