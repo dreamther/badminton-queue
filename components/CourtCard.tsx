@@ -18,6 +18,9 @@ interface CourtCardProps {
     selectedPlayerForMove?: string | null;
     onSelectPlayer?: (playerId: string | null) => void;
     onMovePlayerToSlot?: (playerId: string, courtId: number, slotIdx: number) => void;
+    canMovePlayer?: (playerId: string) => boolean;
+    onRestPlayer?: (playerId: string) => void;
+    currentMemberName?: string | null;
 }
 
 export const CourtCard: React.FC<CourtCardProps> = ({
@@ -34,14 +37,18 @@ export const CourtCard: React.FC<CourtCardProps> = ({
     isWarmupDone = false,
     selectedPlayerForMove = null,
     onSelectPlayer,
-    onMovePlayerToSlot
+    onMovePlayerToSlot,
+    canMovePlayer,
+    onRestPlayer,
+    currentMemberName
 }) => {
     const [elapsed, setElapsed] = useState<string>('00:00');
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(court.name);
     const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
 
-    const hasPlayers = playersOnCourt.length > 0;
+    const activePlayersCount = playersOnCourt.filter(Boolean).length;
+    const hasPlayers = activePlayersCount > 0;
     const isMatchStarted = court.startTime !== null;
 
     // Can start if queue has valid match group and court is empty
@@ -160,7 +167,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                     {hasPlayers && !isMatchStarted && (
                         <div className="flex items-center gap-1 text-xs text-amber-400 bg-amber-950/50 px-1.5 py-0.5 rounded">
                             <Users className="w-3 h-3" />
-                            {playersOnCourt.length}/{MAX_PLAYERS_PER_COURT}
+                            {activePlayersCount}/{MAX_PLAYERS_PER_COURT}
                         </div>
                     )}
                 </div>
@@ -175,15 +182,17 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                         return (
                             <div
                                 key={`slot-${idx}`}
-                                className={`h-10 flex items-center gap-2 px-2 rounded-lg text-sm transition-all cursor-pointer
+                                className={`group h-10 flex items-center gap-2 px-2 rounded-lg text-sm transition-all cursor-pointer
                                 ${player
                                         ? selectedPlayerForMove === player.id
                                             ? 'ring-2 ring-inset ring-blue-400 bg-indigo-500/15 border border-indigo-500/30 text-slate-200'
                                             : dragOverSlot === idx
                                                 ? 'bg-indigo-500/10 border border-indigo-500/50 border-dashed text-indigo-400 cursor-grab active:cursor-grabbing'
-                                                : !isWarmupDone
-                                                    ? 'bg-indigo-500/15 border border-indigo-500/30 text-slate-200 cursor-grab active:cursor-grabbing'
-                                                    : 'bg-slate-800/50 border border-slate-700/30 text-slate-200'
+                                                : player.name === currentMemberName
+                                                    ? `bg-slate-100/10 border border-slate-300/30 text-white shadow-[0_0_10px_rgba(255,255,255,0.05)] hover:bg-slate-100/20 transition-all ${!isWarmupDone ? 'cursor-grab active:cursor-grabbing' : ''}`
+                                                    : !isWarmupDone
+                                                        ? 'bg-indigo-500/15 border border-indigo-500/30 text-slate-200 cursor-grab active:cursor-grabbing'
+                                                        : 'bg-slate-800/50 border border-slate-700/30 text-slate-200'
                                         : dragOverSlot === idx
                                             ? 'bg-indigo-500/10 border border-indigo-500/50 border-dashed text-indigo-400'
                                             : selectedPlayerForMove !== null && !isWarmupDone
@@ -192,12 +201,15 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                     }`}
                                 onClick={() => {
                                     if (onSelectPlayer && !isWarmupDone) {
-                                        // 有球員的位子：只在沒有選中任何人時可以選擇
+                                        // 有球員的位子：只在沒有選中任何人時可以選擇，且必須有權限移動該球員
                                         if (player) {
-                                            if (selectedPlayerForMove === null) {
-                                                onSelectPlayer(player.id);
-                                            } else if (selectedPlayerForMove === player.id) {
-                                                onSelectPlayer(null);
+                                            const hasPermission = canMovePlayer ? canMovePlayer(player.id) : true;
+                                            if (hasPermission) {
+                                                if (selectedPlayerForMove === null) {
+                                                    onSelectPlayer(player.id);
+                                                } else if (selectedPlayerForMove === player.id) {
+                                                    onSelectPlayer(null);
+                                                }
                                             }
                                         }
                                         // 空位：只在已經選中某人時可以點擊移動
@@ -207,16 +219,19 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                         }
                                     }
                                 }}
-                                {...(player && !isWarmupDone ? {
+                                {...(player && !isWarmupDone && (!canMovePlayer || canMovePlayer(player.id)) ? {
                                     draggable: true,
                                     onDragStart: (e: React.DragEvent) => {
                                         e.dataTransfer.setData('text/plain', player.id);
                                         e.dataTransfer.setData('source', 'court');
                                         e.dataTransfer.setData('courtId', String(court.id));
                                         e.dataTransfer.effectAllowed = 'move';
+                                    },
+                                    onDragEnd: () => {
+                                        if (onSelectPlayer) onSelectPlayer(null);
                                     }
                                 } : {})}
-                                {...(!player && onDropPlayer && !isWarmupDone ? {
+                                {...(!player && !isWarmupDone && (onMovePlayerToSlot || onDropPlayer) ? {
                                     onDragOver: (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; },
                                     onDragEnter: (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setDragOverSlot(idx); },
                                     onDragLeave: (e: React.DragEvent) => { e.stopPropagation(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverSlot(null); },
@@ -225,14 +240,34 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                         e.stopPropagation();
                                         setDragOverSlot(null);
                                         const playerId = e.dataTransfer.getData('text/plain');
-                                        if (playerId) onDropPlayer(court.id, playerId);
+                                        if (playerId) {
+                                            if (onMovePlayerToSlot) {
+                                                onMovePlayerToSlot(playerId, court.id, idx);
+                                            } else if (onDropPlayer) {
+                                                onDropPlayer(court.id, playerId);
+                                            }
+                                        }
                                     }
                                 } : {})}
                             >
                                 {player ? (
                                     <>
-                                        <PlayerAvatar identifier={player.name} className="w-2.5 h-2.5 mr-1" />
-                                        <span className="truncate font-medium">{player.name}</span>
+                                        <div className="flex items-center flex-1 min-w-0">
+                                            <PlayerAvatar identifier={player.name} className="w-2.5 h-2.5 mr-1 shrink-0" />
+                                            <span className={`truncate ${player.name === currentMemberName ? 'text-white font-bold pl-0.5' : 'font-medium'}`}>{player.name}</span>
+                                        </div>
+                                        {onRestPlayer && (!canMovePlayer || canMovePlayer(player.id)) && (
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                onRestPlayer(player.id);
+                                              }}
+                                              className="p-1 -mr-1 text-slate-500 hover:text-amber-400 transition-colors rounded opacity-0 group-hover:opacity-100"
+                                              title="讓球員休息"
+                                            >
+                                              <Coffee className="w-3.5 h-3.5" />
+                                            </button>
+                                        )}
                                     </>
                                 ) : (
                                     <span className="text-xs w-full text-center opacity-50">{selectedPlayerForMove && !isWarmupDone ? '移動到此' : '空位'}</span>
@@ -278,7 +313,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                         <div className="w-full h-full flex items-center justify-center gap-2 rounded-lg font-medium text-sm
                             bg-amber-500/10 text-amber-400 border border-amber-500/20">
                             <Users className="w-4 h-4" />
-                            等待中 ({playersOnCourt.length}/{MAX_PLAYERS_PER_COURT})
+                            等待中 ({activePlayersCount}/{MAX_PLAYERS_PER_COURT})
                         </div>
                     )}
                 </div>
