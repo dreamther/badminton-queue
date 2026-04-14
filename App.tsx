@@ -1234,26 +1234,6 @@ export default function App() {
 
       {/* Mobile Global Tabs */}
       <div className="lg:hidden flex border-b border-slate-800 px-2 shrink-0 bg-slate-950 z-10">
-          <button
-            onClick={() => setActiveTab('courts')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'courts'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-700'
-              }`}
-          >
-            <Trophy className="w-4 h-4" />
-            場地看板
-          </button>
-          <button
-            onClick={() => setActiveTab('queue')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'queue'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-700'
-              }`}
-          >
-            <Swords className="w-4 h-4" />
-            排隊區
-          </button>
           {currentUser?.role !== 'player' && (
             <button
               onClick={() => setActiveTab('members')}
@@ -1266,6 +1246,26 @@ export default function App() {
               報到區
             </button>
           )}
+          <button
+            onClick={() => setActiveTab('queue')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'queue'
+              ? 'border-indigo-500 text-indigo-400'
+              : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-700'
+              }`}
+          >
+            <Swords className="w-4 h-4" />
+            排隊區
+          </button>
+          <button
+            onClick={() => setActiveTab('courts')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'courts'
+              ? 'border-indigo-500 text-indigo-400'
+              : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-700'
+              }`}
+          >
+            <Trophy className="w-4 h-4" />
+            場地區
+          </button>
       </div>
 
       <div className="flex flex-1 min-h-0 overflow-hidden relative">
