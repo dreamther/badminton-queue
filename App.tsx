@@ -1819,32 +1819,31 @@ export default function App() {
       </div>
 
       {/* Rest Area Bottom Sheet (Mobile + Desktop) */}
-      {isRestAreaOpen && (
-        <div className="fixed inset-0 z-[70] flex flex-col justify-end">
-           <div className="absolute inset-0 bg-black/60" onClick={() => setIsRestAreaOpen(false)} />
-           <div className="relative w-full lg:max-w-2xl lg:mx-auto bg-slate-950 border-t border-slate-800 lg:rounded-t-3xl rounded-t-3xl shadow-2xl flex flex-col h-[65vh] max-h-[85vh] animate-in slide-in-from-bottom-full pb-safe">
-              <div className="shrink-0 flex justify-center py-3" onClick={() => setIsRestAreaOpen(false)}>
-                <div className="w-12 h-1.5 bg-slate-800 rounded-full" />
-              </div>
-              <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
-                <div className="pb-6 flex-1 flex flex-col">
-                  {renderRestArea()}
-                </div>
-              </div>
-           </div>
+      <div className={`fixed inset-0 z-[70] flex flex-col justify-end transition-all duration-300 ${isRestAreaOpen ? '' : 'pointer-events-none'}`}>
+        <div
+          className={`absolute inset-0 bg-black/60 transition-opacity duration-300 ${isRestAreaOpen ? 'opacity-100' : 'opacity-0'}`}
+          onClick={() => setIsRestAreaOpen(false)}
+        />
+        <div className={`relative w-full lg:max-w-2xl lg:mx-auto bg-slate-950 border-t border-slate-800 rounded-t-3xl shadow-2xl flex flex-col max-h-[40vh] pb-safe transition-transform duration-300 ease-out ${isRestAreaOpen ? 'translate-y-0' : 'translate-y-full'}`}>
+          <div className="shrink-0 flex justify-center py-3 cursor-pointer" onClick={() => setIsRestAreaOpen(false)}>
+            <div className="w-12 h-1.5 bg-slate-700 rounded-full" />
+          </div>
+          <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+            <div className="pb-6 flex-1 flex flex-col">
+              {renderRestArea()}
+            </div>
+          </div>
         </div>
-      )}
+      </div>
       
       {/* Rest Area FAB (Mobile + Desktop) */}
-      {activeTab !== 'members' && (
-      <button 
-         onClick={() => setIsRestAreaOpen(true)}
-         className="fixed bottom-6 right-6 z-40 bg-slate-800 hover:bg-slate-700 text-white shadow-2xl shadow-indigo-500/10 rounded-full py-3.5 px-6 flex items-center gap-2 border border-slate-700 transition-all font-medium animate-[fadeIn_0.3s_ease-out]"
+      <button
+        onClick={() => setIsRestAreaOpen(true)}
+        className="fixed bottom-6 right-6 z-40 bg-slate-800 hover:bg-slate-700 text-white shadow-2xl shadow-indigo-500/10 rounded-full py-3.5 px-6 flex items-center gap-2 border border-slate-700 transition-all font-medium animate-[fadeIn_0.3s_ease-out]"
       >
-         <Coffee className="w-5 h-5 text-amber-400" />
-         休息區 <span className="bg-slate-950 text-amber-400 px-2 py-0.5 rounded-full text-xs shrink-0 font-bold ml-1">{idlePlayers.length}</span>
+        <Coffee className="w-5 h-5 text-amber-400" />
+        休息區 <span className="bg-slate-950 text-amber-400 px-2 py-0.5 rounded-full text-xs shrink-0 font-bold ml-1">{idlePlayers.length}</span>
       </button>
-      )}
 
       {/* Check-in Success Modal */}
       {checkInSuccessName && (
