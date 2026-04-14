@@ -1825,10 +1825,7 @@ export default function App() {
           onClick={() => setIsRestAreaOpen(false)}
         />
         <div className={`relative w-full lg:max-w-2xl lg:mx-auto bg-slate-950 border-t border-slate-800 rounded-t-3xl shadow-2xl flex flex-col max-h-[40vh] pb-safe transition-transform duration-300 ease-out ${isRestAreaOpen ? 'translate-y-0' : 'translate-y-full'}`}>
-          <div className="shrink-0 flex justify-center py-3 cursor-pointer" onClick={() => setIsRestAreaOpen(false)}>
-            <div className="w-12 h-1.5 bg-slate-700 rounded-full" />
-          </div>
-          <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+          <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pt-2">
             <div className="pb-6 flex-1 flex flex-col">
               {renderRestArea()}
             </div>
