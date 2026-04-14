@@ -1039,7 +1039,7 @@ export default function App() {
   }
 
   const renderRestArea = () => (
-    <div className="flex-1 flex flex-col min-h-0 bg-slate-950 p-2 lg:p-4">
+    <div className="flex-1 flex flex-col min-h-0 bg-slate-950 px-4 py-3 lg:px-5">
       <div className="space-y-4 mb-3">
         {/* Header with Search Icon */}
         <div className="flex items-center justify-between min-h-[32px]">
@@ -1119,13 +1119,11 @@ export default function App() {
                 className={`flex items-center gap-1.5 pl-1.5 pr-2.5 py-1.5 rounded-full border transition-all select-none
                   ${selectedPlayerForMove === player.id
                     ? 'bg-slate-800 border-slate-700 ring-2 ring-inset ring-blue-400 cursor-pointer shadow-lg'
-                    : selectedPlayerForMove !== null
-                      ? 'bg-slate-800/80 border-slate-700 hover:bg-slate-700 cursor-pointer opacity-80'
-                      : canMovePlayer(player.id)
-                        ? (isSelf 
-                            ? 'bg-slate-100/15 border-slate-300/40 hover:bg-slate-100/20 shadow-[0_0_8px_rgba(255,255,255,0.05)] cursor-grab active:cursor-grabbing font-bold' 
-                            : 'bg-slate-800/60 border-slate-700 hover:bg-slate-700 cursor-grab active:cursor-grabbing')
-                        : 'bg-transparent border-transparent cursor-not-allowed opacity-50 grayscale'
+                    : canMovePlayer(player.id)
+                      ? (isSelf
+                          ? 'bg-slate-100/15 border-slate-300/40 hover:bg-slate-100/20 shadow-[0_0_8px_rgba(255,255,255,0.05)] cursor-grab active:cursor-grabbing font-bold'
+                          : 'bg-slate-800/60 border-slate-700 hover:bg-slate-700 cursor-grab active:cursor-grabbing')
+                      : 'bg-slate-800/40 border-slate-700/50 cursor-default'
                   }`}
               >
                 <PlayerAvatar identifier={player.name} className="w-5 h-5 shrink-0" />
