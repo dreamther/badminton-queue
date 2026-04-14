@@ -1486,12 +1486,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Divider (Desktop Only) */}
-                <div className="hidden lg:block h-px bg-slate-800 mx-6 my-2"></div>
-                {/* Desktop Bench / Idle Section */}
-                <div className="hidden lg:flex flex-1 flex-col border-t lg:border-none border-slate-800 bg-slate-950">
-                  {renderRestArea()}
-                </div>
+
               </div>
             )}
 
@@ -1823,11 +1818,11 @@ export default function App() {
 
       </div>
 
-      {/* Mobile Rest Area Bottom Sheet */}
+      {/* Rest Area Bottom Sheet (Mobile + Desktop) */}
       {isRestAreaOpen && (
-        <div className="fixed inset-0 z-[70] lg:hidden flex flex-col justify-end">
+        <div className="fixed inset-0 z-[70] flex flex-col justify-end">
            <div className="absolute inset-0 bg-black/60" onClick={() => setIsRestAreaOpen(false)} />
-           <div className="relative bg-slate-950 border-t border-slate-800 rounded-t-3xl shadow-2xl flex flex-col h-[65vh] max-h-[85vh] animate-in slide-in-from-bottom-full pb-safe">
+           <div className="relative w-full lg:max-w-2xl lg:mx-auto bg-slate-950 border-t border-slate-800 lg:rounded-t-3xl rounded-t-3xl shadow-2xl flex flex-col h-[65vh] max-h-[85vh] animate-in slide-in-from-bottom-full pb-safe">
               <div className="shrink-0 flex justify-center py-3" onClick={() => setIsRestAreaOpen(false)}>
                 <div className="w-12 h-1.5 bg-slate-800 rounded-full" />
               </div>
@@ -1840,11 +1835,11 @@ export default function App() {
         </div>
       )}
       
-      {/* Mobile Rest Area FAB */}
+      {/* Rest Area FAB (Mobile + Desktop) */}
       {activeTab !== 'members' && (
       <button 
          onClick={() => setIsRestAreaOpen(true)}
-         className="lg:hidden fixed bottom-6 right-6 z-40 bg-slate-800 hover:bg-slate-700 text-white shadow-2xl shadow-indigo-500/10 rounded-full py-3.5 px-6 flex items-center gap-2 border border-slate-700 transition-all font-medium animate-[fadeIn_0.3s_ease-out]"
+         className="fixed bottom-6 right-6 z-40 bg-slate-800 hover:bg-slate-700 text-white shadow-2xl shadow-indigo-500/10 rounded-full py-3.5 px-6 flex items-center gap-2 border border-slate-700 transition-all font-medium animate-[fadeIn_0.3s_ease-out]"
       >
          <Coffee className="w-5 h-5 text-amber-400" />
          休息區 <span className="bg-slate-950 text-amber-400 px-2 py-0.5 rounded-full text-xs shrink-0 font-bold ml-1">{idlePlayers.length}</span>
