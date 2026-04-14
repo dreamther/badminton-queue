@@ -1088,7 +1088,7 @@ export default function App() {
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto scrollbar-gutter-stable flex flex-wrap content-start gap-2 pt-1 pb-16 lg:pb-1">
+      <div className="flex-1 overflow-y-auto scrollbar-gutter-stable flex flex-wrap content-start gap-2 pt-1 pb-1">
         {filteredIdlePlayers.length === 0 ? (
           <div className="w-full py-8 text-center text-slate-500 text-sm">
             <p>{restAreaSearchTerm ? '沒有符合的球員' : '休息區空空如也'}</p>
@@ -1273,8 +1273,8 @@ export default function App() {
         <aside
           className={`
             bg-slate-950 border-r border-slate-800 flex-col shrink-0 shadow-2xl lg:shadow-none
-            lg:w-[25rem] lg:relative lg:flex
-            ${activeTab === 'courts' ? 'hidden' : 'flex flex-1 w-full z-10'}
+            lg:w-[25rem] lg:relative lg:flex lg:flex-initial
+            ${activeTab === 'courts' ? 'hidden' : 'flex flex-1 w-full lg:w-[25rem] z-10 lg:z-auto'}
           `}
         >
           {/* Desktop Tabs */}
