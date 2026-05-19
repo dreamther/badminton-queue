@@ -467,10 +467,12 @@ export default function App() {
 
   // Check In: Add member to session players (Bench)
   const checkInMember = useCallback((member: Member) => {
-    if (players.some(p => p.name === member.name)) return;
+    const existingPlayer = players.find(p => p.name === member.name);
+    if (existingPlayer) return existingPlayer.id;
 
+    const newId = crypto.randomUUID();
     const newPlayer: Player = {
-      id: crypto.randomUUID(),
+      id: newId,
       name: member.name,
       status: 'idle',
       level: member.level,
@@ -484,6 +486,8 @@ export default function App() {
     setTimeout(() => {
       setCheckInSuccessName(null);
     }, 2000);
+    
+    return newId;
   }, [players]);
 
   const removeMember = useCallback((memberId: string) => {
@@ -1018,7 +1022,10 @@ export default function App() {
                       onClick={() => {
                         setCurrentUser({ role: 'player', memberId: member.id });
                         setActiveTab('queue');
-                        checkInMember(member);
+                        const playerId = checkInMember(member);
+                        if (playerId) {
+                          setSelectedPlayerForMove(playerId);
+                        }
                       }}
                       className="w-full flex items-center gap-3 p-3 bg-slate-950/50 hover:bg-slate-800 border border-slate-800 rounded-lg transition-colors text-left group"
                     >
