@@ -1191,7 +1191,7 @@ export default function App() {
                       <UserCheck className="w-4 h-4 text-indigo-400" />
                     )}
                   </div>
-                  <span className="text-sm text-slate-300 font-medium whitespace-nowrap hidden sm:inline-block md:hidden xl:inline-block">
+                  <span className="text-sm text-slate-300 font-medium whitespace-nowrap hidden min-[375px]:inline-block">
                     {currentUser?.role === 'admin' ? '團主' : members.find(m => m.id === currentUser?.memberId)?.name || '球員'}
                   </span>
                   <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
