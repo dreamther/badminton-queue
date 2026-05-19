@@ -1,6 +1,6 @@
 # 羽球排隊助手 — 專案規格書 (spec.md)
 
-> **最後更新**：2026-04-02
+> **最後更新**：2026-05-19
 > 本文件記錄專案的架構、流程與功能，供後續開發者快速理解並確保一致性。
 
 ---
@@ -253,7 +253,9 @@ interface CurrentUser {
 | --- | --- | --- | --- |
 | 熱身開關 | 控制是否為熱身階段 | `handleWarmupToggle()` | admin |
 | 打球結束 | 一鍵清空所有活動球員（回會員列表） | `resetSession()` | admin |
-| 側邊欄收合 | 行動裝置可關閉/開啟側邊欄 | `isSidebarOpen` | 全部 |
+| 行動裝置 Tab | 行動裝置使用底部 Tab 切換畫面（報到/排隊/場地） | `activeTab` | 全部 |
+| 休息區面板 | 使用懸浮按鈕 (FAB) 開啟底部抽屜 (Bottom Sheet) 顯示休息區 | `isRestAreaOpen` | 全部 |
+| 行動模式 Header | 點選球員移動時，頂部替換為操作提示及早退/取消按鈕 | `showGlobalBanner` | 全部 |
 | 報到成功提示 | 報到後自動顯示 2 秒成功 Modal | `checkInSuccessName` | — |
 | 鍵盤快捷鍵 | Escape 取消選中的球員 | `useEffect` (keydown) | — |
 | 即時時鐘 | 每秒更新（用於場地計時） | `useEffect` (setInterval) | — |
@@ -277,28 +279,27 @@ interface CurrentUser {
 ```
 ┌──────────────────────────────────────────────────────┐
 │                  (整個畫面 h-full)                     │
+│  ┌────────────────────────────────────────────────┐  │
+│  │ Global Header (一般模式 / Action Mode 提示)       │  │
+│  └────────────────────────────────────────────────┘  │
 │  ┌──────────────┐  ┌──────────────────────────────┐  │
 │  │   Sidebar    │  │         Main Content          │  │
 │  │  (w-[25rem]) │  │         (flex-1)              │  │
-│  │              │  │  ┌──────────────────────────┐ │  │
-│  │  ┌────────┐  │  │  │       Toolbar            │ │  │
-│  │  │App     │  │  │  │ 場地狀況 / 場地±/ 熱身   │ │  │
-│  │  │Header  │  │  │  │ / 打球結束              │ │  │
-│  │  │(含     │  │  │  └──────────────────────────┘ │  │
-│  │  │ Profile│  │  │  ┌──────────────────────────┐ │  │
-│  │  │Dropdown│  │  │  │    Courts Grid           │ │  │
-│  │  └────────┘  │  │  │  ┌──────┐  ┌──────┐     │ │  │
-│  │  ┌────────┐  │  │  │  │Court1│  │Court2│ ... │ │  │
-│  │  │  Tabs  │  │  │  │  └──────┘  └──────┘     │ │  │
-│  │  │報到(*)/ │  │  │  │  ┌──────┐  ┌──────┐     │ │  │
-│  │  │排隊    │  │  │  │  │Court3│  │Court4│ ... │ │  │
+│  │  ┌────────┐  │  │  ┌──────────────────────────┐ │  │
+│  │  │  Tabs  │  │  │  │       Toolbar            │ │  │
+│  │  │報到/排隊│  │  │  │ 場地狀況 / 場地± / 熱身   │ │  │
+│  │  └────────┘  │  │  └──────────────────────────┘ │  │
+│  │  ┌────────┐  │  │  ┌──────────────────────────┐ │  │
+│  │  │  Tab   │  │  │  │    Courts Grid           │ │  │
+│  │  │Content │  │  │  │  ┌──────┐  ┌──────┐     │ │  │
+│  │  │(scroll)│  │  │  │  │Court1│  │Court2│ ... │ │  │
 │  │  └────────┘  │  │  │  └──────┘  └──────┘     │ │  │
-│  │  ┌────────┐  │  │  └──────────────────────────┘ │  │
-│  │  │  Tab   │  │  └──────────────────────────────┘  │
-│  │  │Content │  │                                    │
-│  │  │(scroll)│  │  (*) 報到區僅 admin 可見            │
-│  │  └────────┘  │                                    │
-│  └──────────────┘                                    │
+│  └──────────────┘  │  └──────────────────────────┘ │  │
+│                    └──────────────────────────────┘  │
+│  ┌────────────────────────────────────────────────┐  │
+│  │ Mobile Tabs (僅行動版顯示：報到/排隊/場地)           │  │
+│  └────────────────────────────────────────────────┘  │
+│  [ FAB 懸浮按鈕：休息區 (點擊彈出 Bottom Sheet) ]        │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -312,6 +313,8 @@ interface CurrentUser {
 | `LevelSelector` | `App.tsx` 內 | 技能等級切換按鈕（行內元件） |
 | 登入畫面 | `App.tsx` 內 | 角色選擇（團主 / 球員）與球員身分選擇搜尋 |
 | Profile Dropdown | `App.tsx` 內 | 顯示當前登入身分，提供登出/切換功能，click-outside 自動關閉 |
+| Action Mode Header | `App.tsx` 內 | 點選球員移動時，取代原有 Header，提供放置提示、早退與取消操作 |
+| 休息區 (Rest Area) | `App.tsx` 內 | 以懸浮按鈕 (FAB) 及 Bottom Sheet 實作，支援快速搜尋與點選拖拉 |
 
 ### 7.3 CourtCard 狀態視覺
 
@@ -345,10 +348,11 @@ interface CurrentUser {
 | `members` | `Member[]` | 會員名冊 | ✅ localStorage |
 | `queueSlots` | `(string \| null)[]` | 排隊順序（slot-based，null=空位） | ❌ |
 | `isWarmupDone` | `boolean` | 熱身是否結束 | ❌ |
-| `activeTab` | `'queue' \| 'members'` | 側邊欄 Tab（player 預設 queue，admin 預設 members） | ❌ |
-| `isSidebarOpen` | `boolean` | 側邊欄展開狀態 | ❌ |
+| `activeTab` | `'courts' \| 'queue' \| 'members'` | 主畫面 Tab 切換（支援行動版及桌面版側邊欄） | ❌ |
+| `isRestAreaOpen` | `boolean` | 休息區底部抽屜 (Bottom Sheet) 開關狀態 | ❌ |
 | `isAutoAnnounce` | `boolean` | 是否自動語音播報 | ❌ |
 | `selectedPlayerForMove` | `string \| null` | 點選移動模式中被選中的球員 | ❌ |
+| `showGlobalBanner` | `boolean` | 是否顯示 Action Mode Header | ❌ |
 | `isProfileMenuOpen` | `boolean` | Profile Dropdown 開關 | ❌ |
 
 ### 8.2 衍生資料（useMemo）
@@ -445,9 +449,10 @@ npm run dev     # 啟動 dev server (port 3000)
 - **Hover 顯示**：次要操作按鈕預設隱藏，hover 時顯示（`opacity-0 group-hover:opacity-100`）
 - **自己高亮**：登入者自身的球員卡片以白色粗體顯示名字，並加上淡白底（`bg-slate-100/10`）
 - **響應式設計**：
-  - 行動版：sidebar 以 fixed overlay 呈現，透過 `translate-x` 滑出
-  - 桌面版：sidebar 固定、場地 grid 自適應欄數 (`sm:grid-cols-2 2xl:grid-cols-3`)
-- **Profile Dropdown**：使用 `useRef` + `mousedown` 的 click-outside 機制關閉，不使用 `onBlur`
+  - 行動版：使用底部 Tab 切換主要視圖；休息區改用懸浮按鈕 (FAB) 觸發 Bottom Sheet。
+  - 桌面版：左側 Sidebar 固定顯示報到/排隊，右側為場地 grid (`sm:grid-cols-2 2xl:grid-cols-3`)。
+- **Profile Dropdown**：使用 `useRef` + `mousedown` 的 click-outside 機制關閉，不使用 `onBlur`。
+- **Action Mode**：點選球員準備移動時，頂部 Header 會切換為醒目的提示列，方便進行放置、早退或取消。
 
 ### 11.3 語音播報規範
 
