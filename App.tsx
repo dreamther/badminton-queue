@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Users, Activity, Coffee, ArrowRight, RotateCcw, Trash2, Trophy, Plus, Minus, Volume2, VolumeX, X, Swords, UserCheck, Search, CheckCircle2, ChevronDown, ChevronRight, Unlink, ArrowUp, PanelLeft, LogOut, UserX, ChevronUp, Flame, Lock, UserPlus, Upload, Settings, MoreVertical } from 'lucide-react';
+import { Users, Activity, Coffee, ArrowRight, RotateCcw, Trash2, Trophy, Plus, Minus, Volume2, VolumeX, X, Swords, UserCheck, Search, CheckCircle2, ChevronDown, ChevronRight, Unlink, ArrowUp, PanelLeft, LogOut, UserX, ChevronUp, Flame, Lock, UserPlus, Upload, Settings, MoreVertical, Power } from 'lucide-react';
 import { Player, Court, Member, INITIAL_COURT_COUNT, MAX_PLAYERS_PER_COURT, SkillLevel, SKILL_LEVELS, CurrentUser, UserRole } from './types';
 import { CourtCard } from './components/CourtCard';
 import { PlayerAvatar } from './components/PlayerAvatar';
@@ -1151,13 +1151,13 @@ export default function App() {
         const p = players.find(p => p.id === selectedPlayerForMove);
         if (!p) return null;
         return (
-          <header className="px-4 py-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between z-20 shrink-0 animate-in fade-in duration-200">
+          <header className="px-4 py-3 bg-indigo-950 border-b border-indigo-900/50 flex items-center justify-between z-20 shrink-0 animate-in fade-in duration-200">
             <div className="flex items-center justify-between w-full flex-1">
               <div className="flex items-center gap-3">
                  <PlayerAvatar identifier={p.name} className="w-9 h-9 shrink-0 rounded-full shadow-sm" />
                  <div className="flex flex-col justify-center">
                     <div className="font-bold text-white text-sm leading-tight">已選取 {p.name}</div>
-                    <div className="text-[11px] text-slate-400 leading-tight">請點擊目標空位放置</div>
+                    <div className="text-[11px] text-indigo-200/70 leading-tight">請點擊目標空位放置</div>
                  </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -1715,7 +1715,7 @@ export default function App() {
         {/* Main Content: Courts Grid */}
         <main className={`flex-1 flex-col min-w-0 h-full relative z-0 ${activeTab === 'courts' ? 'flex' : 'hidden lg:flex'}`}>
           {/* Toolbar */}
-          <div className="h-16 border-b border-slate-800 flex items-center px-4 sm:px-8 justify-between bg-slate-900/50 backdrop-blur-sm sticky top-0 z-10 shrink-0">
+          <div className="py-3 sm:py-0 sm:h-16 border-b border-slate-800 flex items-center px-4 sm:px-8 justify-between bg-slate-900/50 backdrop-blur-sm sticky top-0 z-10 shrink-0">
             <div className="flex items-center gap-4">
 
               <h2 className="font-semibold text-slate-200 hidden sm:block">場地狀況</h2>
@@ -1773,7 +1773,7 @@ export default function App() {
                 title={isWarmupDone ? '已熱身' : '熱身中'}
               >
                 {isWarmupDone ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Flame className="w-3.5 h-3.5" />}
-                <span className="hidden sm:inline">{isWarmupDone ? '已熱身' : '熱身中'}</span>
+                <span>{isWarmupDone ? '已熱身' : '熱身中'}</span>
               </button>
 
               {currentUser?.role === 'admin' && (
@@ -1782,7 +1782,7 @@ export default function App() {
                   className="flex items-center justify-center gap-2 px-3 h-8 bg-transparent text-red-400 border border-red-500/50 hover:bg-red-500 hover:text-white hover:border-red-500 text-xs font-medium rounded-lg transition-colors"
                   title="將場上及排隊球員全部移回會員列表"
                 >
-                  <LogOut className="w-3.5 h-3.5" />
+                  <Power className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">打球結束</span>
                 </button>
               )}
