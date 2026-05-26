@@ -63,6 +63,8 @@ export default function App() {
   const [passcodePromptOpen, setPasscodePromptOpen] = useState(false);
   const [passcodeInput, setPasscodeInput] = useState('');
   const [passcodeError, setPasscodeError] = useState<string | null>(null);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [isShaking, setIsShaking] = useState(false);
 
   // 儲存已驗證的 Admin 憑證，格式為 { [spaceId]: true }
   const [verifiedAdmins, setVerifiedAdmins] = useState<Record<string, boolean>>(() => {
@@ -136,6 +138,10 @@ export default function App() {
       setSpaceMetadata(null);
       setIsLoggingInAsPlayer(false);
       setLoginSearchTerm('');
+      
+      // 回到大廳時，清除所有已驗證的管理員權限與本地登入紀錄
+      setVerifiedAdmins({});
+      localStorage.removeItem('badminton_verified_admins');
       return;
     }
 
@@ -1022,6 +1028,8 @@ export default function App() {
     // 否則，打開密碼輸入提示
     setPasscodeInput('');
     setPasscodeError(null);
+    setFailedAttempts(0);
+    setIsShaking(false);
     setPasscodePromptOpen(true);
   };
 
@@ -1040,10 +1048,18 @@ export default function App() {
       localStorage.setItem('badminton_verified_admins', JSON.stringify(updatedVerified));
 
       setPasscodePromptOpen(false);
+      setFailedAttempts(0);
+      setIsShaking(false);
       setActiveTab('members');
       showToast("🔑 密碼驗證成功！進入管理模式。");
     } else {
-      setPasscodeError("密碼錯誤，請重新輸入");
+      const nextAttempts = failedAttempts + 1;
+      setFailedAttempts(nextAttempts);
+      setPasscodeError(`密碼錯誤，請重新輸入 (已錯誤 ${nextAttempts} 次)`);
+      
+      // 觸發震動效果
+      setIsShaking(true);
+      setTimeout(() => setIsShaking(false), 500); // 500ms 後停止震動
     }
   };
 
@@ -1443,7 +1459,17 @@ export default function App() {
         {/* 密碼驗證彈出視窗 */}
         {passcodePromptOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full shadow-2xl animate-[fadeIn_0.2s_ease-out] relative">
+            <style>{`
+              @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                10%, 30%, 50%, 70%, 90% { transform: translateX(-6px); }
+                20%, 40%, 60%, 80% { transform: translateX(6px); }
+              }
+              .animate-shake {
+                animation: shake 0.4s ease-in-out;
+              }
+            `}</style>
+            <div className={`bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full shadow-2xl animate-[fadeIn_0.2s_ease-out] relative ${isShaking ? 'animate-shake' : ''}`}>
               <button
                 onClick={() => setPasscodePromptOpen(false)}
                 className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-all"
@@ -1688,6 +1714,13 @@ export default function App() {
                       
                       <button
                         onClick={() => {
+                          // 切換身分時，清除當前球團的管理員驗證狀態，確保下次切回團主時需要重輸密碼
+                          if (spaceId) {
+                            const updatedVerified = { ...verifiedAdmins };
+                            delete updatedVerified[spaceId];
+                            setVerifiedAdmins(updatedVerified);
+                            localStorage.setItem('badminton_verified_admins', JSON.stringify(updatedVerified));
+                          }
                           setCurrentUser(null);
                           setSelectedPlayerForMove(null);
                           setIsProfileMenuOpen(false);
