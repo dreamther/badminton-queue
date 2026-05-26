@@ -1725,6 +1725,8 @@ export default function App() {
                             localStorage.removeItem(`badminton_current_user_${spaceId}`);
                           }
                           setCurrentUser(null);
+                          setIsLoggingInAsPlayer(false); // 重置為選擇身分（我是團主/一般球員）畫面
+                          setLoginSearchTerm('');        // 清除搜尋字詞
                           setSelectedPlayerForMove(null);
                           setIsProfileMenuOpen(false);
                         }}
