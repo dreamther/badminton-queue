@@ -4,7 +4,7 @@ import {
   Volume2, VolumeX, X, Swords, UserCheck, Search, CheckCircle2, ChevronDown, 
   ChevronRight, Unlink, ArrowUp, PanelLeft, LogOut, UserX, ChevronUp, Flame, 
   Lock, Unlock, UserPlus, Upload, Settings, MoreVertical, Power, Share2, Copy, 
-  ArrowLeft, ExternalLink, Check
+  ArrowLeft, ExternalLink, Check, Key, EyeOff
 } from 'lucide-react';
 import { 
   Player, Court, Member, INITIAL_COURT_COUNT, MAX_PLAYERS_PER_COURT, 
@@ -50,6 +50,8 @@ export default function App() {
   const [newSpaceName, setNewSpaceName] = useState('');
   const [newSpacePasscode, setNewSpacePasscode] = useState('');
   const [hasPasscode, setHasPasscode] = useState(false);
+  const [newSpaceAccessPasscode, setNewSpaceAccessPasscode] = useState('');
+  const [hasSpacePasscode, setHasSpacePasscode] = useState(false);
   const [joinSpaceIdInput, setJoinSpaceIdInput] = useState('');
   const [recentSpaces, setRecentSpaces] = useState<SpaceMetadata[]>(() => {
     const saved = localStorage.getItem('badminton_recent_spaces');
@@ -71,6 +73,17 @@ export default function App() {
     const saved = localStorage.getItem('badminton_verified_admins');
     return saved ? JSON.parse(saved) : {};
   });
+
+  // 儲存已授權進入的球團空間憑證，格式為 { [spaceId]: true }
+  const [verifiedSpaces, setVerifiedSpaces] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem('badminton_verified_spaces');
+    return saved ? JSON.parse(saved) : {};
+  });
+  const [spacePasscodePromptOpen, setSpacePasscodePromptOpen] = useState(false);
+  const [spacePasscodeInput, setSpacePasscodeInput] = useState('');
+  const [spacePasscodeError, setSpacePasscodeError] = useState<string | null>(null);
+  const [spacePasscodeFailedAttempts, setSpacePasscodeFailedAttempts] = useState(0);
+  const [spacePasscodeIsShaking, setSpacePasscodeIsShaking] = useState(false);
 
   // --- 核心賽局狀態 (與 Firebase 實時同步) ---
   const [players, setPlayers] = useState<Player[]>([]);
@@ -175,6 +188,17 @@ export default function App() {
           });
         }
 
+        // 檢查空間專屬存取密碼
+        if (meta?.spacePasscode && !verifiedSpaces[spaceId!]) {
+          setSpacePasscodeInput('');
+          setSpacePasscodeError(null);
+          setSpacePasscodeFailedAttempts(0);
+          setSpacePasscodeIsShaking(false);
+          setSpacePasscodePromptOpen(true);
+          setIsSpaceLoading(false);
+          return; // 阻斷載入流程，直到驗證成功
+        }
+
         // 嘗試自動還原登入狀態
         const savedUserKey = `badminton_current_user_${spaceId}`;
         const savedUserStr = localStorage.getItem(savedUserKey);
@@ -248,7 +272,7 @@ export default function App() {
       if (unsubSession) unsubSession();
       if (unsubMembers) unsubMembers();
     };
-  }, [spaceId, verifiedAdmins]);
+  }, [spaceId, verifiedAdmins, verifiedSpaces]);
 
   // --- 寫入雲端狀態的封裝函數 ---
   const updateCloudSession = useCallback(async (updates: Partial<SessionState>) => {
@@ -1063,6 +1087,30 @@ export default function App() {
     }
   };
 
+  const handleVerifySpacePasscode = () => {
+    if (!spaceMetadata || !spaceId) return;
+
+    if (spacePasscodeInput.trim() === spaceMetadata.spacePasscode) {
+      // 驗證成功
+      const updated = { ...verifiedSpaces, [spaceId]: true };
+      setVerifiedSpaces(updated);
+      localStorage.setItem('badminton_verified_spaces', JSON.stringify(updated));
+      
+      setSpacePasscodePromptOpen(false);
+      setSpacePasscodeFailedAttempts(0);
+      setSpacePasscodeIsShaking(false);
+      showToast("🔓 空間驗證成功！歡迎進入。");
+    } else {
+      const nextAttempts = spacePasscodeFailedAttempts + 1;
+      setSpacePasscodeFailedAttempts(nextAttempts);
+      setSpacePasscodeError(`密碼錯誤，請重新輸入 (已錯誤 ${nextAttempts} 次)`);
+      
+      // 觸發震動效果
+      setSpacePasscodeIsShaking(true);
+      setTimeout(() => setSpacePasscodeIsShaking(false), 500);
+    }
+  };
+
   // ==========================================
   // 大廳 (Landing Page) 動作
   // ==========================================
@@ -1071,6 +1119,7 @@ export default function App() {
     const cleanId = newSpaceId.trim().toLowerCase();
     const name = newSpaceName.trim();
     const passcode = newSpacePasscode.trim();
+    const spacePasscode = newSpaceAccessPasscode.trim();
 
     if (!cleanId || !name) {
       alert("請填寫完整的空間 ID 與球團名稱！");
@@ -1086,7 +1135,12 @@ export default function App() {
         return;
       }
 
-      await createSpace(cleanId, name, hasPasscode ? passcode : undefined);
+      await createSpace(
+        cleanId, 
+        name, 
+        hasPasscode ? passcode : undefined,
+        hasSpacePasscode ? spacePasscode : undefined
+      );
       
       // 自動標註此空間為管理員已驗證 (因為是自己建的)
       if (hasPasscode && passcode) {
@@ -1095,11 +1149,20 @@ export default function App() {
         localStorage.setItem('badminton_verified_admins', JSON.stringify(updatedVerified));
       }
 
+      // 自動授權此球團的專屬存取密碼 (因為是自己建的)
+      if (hasSpacePasscode && spacePasscode) {
+        const updatedVerifiedSpaces = { ...verifiedSpaces, [cleanId]: true };
+        setVerifiedSpaces(updatedVerifiedSpaces);
+        localStorage.setItem('badminton_verified_spaces', JSON.stringify(updatedVerifiedSpaces));
+      }
+
       // 重置大廳輸入
       setNewSpaceId('');
       setNewSpaceName('');
       setNewSpacePasscode('');
+      setNewSpaceAccessPasscode('');
       setHasPasscode(false);
+      setHasSpacePasscode(false);
 
       // 跳轉至新空間
       window.location.hash = `#/space/${cleanId}`;
@@ -1207,7 +1270,18 @@ export default function App() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2 text-slate-500 shrink-0">
-                            {space.adminPasscode && <Lock className="w-3.5 h-3.5 text-slate-600" title="此空間受密碼保護" />}
+                            {space.spacePasscode && (
+                              <span className="flex items-center gap-1 bg-rose-500/10 border border-rose-500/25 text-[10px] font-medium px-2 py-0.5 rounded-full text-rose-400 shrink-0">
+                                <Lock className="w-3 h-3 animate-pulse" />
+                                私密
+                              </span>
+                            )}
+                            {space.adminPasscode && (
+                              <span className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/25 text-[10px] font-medium px-2 py-0.5 rounded-full text-amber-400 shrink-0">
+                                <Key className="w-3 h-3" />
+                                管理
+                              </span>
+                            )}
                             <ChevronRight className="w-4 h-4 group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all" />
                           </div>
                         </button>
@@ -1291,6 +1365,34 @@ export default function App() {
                     )}
                   </div>
 
+                  {/* 空間專屬存取密碼設定 */}
+                  <div className="pt-2">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-rose-600 focus:ring-rose-500"
+                        checked={hasSpacePasscode}
+                        onChange={e => setHasSpacePasscode(e.target.checked)}
+                      />
+                      <span className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
+                        <EyeOff className="w-3.5 h-3.5 text-rose-400" /> 設定此球團的專屬存取密碼 (私密球團，需輸入密碼才能進入)
+                      </span>
+                    </label>
+
+                    {hasSpacePasscode && (
+                      <div className="mt-3 animate-[fadeIn_0.2s_ease-out]">
+                        <input
+                          type="password"
+                          placeholder="請輸入 4-10 位空間專屬存取密碼"
+                          className="w-full h-10 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-200 text-sm transition-all"
+                          value={newSpaceAccessPasscode}
+                          onChange={e => setNewSpaceAccessPasscode(e.target.value)}
+                          required={hasSpacePasscode}
+                        />
+                      </div>
+                    )}
+                  </div>
+
                   <button
                     type="submit"
                     disabled={isSpaceLoading}
@@ -1340,6 +1442,73 @@ export default function App() {
           >
             <ArrowLeft className="w-4 h-4" /> 返回系統大廳
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // 私密空間驗證 UI
+  // ==========================================
+  if (spacePasscodePromptOpen) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-200 p-4">
+        <style>{`
+          @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-6px); }
+            20%, 40%, 60%, 80% { transform: translateX(6px); }
+          }
+          .animate-shake {
+            animation: shake 0.4s ease-in-out;
+          }
+        `}</style>
+        
+        <div className={`bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl max-w-sm w-full relative overflow-hidden text-center ${spacePasscodeIsShaking ? 'animate-shake' : ''}`}>
+          {/* 返回鍵 */}
+          <button
+            onClick={() => window.location.hash = ''}
+            className="absolute top-4 left-4 p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+            title="返回大廳"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+
+          <div className="flex justify-center mb-6 mt-2">
+            <div className="bg-rose-500/10 text-rose-400 p-4 rounded-full flex items-center justify-center">
+              <EyeOff className="w-8 h-8" />
+            </div>
+          </div>
+
+          <h2 className="text-xl font-bold text-white mb-2">私密球團空間驗證</h2>
+          <p className="text-sm text-slate-400 mb-6">
+            此空間（ID: <span className="font-mono text-indigo-400">{spaceId}</span>）設有專屬存取密碼。請輸入密碼以進入觀看或操作。
+          </p>
+
+          <div className="space-y-4">
+            <input
+              type="password"
+              placeholder="請輸入空間專屬密碼"
+              className="w-full h-12 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 text-center font-mono text-slate-200 placeholder-slate-700"
+              value={spacePasscodeInput}
+              onChange={e => setSpacePasscodeInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleVerifySpacePasscode()}
+              autoFocus
+            />
+
+            {spacePasscodeError && (
+              <p className="text-xs text-rose-400 text-center font-medium animate-[fadeIn_0.2s_ease-out]">
+                ❌ {spacePasscodeError}
+              </p>
+            )}
+
+            <button
+              onClick={handleVerifySpacePasscode}
+              className="w-full h-12 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-rose-600/20"
+            >
+              進入球團
+            </button>
+          </div>
         </div>
       </div>
     );

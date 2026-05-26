@@ -58,6 +58,7 @@ export interface SpaceMetadata {
   id: string;
   name: string;
   adminPasscode?: string; // 選填的管理員密碼
+  spacePasscode?: string; // 選填的空間存取密碼 (專屬密碼)
   createdAt: number;
 }
 
@@ -108,7 +109,12 @@ export async function checkSpaceExists(spaceId: string): Promise<boolean> {
 /**
  * 建立全新空間與初始化賽局狀態
  */
-export async function createSpace(spaceId: string, spaceName: string, passcode?: string): Promise<void> {
+export async function createSpace(
+  spaceId: string, 
+  spaceName: string, 
+  adminPasscode?: string, 
+  spacePasscode?: string
+): Promise<void> {
   const cleanId = spaceId.trim().toLowerCase();
   const name = spaceName.trim();
   if (!cleanId || !name) throw new Error("空間 ID 與名稱不可為空");
@@ -116,7 +122,8 @@ export async function createSpace(spaceId: string, spaceName: string, passcode?:
   const metadata: SpaceMetadata = {
     id: cleanId,
     name,
-    adminPasscode: passcode?.trim() || undefined,
+    adminPasscode: adminPasscode?.trim() || undefined,
+    spacePasscode: spacePasscode?.trim() || undefined,
     createdAt: Date.now()
   };
 
