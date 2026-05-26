@@ -1209,10 +1209,12 @@ export default function App() {
   // ==========================================
   if (!spaceId) {
     return (
-      <div className="h-full bg-slate-950 text-slate-100 flex flex-col overflow-y-auto overflow-x-hidden">
-        {/* 背景發光光暈 */}
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="relative h-full bg-slate-950 text-slate-100 flex flex-col overflow-y-auto overflow-x-hidden">
+        {/* 背景發光光暈容器（使用 overflow-hidden 嚴格剪裁，防範行動裝置版面拓寬） */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/10 rounded-full blur-[120px]" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-600/10 rounded-full blur-[120px]" />
+        </div>
 
         {/* 頂部裝飾 */}
         <header className="px-6 py-6 border-b border-slate-900 flex justify-between items-center z-10 shrink-0 bg-slate-950/80 backdrop-blur-md">
@@ -1415,7 +1417,7 @@ export default function App() {
         {/* 進階安全防護設定彈窗 */}
         {isSecuritySettingsOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]">
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl max-w-sm w-full shadow-2xl relative overflow-hidden">
+            <div className="bg-slate-900 border border-slate-800 p-4 xs:p-5 sm:p-6 rounded-3xl max-w-sm w-full shadow-2xl relative overflow-hidden">
               <button
                 type="button"
                 onClick={() => setIsSecuritySettingsOpen(false)}
@@ -1434,7 +1436,7 @@ export default function App() {
 
               <div className="space-y-5">
                 {/* 1. 管理員密碼 */}
-                <div className="bg-slate-950/50 p-4 border border-slate-800/80 rounded-2xl space-y-3">
+                <div className="bg-slate-950/50 p-3 xs:p-4 border border-slate-800/80 rounded-2xl space-y-3">
                   <div className="flex items-center justify-between select-none">
                     <div className="flex items-center gap-2">
                       <Key className="w-4 h-4 text-amber-400" />
@@ -1509,7 +1511,7 @@ export default function App() {
                 </div>
 
                 {/* 2. 空間存取密碼 */}
-                <div className="bg-slate-950/50 p-4 border border-slate-800/80 rounded-2xl space-y-3">
+                <div className="bg-slate-950/50 p-3 xs:p-4 border border-slate-800/80 rounded-2xl space-y-3">
                   <div className="flex items-center justify-between select-none">
                     <div className="flex items-center gap-2">
                       <EyeOff className="w-4 h-4 text-rose-400" />
@@ -1657,7 +1659,7 @@ export default function App() {
           }
         `}</style>
         
-        <div className={`bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl max-w-sm w-full relative overflow-hidden text-center ${spacePasscodeIsShaking ? 'animate-shake' : ''}`}>
+        <div className={`bg-slate-900 border border-slate-800 p-6 xs:p-7 sm:p-8 rounded-3xl shadow-2xl max-w-sm w-full relative overflow-hidden text-center ${spacePasscodeIsShaking ? 'animate-shake' : ''}`}>
           {/* 返回鍵 */}
           <button
             onClick={() => window.location.hash = ''}
@@ -1717,7 +1719,7 @@ export default function App() {
 
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 text-slate-200 p-4">
-        <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl max-w-sm w-full mx-auto relative overflow-hidden">
+        <div className="bg-slate-900 border border-slate-800 p-6 xs:p-7 sm:p-8 rounded-2xl shadow-2xl max-w-sm w-full mx-auto relative overflow-hidden">
           
           {/* 返回大廳按鈕 */}
           {/* 返回鍵：球員選取時返回身分選取，否則返回大廳 */}
@@ -1831,7 +1833,7 @@ export default function App() {
                 animation: shake 0.4s ease-in-out;
               }
             `}</style>
-            <div className={`bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full shadow-2xl animate-[fadeIn_0.2s_ease-out] relative ${isShaking ? 'animate-shake' : ''}`}>
+            <div className={`bg-slate-900 border border-slate-800 p-4 xs:p-5 sm:p-6 rounded-2xl max-w-sm w-full shadow-2xl animate-[fadeIn_0.2s_ease-out] relative ${isShaking ? 'animate-shake' : ''}`}>
               <button
                 onClick={() => setPasscodePromptOpen(false)}
                 className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-all"
