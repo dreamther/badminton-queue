@@ -1720,6 +1720,9 @@ export default function App() {
                             delete updatedVerified[spaceId];
                             setVerifiedAdmins(updatedVerified);
                             localStorage.setItem('badminton_verified_admins', JSON.stringify(updatedVerified));
+                            
+                            // 同時清除本地儲存的登入狀態，確保不會在 useEffect 中被自動還原
+                            localStorage.removeItem(`badminton_current_user_${spaceId}`);
                           }
                           setCurrentUser(null);
                           setSelectedPlayerForMove(null);
