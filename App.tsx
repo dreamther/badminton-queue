@@ -1342,26 +1342,21 @@ export default function App() {
         <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl max-w-sm w-full mx-auto relative overflow-hidden">
           
           {/* 返回大廳按鈕 */}
+          {/* 返回鍵：球員選取時返回身分選取，否則返回大廳 */}
           <button
-            onClick={() => window.location.hash = ''}
+            onClick={() => {
+              if (isLoggingInAsPlayer) {
+                setIsLoggingInAsPlayer(false);
+                setLoginSearchTerm('');
+              } else {
+                window.location.hash = '';
+              }
+            }}
             className="absolute top-4 left-4 p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-            title="返回大廳"
+            title={isLoggingInAsPlayer ? "返回上一頁" : "返回大廳"}
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-
-          {/* 回上一頁 (球員選取時) */}
-          {isLoggingInAsPlayer && (
-            <button
-              onClick={() => {
-                setIsLoggingInAsPlayer(false);
-                setLoginSearchTerm('');
-              }}
-              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-            >
-              <ArrowRight className="w-5 h-5 rotate-180" />
-            </button>
-          )}
 
           <div className="flex justify-center mb-6 mt-2">
             <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-3 rounded-xl shadow-lg shadow-indigo-500/20">
