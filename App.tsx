@@ -4,7 +4,7 @@ import {
   Volume2, VolumeX, X, Swords, UserCheck, Search, CheckCircle2, ChevronDown, 
   ChevronRight, Unlink, ArrowUp, PanelLeft, LogOut, UserX, ChevronUp, Flame, 
   Lock, Unlock, UserPlus, Upload, Settings, MoreVertical, Power, Share2, Copy, 
-  ArrowLeft, ExternalLink, Check, Key, EyeOff
+  ArrowLeft, ExternalLink, Check, Key, EyeOff, Shield
 } from 'lucide-react';
 import { 
   Player, Court, Member, INITIAL_COURT_COUNT, MAX_PLAYERS_PER_COURT, 
@@ -52,6 +52,7 @@ export default function App() {
   const [hasPasscode, setHasPasscode] = useState(false);
   const [newSpaceAccessPasscode, setNewSpaceAccessPasscode] = useState('');
   const [hasSpacePasscode, setHasSpacePasscode] = useState(false);
+  const [isSecuritySettingsOpen, setIsSecuritySettingsOpen] = useState(false); // 安全設定彈窗
   const [joinSpaceIdInput, setJoinSpaceIdInput] = useState('');
   const [recentSpaces, setRecentSpaces] = useState<SpaceMetadata[]>(() => {
     const saved = localStorage.getItem('badminton_recent_spaces');
@@ -1121,8 +1122,12 @@ export default function App() {
     const passcode = newSpacePasscode.trim();
     const spacePasscode = newSpaceAccessPasscode.trim();
 
-    if (!cleanId || !name) {
-      alert("請填寫完整的空間 ID 與球團名稱！");
+    if (hasPasscode && (passcode.length < 4 || passcode.length > 10)) {
+      alert("管理員密碼長度必須在 4 到 10 位數之間！");
+      return;
+    }
+    if (hasSpacePasscode && (spacePasscode.length < 4 || spacePasscode.length > 10)) {
+      alert("空間專屬存取密碼長度必須在 4 到 10 位數之間！");
       return;
     }
 
@@ -1187,12 +1192,22 @@ export default function App() {
     setNewSpaceId(formatted);
   };
 
+  // 刪除最近造訪的球團紀錄
+  const handleDeleteRecentSpace = (id: string) => {
+    setRecentSpaces(prev => {
+      const updated = prev.filter(s => s.id !== id);
+      localStorage.setItem('badminton_recent_spaces', JSON.stringify(updated));
+      return updated;
+    });
+    showToast("🗑️ 已移除該造訪紀錄");
+  };
+
   // ==========================================
   // 渲染大廳 (Landing Page)
   // ==========================================
   if (!spaceId) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between relative overflow-hidden">
+      <div className="h-full bg-slate-950 text-slate-100 flex flex-col overflow-y-auto overflow-x-hidden">
         {/* 背景發光光暈 */}
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
@@ -1209,7 +1224,7 @@ export default function App() {
         </header>
 
         {/* 主內容區 */}
-        <main className="flex-1 flex items-center justify-center p-6 z-10 overflow-y-auto">
+        <main className="flex-1 flex items-center justify-center py-10 px-6 z-10">
           <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-8 my-auto">
             
             {/* 左側：進入/加入空間 */}
@@ -1255,36 +1270,52 @@ export default function App() {
                       目前此瀏覽器尚無造訪紀錄
                     </div>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-2 max-h-[236px] overflow-y-auto pr-1.5 scroll-smooth [scrollbar-width:thin] [scrollbar-color:theme(colors.slate.800)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-800 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
                       {recentSpaces.map(space => (
-                        <button
+                        <div
                           key={space.id}
-                          onClick={() => window.location.hash = `#/space/${space.id}`}
-                          className="w-full flex items-center justify-between p-3.5 bg-slate-950/40 hover:bg-slate-800/60 border border-slate-800 rounded-xl transition-all text-left group"
+                          className="w-full flex items-center justify-between p-3.5 bg-slate-950/40 hover:bg-slate-800/60 border border-slate-800 rounded-xl transition-all text-left group relative"
                         >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <span className="text-xl">🏸</span>
-                            <div className="min-w-0">
-                              <div className="text-sm font-semibold text-slate-200 group-hover:text-white truncate">{space.name}</div>
-                              <div className="text-[10px] text-slate-500 font-mono truncate">ID: {space.id}</div>
+                          {/* 點擊進入空間區域 */}
+                          <div 
+                            onClick={() => window.location.hash = `#/space/${space.id}`}
+                            className="flex-1 flex items-center justify-between cursor-pointer min-w-0 pr-2"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <span className="text-xl">🏸</span>
+                              <div className="min-w-0">
+                                <div className="text-sm font-semibold text-slate-200 group-hover:text-white truncate">{space.name}</div>
+                                <div className="text-[10px] text-slate-500 font-mono truncate">ID: {space.id}</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 text-slate-500 shrink-0">
+                              {space.spacePasscode && (
+                                <span className="flex items-center gap-1 bg-rose-500/10 border border-rose-500/25 text-[10px] font-medium px-2 py-0.5 rounded-full text-rose-400 shrink-0">
+                                  <Lock className="w-3 h-3 animate-pulse" />
+                                  私密
+                                </span>
+                              )}
+                              {space.adminPasscode && (
+                                <span className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/25 text-[10px] font-medium px-2 py-0.5 rounded-full text-amber-400 shrink-0">
+                                  <Key className="w-3 h-3" />
+                                  管理
+                                </span>
+                              )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 text-slate-500 shrink-0">
-                            {space.spacePasscode && (
-                              <span className="flex items-center gap-1 bg-rose-500/10 border border-rose-500/25 text-[10px] font-medium px-2 py-0.5 rounded-full text-rose-400 shrink-0">
-                                <Lock className="w-3 h-3 animate-pulse" />
-                                私密
-                              </span>
-                            )}
-                            {space.adminPasscode && (
-                              <span className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/25 text-[10px] font-medium px-2 py-0.5 rounded-full text-amber-400 shrink-0">
-                                <Key className="w-3 h-3" />
-                                管理
-                              </span>
-                            )}
-                            <ChevronRight className="w-4 h-4 group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all" />
-                          </div>
-                        </button>
+
+                          {/* 刪除紀錄按鈕 */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteRecentSpace(space.id);
+                            }}
+                            className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors shrink-0 z-10"
+                            title="刪除此造訪紀錄"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       ))}
                     </div>
                   )}
@@ -1332,65 +1363,32 @@ export default function App() {
                       onChange={e => handleSpaceIdInputChange(e.target.value)}
                       required
                     />
-                    {newSpaceId && (
-                      <div className="text-[10px] text-slate-500 font-mono mt-1 leading-tight truncate">
-                        網址預覽: {window.location.origin}{window.location.pathname}#/space/{newSpaceId}
-                      </div>
-                    )}
+                    <div className="text-[10px] text-slate-500 font-mono mt-2.5 leading-tight truncate">
+                      網址預覽: {window.location.origin}{window.location.pathname}#/space/{newSpaceId || '[您的空間ID]'}
+                    </div>
                   </div>
 
-                  {/* 密碼設定 */}
+                  {/* 進階安全防護設定按鈕 */}
                   <div className="pt-2">
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-indigo-600 focus:ring-indigo-500"
-                        checked={hasPasscode}
-                        onChange={e => setHasPasscode(e.target.checked)}
-                      />
-                      <span className="text-xs font-medium text-slate-300">設定管理員密碼 (防止一般球員亂動場地配置)</span>
-                    </label>
-
-                    {hasPasscode && (
-                      <div className="mt-3 animate-[fadeIn_0.2s_ease-out]">
-                        <input
-                          type="password"
-                          placeholder="請輸入 4-10 位管理員驗證密碼"
-                          className="w-full h-10 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-200 text-sm transition-all"
-                          value={newSpacePasscode}
-                          onChange={e => setNewSpacePasscode(e.target.value)}
-                          required={hasPasscode}
-                        />
+                    <button
+                      type="button"
+                      onClick={() => setIsSecuritySettingsOpen(true)}
+                      className="w-full h-11 flex items-center justify-between px-4 bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-xl transition-all group text-left shadow-inner"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-indigo-400 group-hover:text-indigo-300 transition-colors" />
+                        <span className="text-xs font-semibold text-slate-300">安全與私密防護設定</span>
                       </div>
-                    )}
-                  </div>
-
-                  {/* 空間專屬存取密碼設定 */}
-                  <div className="pt-2">
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-rose-600 focus:ring-rose-500"
-                        checked={hasSpacePasscode}
-                        onChange={e => setHasSpacePasscode(e.target.checked)}
-                      />
-                      <span className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
-                        <EyeOff className="w-3.5 h-3.5 text-rose-400" /> 設定此球團的專屬存取密碼 (私密球團，需輸入密碼才能進入)
-                      </span>
-                    </label>
-
-                    {hasSpacePasscode && (
-                      <div className="mt-3 animate-[fadeIn_0.2s_ease-out]">
-                        <input
-                          type="password"
-                          placeholder="請輸入 4-10 位空間專屬存取密碼"
-                          className="w-full h-10 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-200 text-sm transition-all"
-                          value={newSpaceAccessPasscode}
-                          onChange={e => setNewSpaceAccessPasscode(e.target.value)}
-                          required={hasSpacePasscode}
-                        />
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {hasPasscode && (
+                          <span className="flex items-center bg-amber-500/10 text-amber-400 text-[9px] font-bold px-2 py-0.5 rounded-full border border-amber-500/20">🔑 管理</span>
+                        )}
+                        {hasSpacePasscode && (
+                          <span className="flex items-center bg-rose-500/10 text-rose-400 text-[9px] font-bold px-2 py-0.5 rounded-full border border-rose-500/20">🔒 私密</span>
+                        )}
+                        <ChevronRight className="w-3.5 h-3.5 text-slate-500 group-hover:translate-x-0.5 transition-all" />
                       </div>
-                    )}
+                    </button>
                   </div>
 
                   <button
@@ -1411,6 +1409,199 @@ export default function App() {
         <footer className="px-6 py-6 border-t border-slate-900 text-center text-xs text-slate-600 z-10 shrink-0 bg-slate-950/60 backdrop-blur-md">
           © {new Date().getFullYear()} Badminton Queue Assistant. Powered by Firebase Firestore. Built for Speed and Simplicity.
         </footer>
+
+        {/* 進階安全防護設定彈窗 */}
+        {isSecuritySettingsOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]">
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl max-w-sm w-full shadow-2xl relative overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setIsSecuritySettingsOpen(false)}
+                className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="flex flex-col items-center mb-5">
+                <div className="w-12 h-12 bg-indigo-500/10 text-indigo-400 rounded-full flex items-center justify-center mb-3">
+                  <Shield className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-bold text-white">安全與私密防護設定</h3>
+                <p className="text-xs text-slate-400 mt-1">設定管理權限與球團的進入權限</p>
+              </div>
+
+              <div className="space-y-5">
+                {/* 1. 管理員密碼 */}
+                <div className="bg-slate-950/50 p-4 border border-slate-800/80 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between select-none">
+                    <div className="flex items-center gap-2">
+                      <Key className="w-4 h-4 text-amber-400" />
+                      <span className="text-xs font-semibold text-slate-200">啟用管理員密碼</span>
+                    </div>
+                    {/* iOS 風格 Switch Toggle */}
+                    <div 
+                      onClick={() => {
+                        const nextVal = !hasPasscode;
+                        setHasPasscode(nextVal);
+                        if (!nextVal) setNewSpacePasscode(''); // 停用時清空輸入值
+                      }}
+                      className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer flex items-center shrink-0 ${
+                        hasPasscode ? 'bg-purple-600' : 'bg-slate-800'
+                      }`}
+                    >
+                      <div 
+                        className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform duration-200 ease-in-out ${
+                          hasPasscode ? 'translate-x-4' : 'translate-x-0'
+                        }`}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-500 leading-normal">
+                    防制一般球員在場邊隨意更改球場配置，啟用後切換為「團主」需輸入密碼。
+                  </p>
+                  <div className="pt-1">
+                    <input
+                      type="password"
+                      placeholder={hasPasscode ? "請設定管理密碼 (4-10 位)" : "管理密碼已停用"}
+                      disabled={!hasPasscode}
+                      className={`w-full h-10 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
+                        hasPasscode 
+                          ? 'border-slate-800 focus:ring-indigo-500 opacity-100' 
+                          : 'border-slate-900/50 opacity-30 cursor-not-allowed select-none'
+                      }`}
+                      value={newSpacePasscode}
+                      onChange={e => setNewSpacePasscode(e.target.value)}
+                      required={hasPasscode}
+                    />
+                    {/* 靜態高度驗證提示，完全防止 Layout Shift */}
+                    <div className="flex justify-between items-center mt-1.5 px-1 text-[9px]">
+                      <span className={`transition-all duration-300 ${
+                        !hasPasscode 
+                          ? "text-slate-600 opacity-40" 
+                          : newSpacePasscode.length === 0 
+                            ? "text-slate-500" 
+                            : (newSpacePasscode.length >= 4 && newSpacePasscode.length <= 10) 
+                              ? "text-emerald-400 font-semibold" 
+                              : "text-amber-500 font-semibold"
+                      }`}>
+                        {!hasPasscode 
+                          ? "—" 
+                          : newSpacePasscode.length === 0 
+                            ? "請輸入 4-10 位密碼" 
+                            : (newSpacePasscode.length >= 4 && newSpacePasscode.length <= 10) 
+                              ? "✓ 密碼長度安全" 
+                              : "⚠ 密碼長度不符 (需為 4-10 位)"
+                        }
+                      </span>
+                      <span className={`font-mono transition-all duration-300 ${
+                        !hasPasscode 
+                          ? "text-slate-600 opacity-40" 
+                          : (newSpacePasscode.length >= 4 && newSpacePasscode.length <= 10) 
+                            ? "text-slate-400" 
+                            : "text-amber-500 font-semibold"
+                      }`}>
+                        {hasPasscode ? `${newSpacePasscode.length}/10` : "—"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. 空間存取密碼 */}
+                <div className="bg-slate-950/50 p-4 border border-slate-800/80 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between select-none">
+                    <div className="flex items-center gap-2">
+                      <EyeOff className="w-4 h-4 text-rose-400" />
+                      <span className="text-xs font-semibold text-slate-200">啟用私密球團空間</span>
+                    </div>
+                    {/* iOS 風格 Switch Toggle */}
+                    <div 
+                      onClick={() => {
+                        const nextVal = !hasSpacePasscode;
+                        setHasSpacePasscode(nextVal);
+                        if (!nextVal) setNewSpaceAccessPasscode(''); // 停用時清空輸入值
+                      }}
+                      className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer flex items-center shrink-0 ${
+                        hasSpacePasscode ? 'bg-purple-600' : 'bg-slate-800'
+                      }`}
+                    >
+                      <div 
+                        className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform duration-200 ease-in-out ${
+                          hasSpacePasscode ? 'translate-x-4' : 'translate-x-0'
+                        }`}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-500 leading-normal">
+                    設定此球團專屬的存取密碼。非公開球團，其他球員需要輸入此密碼才能進入該網址。
+                  </p>
+                  <div className="pt-1">
+                    <input
+                      type="password"
+                      placeholder={hasSpacePasscode ? "請設定空間存取密碼 (4-10 位)" : "空間密碼已停用"}
+                      disabled={!hasSpacePasscode}
+                      className={`w-full h-10 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
+                        hasSpacePasscode 
+                          ? 'border-slate-800 focus:ring-indigo-500 opacity-100' 
+                          : 'border-slate-900/50 opacity-30 cursor-not-allowed select-none'
+                      }`}
+                      value={newSpaceAccessPasscode}
+                      onChange={e => setNewSpaceAccessPasscode(e.target.value)}
+                      required={hasSpacePasscode}
+                    />
+                    {/* 靜態高度驗證提示，完全防止 Layout Shift */}
+                    <div className="flex justify-between items-center mt-1.5 px-1 text-[9px]">
+                      <span className={`transition-all duration-300 ${
+                        !hasSpacePasscode 
+                          ? "text-slate-600 opacity-40" 
+                          : newSpaceAccessPasscode.length === 0 
+                            ? "text-slate-500" 
+                            : (newSpaceAccessPasscode.length >= 4 && newSpaceAccessPasscode.length <= 10) 
+                              ? "text-emerald-400 font-semibold" 
+                              : "text-amber-500 font-semibold"
+                      }`}>
+                        {!hasSpacePasscode 
+                          ? "—" 
+                          : newSpaceAccessPasscode.length === 0 
+                            ? "請輸入 4-10 位密碼" 
+                            : (newSpaceAccessPasscode.length >= 4 && newSpaceAccessPasscode.length <= 10) 
+                              ? "✓ 密碼長度安全" 
+                              : "⚠ 密碼長度不符 (需為 4-10 位)"
+                        }
+                      </span>
+                      <span className={`font-mono transition-all duration-300 ${
+                        !hasSpacePasscode 
+                          ? "text-slate-600 opacity-40" 
+                          : (newSpaceAccessPasscode.length >= 4 && newSpaceAccessPasscode.length <= 10) 
+                            ? "text-slate-400" 
+                            : "text-amber-500 font-semibold"
+                      }`}>
+                        {hasSpacePasscode ? `${newSpaceAccessPasscode.length}/10` : "—"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (hasPasscode && (newSpacePasscode.length < 4 || newSpacePasscode.length > 10)) {
+                      alert("管理員密碼長度必須在 4 到 10 位數之間！");
+                      return;
+                    }
+                    if (hasSpacePasscode && (newSpaceAccessPasscode.length < 4 || newSpaceAccessPasscode.length > 10)) {
+                      alert("空間專屬存取密碼長度必須在 4 到 10 位數之間！");
+                      return;
+                    }
+                    setIsSecuritySettingsOpen(false);
+                  }}
+                  className="w-full h-11 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-all shadow-lg"
+                >
+                  確認完成
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
