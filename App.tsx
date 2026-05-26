@@ -153,9 +153,11 @@ export default function App() {
       setIsLoggingInAsPlayer(false);
       setLoginSearchTerm('');
       
-      // 回到大廳時，清除所有已驗證的管理員權限與本地登入紀錄
-      setVerifiedAdmins({});
-      localStorage.removeItem('badminton_verified_admins');
+      // 回到大廳時，若有已驗證的管理員權限，則清除並移除本地登入紀錄（防範無限重繪迴圈）
+      if (Object.keys(verifiedAdmins).length > 0) {
+        setVerifiedAdmins({});
+        localStorage.removeItem('badminton_verified_admins');
+      }
       return;
     }
 
