@@ -369,9 +369,19 @@ export default function App() {
   }, [selectedPlayerForMove]);
 
   // --- Toast 提示功能 ---
+  const [toastCounter, setToastCounter] = useState(0);
+  const toastTimeoutRef = useRef<any>(null);
+
   const showToast = (msg: string) => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 2500);
+    setToastCounter(prev => prev + 1);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastMessage(null);
+      toastTimeoutRef.current = null;
+    }, 2500);
   };
 
   // --- 權限防護判定 ---
@@ -1354,8 +1364,50 @@ export default function App() {
 
   // 複製分享連結
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
-    showToast("已成功複製分享網址！");
+    const url = window.location.href;
+    
+    // 優先使用 navigator.clipboard (需 HTTPS 或 localhost 才能使用)
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url)
+        .then(() => {
+          showToast("已成功複製分享網址！");
+        })
+        .catch((err) => {
+          console.error("Clipboard copy failed:", err);
+          fallbackCopyText(url);
+        });
+    } else {
+      fallbackCopyText(url);
+    }
+  };
+
+  const fallbackCopyText = (text: string) => {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    
+    // 避免滾動且不可見
+    textArea.style.top = "0";
+    textArea.style.left = "0";
+    textArea.style.position = "fixed";
+    textArea.style.opacity = "0";
+    
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+      const successful = document.execCommand('copy');
+      if (successful) {
+        showToast("已成功複製分享網址！");
+      } else {
+        showToast("❌ 複製網址失敗，請手動複製");
+      }
+    } catch (err) {
+      console.error("Fallback copy failed:", err);
+      showToast("❌ 複製網址失敗，請手動複製");
+    }
+    
+    document.body.removeChild(textArea);
   };
 
   // 格式化空間 ID 輸入防呆
@@ -2158,8 +2210,8 @@ export default function App() {
     <div className="flex flex-col h-full bg-slate-900 text-slate-100 overflow-hidden relative">
       {/* Toast Alert */}
       {toastMessage && (
-        <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-[100] animate-[fadeIn_0.2s_ease-out] pointer-events-none">
-          <div className="bg-slate-950/95 border border-slate-800 shadow-2xl rounded-xl px-5 py-3 text-sm text-slate-200 flex items-center gap-2 backdrop-blur-md">
+        <div key={toastCounter} className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-[100] animate-[fadeIn_0.2s_ease-out] pointer-events-none w-full px-4 flex justify-center">
+          <div className="bg-slate-950/95 border border-slate-800 shadow-2xl rounded-xl px-5 py-3 text-sm text-slate-200 flex items-center gap-2.5 backdrop-blur-md w-max max-w-full">
             <div className="w-5 h-5 bg-indigo-500/20 text-indigo-400 rounded-full flex items-center justify-center">
               <Check className="w-3.5 h-3.5" />
             </div>
@@ -2834,7 +2886,7 @@ export default function App() {
                 onClick={() => {
                   const val = !isAutoAnnounce;
                   setIsAutoAnnounce(val);
-                  showToast(val ? "🔊 已開啟本裝置語音播報唱名" : "🔇 本裝置已進入靜音模式");
+                  showToast(val ? "🔊 本裝置開啟語音播報" : "🔇 本裝置關閉語音播報");
                 }}
                 className={`p-1.5 rounded-lg border transition-all ${
                   isAutoAnnounce 
