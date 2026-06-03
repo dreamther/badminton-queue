@@ -787,17 +787,11 @@ export default function App() {
         updateCloudSession({ isWarmupDone: true });
       }
     } else {
-      if (confirm('確定要重新開始熱身嗎？\n這將重置所有場地狀態，讓大家重新上場。')) {
-        const clearedCourts = courts.map(c => ({ ...c, playerIds: [], startTime: null }));
-        updateCloudSession({
-          isWarmupDone: false,
-          players: players.map(p => ({ ...p, status: 'idle' }) as Player),
-          queueSlots: [],
-          courts: clearedCourts
-        });
+      if (confirm('確定要重新開始熱身嗎？\n(會開放直接排上場的功能)')) {
+        updateCloudSession({ isWarmupDone: false });
       }
     }
-  }, [idleCourtsCount, isWarmupDone, courts, players, updateCloudSession]);
+  }, [idleCourtsCount, isWarmupDone, updateCloudSession]);
 
   const dropPlayerToCourt = useCallback((courtId: number, playerId: string) => {
     setSelectedPlayerForMove(null);
@@ -1159,7 +1153,7 @@ export default function App() {
       setCurrentUser(user);
       localStorage.setItem(`badminton_current_user_${spaceId}`, JSON.stringify(user));
       setActiveTab('members');
-      showToast("🔑 已成功切換為團主模式！");
+      showToast("已成功切換為團主模式");
       return;
     }
 
@@ -3023,7 +3017,7 @@ export default function App() {
             </p>
             
             <p className="text-[10px] text-slate-500 mt-4 border-t border-slate-800/80 pt-3 w-full">
-              您可以切換至排隊區加入賽局等待
+              您可以切換至排隊區加入等待
             </p>
           </div>
         </div>
