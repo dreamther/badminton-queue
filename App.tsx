@@ -115,7 +115,7 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const [dragOverSlotKey, setDragOverSlotKey] = useState<string | null>(null);
-  const [isSearchExpanded, setIsSearchExpanded] = useState(true);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [memberSearchTerm, setMemberSearchTerm] = useState('');
   const [newMemberName, setNewMemberName] = useState('');
@@ -1027,6 +1027,9 @@ export default function App() {
       await updateMember(spaceId, targetMember.id, { level: newLevel });
     }
   }, [spaceId, players, members, updateCloudSession]);
+  const [checkInSuccessName, setCheckInSuccessName] = useState<string | null>(null);
+  const [checkInCounter, setCheckInCounter] = useState(0);
+  const checkInTimeoutRef = useRef<any>(null);
 
   const checkInMember = useCallback((member: Member) => {
     const existingPlayer = players.find(p => p.name === member.name);
@@ -1043,8 +1046,19 @@ export default function App() {
     
     updateCloudSession({ players: [...players, newPlayer] });
 
+    // 清除上一次的定時器，避免排隊的舊定時器提早將新報到提示關閉
+    if (checkInTimeoutRef.current) {
+      clearTimeout(checkInTimeoutRef.current);
+    }
+
     setCheckInSuccessName(member.name);
-    setTimeout(() => setCheckInSuccessName(null), 2000);
+    setCheckInCounter(prev => prev + 1); // 遞增 Key 強制重組 DOM (重新觸發 CSS 動畫)
+
+    checkInTimeoutRef.current = setTimeout(() => {
+      setCheckInSuccessName(null);
+      checkInTimeoutRef.current = null;
+    }, 3500);
+
     return newId;
   }, [players, updateCloudSession]);
 
@@ -1058,8 +1072,6 @@ export default function App() {
       }
     }
   }, [spaceId]);
-
-  const [checkInSuccessName, setCheckInSuccessName] = useState<string | null>(null);
 
   // ==========================================
   // 管理員密碼驗證邏輯
@@ -2871,20 +2883,34 @@ export default function App() {
 
       {/* Check-in Success Modal Banner */}
       {checkInSuccessName && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-          <div className="bg-slate-900 border-2 border-emerald-500 rounded-2xl px-8 py-6 shadow-2xl animate-[fadeIn_0.3s_ease-out] pointer-events-auto">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center">
-                <CheckCircle2 className="w-7 h-7 text-emerald-400" />
-              </div>
-              <div>
-                <div className="text-base font-bold text-white mb-1">報到完成 🏸</div>
-                <div className="text-sm text-slate-300">
-                  <span className="font-bold text-emerald-400">{checkInSuccessName}</span> 已入休息區。
-                </div>
-                <div className="text-[11px] text-slate-500 mt-1">您可以切換至排隊區加入隊伍。</div>
-              </div>
+        <div key={checkInCounter} className="fixed bottom-6 left-0 right-0 flex justify-center z-[100] pointer-events-none px-4">
+          <style>{`
+            @keyframes toastFadeInOut {
+              0% { opacity: 0; transform: translateY(16px) scale(0.97); }
+              8% { opacity: 1; transform: translateY(0) scale(1); }
+              92% { opacity: 1; transform: translateY(0) scale(1); }
+              100% { opacity: 0; transform: translateY(-16px) scale(0.97); }
+            }
+            .animate-toast-fade {
+              animation: toastFadeInOut 3.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            }
+          `}</style>
+          <div className="max-w-[400px] w-full bg-slate-900/80 border border-indigo-500/30 rounded-3xl p-6 shadow-2xl shadow-indigo-500/10 backdrop-blur-2xl relative overflow-hidden flex flex-col items-center text-center animate-toast-fade pointer-events-auto">
+            <div className="w-14 h-14 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 text-indigo-400 rounded-full flex items-center justify-center mb-4 shadow-inner">
+              <CheckCircle2 className="w-7 h-7 text-indigo-400" />
             </div>
+            
+            <h3 className="text-base font-bold text-white mb-1.5 flex items-center gap-1.5 justify-center">
+              報到完成 🏸
+            </h3>
+            
+            <p className="text-xs text-slate-300 break-words leading-relaxed">
+              歡迎 <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">{checkInSuccessName}</span> 已進入休息區！
+            </p>
+            
+            <p className="text-[10px] text-slate-500 mt-4 border-t border-slate-800/80 pt-3 w-full">
+              您可以切換至排隊區加入賽局等待
+            </p>
           </div>
         </div>
       )}
