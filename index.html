@@ -28,10 +28,14 @@
         scrollbar-width: thin;
         scrollbar-color: #334155 #0f172a;
       }
+      /* Safe area spacing helpers */
+      .pb-safe {
+        padding-bottom: env(safe-area-inset-bottom);
+      }
     </style>
   <link rel="stylesheet" href="/index.css">
 </head>
-  <body class="bg-slate-900 text-slate-100 h-screen overflow-hidden">
+  <body class="bg-slate-900 text-slate-100 overflow-hidden" style="height: 100vh; height: 100dvh;">
     <div id="root" class="h-full"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
