@@ -179,6 +179,93 @@ export async function getSpaceMetadata(spaceId: string): Promise<SpaceMetadata |
 }
 
 /**
+ * 💡 新增：更新空間元資料（例如更改球團名稱、管理員密碼、空間專屬密碼）
+ */
+export async function updateSpaceMetadata(
+  spaceId: string,
+  updates: Partial<Omit<SpaceMetadata, 'id' | 'createdAt'>>
+): Promise<void> {
+  const cleanId = spaceId.trim().toLowerCase();
+  if (!cleanId) throw new Error("空間 ID 不可為空");
+
+  if (isFirebaseEnabled && db) {
+    const spaceDocRef = doc(db, 'spaces', cleanId);
+    await updateDoc(spaceDocRef, updates);
+  } else {
+    // Mock 模式
+    const spaces = JSON.parse(localStorage.getItem('mock_spaces') || '{}');
+    if (!spaces[cleanId]) throw new Error("空間不存在");
+    spaces[cleanId] = {
+      ...spaces[cleanId],
+      ...updates
+    };
+    localStorage.setItem('mock_spaces', JSON.stringify(spaces));
+
+    // 發送自訂更新事件，以利同視窗的其他監聽者接收，並透過 storage 事件同步跨視窗
+    window.dispatchEvent(
+      new CustomEvent(`mock_space_metadata_update_${cleanId}`, { detail: spaces[cleanId] })
+    );
+  }
+}
+
+/**
+ * 💡 新增：訂閱空間元資料變動 (Real-time Space Metadata Sync)
+ */
+export function subscribeToSpaceMetadata(
+  spaceId: string,
+  onUpdate: (meta: SpaceMetadata) => void,
+  onError?: (error: any) => void
+): Unsubscribe {
+  const cleanId = spaceId.trim().toLowerCase();
+
+  if (isFirebaseEnabled && db) {
+    const spaceDocRef = doc(db, 'spaces', cleanId);
+    return onSnapshot(spaceDocRef, (snap) => {
+      if (snap.exists()) {
+        onUpdate(snap.data() as SpaceMetadata);
+      } else {
+        onError?.(new Error("找不到空間元資料文檔"));
+      }
+    }, (err) => {
+      console.error("訂閱空間元資料出錯:", err);
+      onError?.(err);
+    });
+  } else {
+    // Mock 模式
+    const getLocalMeta = (): SpaceMetadata | null => {
+      const spaces = JSON.parse(localStorage.getItem('mock_spaces') || '{}');
+      return spaces[cleanId] || null;
+    };
+
+    // 立即調用一次
+    const initialMeta = getLocalMeta();
+    if (initialMeta) onUpdate(initialMeta);
+
+    // 本視窗自訂事件監聽
+    const handleCustomEvent = (e: Event) => {
+      const customEvt = e as CustomEvent<SpaceMetadata>;
+      onUpdate(customEvt.detail);
+    };
+    window.addEventListener(`mock_space_metadata_update_${cleanId}`, handleCustomEvent);
+
+    // 跨分頁 localStorage 監聽
+    const handleStorageEvent = (e: StorageEvent) => {
+      if (e.key === 'mock_spaces') {
+        const updated = getLocalMeta();
+        if (updated) onUpdate(updated);
+      }
+    };
+    window.addEventListener('storage', handleStorageEvent);
+
+    return () => {
+      window.removeEventListener(`mock_space_metadata_update_${cleanId}`, handleCustomEvent);
+      window.removeEventListener('storage', handleStorageEvent);
+    };
+  }
+}
+
+
+/**
  * 訂閱即時賽局狀態同步 (Real-time Session Sync)
  */
 export function subscribeToSession(

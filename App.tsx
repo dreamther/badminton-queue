@@ -19,6 +19,8 @@ import {
   checkSpaceExists,
   createSpace,
   getSpaceMetadata,
+  updateSpaceMetadata,
+  subscribeToSpaceMetadata,
   subscribeToSession,
   updateSession,
   subscribeToMembers,
@@ -54,6 +56,14 @@ export default function App() {
   const [hasSpacePasscode, setHasSpacePasscode] = useState(false);
   const [isSecuritySettingsOpen, setIsSecuritySettingsOpen] = useState(false); // 安全設定彈窗
   const [joinSpaceIdInput, setJoinSpaceIdInput] = useState('');
+  
+  // --- 球團內部空間設定 State ---
+  const [isSpaceSettingsOpen, setIsSpaceSettingsOpen] = useState(false);
+  const [editSpaceName, setEditSpaceName] = useState('');
+  const [editHasPasscode, setEditHasPasscode] = useState(false);
+  const [editSpacePasscode, setEditSpacePasscode] = useState('');
+  const [editHasSpacePasscode, setEditHasSpacePasscode] = useState(false);
+  const [editSpaceAccessPasscode, setEditSpaceAccessPasscode] = useState('');
   const [recentSpaces, setRecentSpaces] = useState<SpaceMetadata[]>(() => {
     const saved = localStorage.getItem('badminton_recent_spaces');
     return saved ? JSON.parse(saved) : [];
@@ -161,6 +171,7 @@ export default function App() {
       return;
     }
 
+    let unsubMeta: (() => void) | null = null;
     let unsubSession: (() => void) | null = null;
     let unsubMembers: (() => void) | null = null;
 
@@ -177,18 +188,29 @@ export default function App() {
           return;
         }
 
-        // 取得空間 Metadata
-        const meta = await getSpaceMetadata(spaceId!);
-        setSpaceMetadata(meta);
+        // 訂閱空間元資料變動 (Real-time Space Metadata Sync)
+        unsubMeta = subscribeToSpaceMetadata(spaceId!, (meta) => {
+          setSpaceMetadata(meta);
 
-        // 記錄至「最近造訪」
-        if (meta) {
-          setRecentSpaces(prev => {
-            const filtered = prev.filter(s => s.id !== meta.id);
-            const updated = [meta, ...filtered].slice(0, 5); // 最多保留 5 個
-            localStorage.setItem('badminton_recent_spaces', JSON.stringify(updated));
-            return updated;
-          });
+          // 記錄至「最近造訪」
+          if (meta) {
+            setRecentSpaces(prev => {
+              const filtered = prev.filter(s => s.id !== meta.id);
+              const updated = [meta, ...filtered].slice(0, 5); // 最多保留 5 個
+              localStorage.setItem('badminton_recent_spaces', JSON.stringify(updated));
+              return updated;
+            });
+          }
+        }, (err) => {
+          console.error("訂閱空間元資料失敗:", err);
+        });
+
+        // 取得空間 Metadata 用於初始密碼檢查
+        const meta = await getSpaceMetadata(spaceId!);
+        if (!meta) {
+          setSpaceError(`無法取得球團空間「${spaceId}」的資料。`);
+          setIsSpaceLoading(false);
+          return;
         }
 
         // 檢查空間專屬存取密碼
@@ -272,6 +294,7 @@ export default function App() {
     initSpace();
 
     return () => {
+      if (unsubMeta) unsubMeta();
       if (unsubSession) unsubSession();
       if (unsubMembers) unsubMembers();
     };
@@ -300,6 +323,17 @@ export default function App() {
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isProfileMenuOpen]);
+
+  // --- 初始化空間設定編輯狀態 ---
+  useEffect(() => {
+    if (isSpaceSettingsOpen && spaceMetadata) {
+      setEditSpaceName(spaceMetadata.name);
+      setEditHasPasscode(!!spaceMetadata.adminPasscode);
+      setEditSpacePasscode(spaceMetadata.adminPasscode || '');
+      setEditHasSpacePasscode(!!spaceMetadata.spacePasscode);
+      setEditSpaceAccessPasscode(spaceMetadata.spacePasscode || '');
+    }
+  }, [isSpaceSettingsOpen, spaceMetadata]);
 
   // --- 時鐘定時器 ---
   useEffect(() => {
@@ -1114,6 +1148,67 @@ export default function App() {
     }
   };
 
+  // 處理儲存球團內部空間設定
+  const handleSaveSpaceSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!spaceId) return;
+
+    const trimmedName = editSpaceName.trim();
+    if (trimmedName === '') {
+      showToast("❌ 球團名稱不能為空！");
+      return;
+    }
+
+    if (editHasPasscode && (editSpacePasscode.length < 4 || editSpacePasscode.length > 10)) {
+      showToast("❌ 管理員密碼長度需為 4-10 位！");
+      return;
+    }
+
+    if (editHasSpacePasscode && (editSpaceAccessPasscode.length < 4 || editSpaceAccessPasscode.length > 10)) {
+      showToast("❌ 空間存取密碼長度需為 4-10 位！");
+      return;
+    }
+
+    try {
+      const updates: any = {
+        name: trimmedName,
+        adminPasscode: editHasPasscode ? editSpacePasscode.trim() : null,
+        spacePasscode: editHasSpacePasscode ? editSpaceAccessPasscode.trim() : null,
+      };
+
+      await updateSpaceMetadata(spaceId, updates);
+      
+      // 同步更新當前本地的驗證狀態
+      if (!editHasPasscode) {
+        const updatedVerified = { ...verifiedAdmins };
+        delete updatedVerified[spaceId];
+        setVerifiedAdmins(updatedVerified);
+        localStorage.setItem('badminton_verified_admins', JSON.stringify(updatedVerified));
+      } else {
+        const updatedVerified = { ...verifiedAdmins, [spaceId]: true };
+        setVerifiedAdmins(updatedVerified);
+        localStorage.setItem('badminton_verified_admins', JSON.stringify(updatedVerified));
+      }
+
+      if (!editHasSpacePasscode) {
+        const updatedVerifiedSpaces = { ...verifiedSpaces };
+        delete updatedVerifiedSpaces[spaceId];
+        setVerifiedSpaces(updatedVerifiedSpaces);
+        localStorage.setItem('badminton_verified_spaces', JSON.stringify(updatedVerifiedSpaces));
+      } else {
+        const updatedVerifiedSpaces = { ...verifiedSpaces, [spaceId]: true };
+        setVerifiedSpaces(updatedVerifiedSpaces);
+        localStorage.setItem('badminton_verified_spaces', JSON.stringify(updatedVerifiedSpaces));
+      }
+
+      setIsSpaceSettingsOpen(false);
+      showToast("✨ 球團設定已成功更新！");
+    } catch (err) {
+      console.error(err);
+      showToast("❌ 更新設定失敗，請確認網路連線。");
+    }
+  };
+
   // ==========================================
   // 大廳 (Landing Page) 動作
   // ==========================================
@@ -1370,6 +1465,9 @@ export default function App() {
                     <div className="text-[10px] text-slate-500 font-mono mt-2.5 leading-tight truncate">
                       網址預覽: {window.location.origin}{window.location.pathname}#/space/{newSpaceId || '[您的空間ID]'}
                     </div>
+                    <p className="text-[9px] text-rose-400/80 mt-1.5 leading-none font-medium">
+                      ⚠️ 提醒：專屬網址 ID 建立後即無法變更。
+                    </p>
                   </div>
 
                   {/* 進階安全防護設定按鈕 */}
@@ -2076,6 +2174,22 @@ export default function App() {
                         )}
                       </div>
                       
+                      {currentUser?.role === 'admin' && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setIsSpaceSettingsOpen(true);
+                              setIsProfileMenuOpen(false);
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                          >
+                            <Settings className="w-4 h-4 text-slate-500" />
+                            球團空間設定
+                          </button>
+                          <div className="h-px bg-slate-800 my-1 mx-2" />
+                        </>
+                      )}
+                      
                       <button
                         onClick={() => {
                           // 切換身分時，清除當前球團的管理員驗證狀態，確保下次切回團主時需要重輸密碼
@@ -2771,6 +2885,197 @@ export default function App() {
                 <div className="text-[11px] text-slate-500 mt-1">您可以切換至排隊區加入隊伍。</div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 球團空間設定彈窗 */}
+      {isSpaceSettingsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]">
+          <div className="bg-slate-900 border border-slate-800 p-4 xs:p-5 sm:p-6 rounded-3xl max-w-sm w-full shadow-2xl relative overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setIsSpaceSettingsOpen(false)}
+              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-all"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex flex-col items-center mb-5">
+              <div className="w-12 h-12 bg-indigo-500/10 text-indigo-400 rounded-full flex items-center justify-center mb-3">
+                <Settings className="w-6 h-6 animate-[spin_8s_linear_infinite]" />
+              </div>
+              <h3 className="text-lg font-bold text-white">球團空間設定</h3>
+              <p className="text-xs text-slate-400 mt-1">修改目前球團名稱與安全防護密碼</p>
+            </div>
+
+            <form onSubmit={handleSaveSpaceSettings} className="space-y-4">
+              {/* 球團名稱 */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 mb-1">球團/群組名稱</label>
+                <input
+                  type="text"
+                  placeholder="例如：快樂週三羽球團"
+                  className="w-full h-10 px-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-200 text-xs placeholder-slate-700 transition-all"
+                  value={editSpaceName}
+                  onChange={e => setEditSpaceName(e.target.value)}
+                  required
+                />
+              </div>
+
+              {/* 1. 管理員密碼 */}
+              <div className="bg-slate-950/50 p-3 xs:p-4 border border-slate-800/80 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between select-none">
+                  <div className="flex items-center gap-2">
+                    <Key className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="text-xs font-semibold text-slate-200">啟用管理員密碼</span>
+                  </div>
+                  <div 
+                    onClick={() => {
+                      const nextVal = !editHasPasscode;
+                      setEditHasPasscode(nextVal);
+                      if (!nextVal) setEditSpacePasscode('');
+                    }}
+                    className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer flex items-center shrink-0 ${
+                      editHasPasscode ? 'bg-purple-600' : 'bg-slate-800'
+                    }`}
+                  >
+                    <div 
+                      className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform duration-200 ease-in-out ${
+                        editHasPasscode ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </div>
+                </div>
+                <input
+                  type="password"
+                  placeholder={editHasPasscode ? "設定管理密碼 (4-10 位)" : "管理密碼已停用"}
+                  disabled={!editHasPasscode}
+                  className={`w-full h-9 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
+                    editHasPasscode 
+                      ? 'border-slate-800 focus:ring-indigo-500 opacity-100' 
+                      : 'border-slate-900/50 opacity-30 cursor-not-allowed select-none'
+                  }`}
+                  value={editSpacePasscode}
+                  onChange={e => setEditSpacePasscode(e.target.value)}
+                  required={editHasPasscode}
+                />
+                <div className="flex justify-between items-center text-[9px]">
+                  <span className={`transition-all duration-300 ${
+                    !editHasPasscode 
+                      ? "text-slate-600 opacity-40" 
+                      : editSpacePasscode.length === 0 
+                        ? "text-slate-500" 
+                        : (editSpacePasscode.length >= 4 && editSpacePasscode.length <= 10) 
+                          ? "text-emerald-400 font-semibold" 
+                          : "text-amber-500 font-semibold"
+                  }`}>
+                    {!editHasPasscode 
+                      ? "—" 
+                      : editSpacePasscode.length === 0 
+                        ? "請輸入 4-10 位密碼" 
+                        : (editSpacePasscode.length >= 4 && editSpacePasscode.length <= 10) 
+                          ? "✓ 密碼長度安全" 
+                          : "⚠ 密碼長度不符 (需為 4-10 位)"
+                    }
+                  </span>
+                  <span className={`font-mono transition-all duration-300 ${
+                    !editHasPasscode 
+                      ? "text-slate-600 opacity-40" 
+                      : (editSpacePasscode.length >= 4 && editSpacePasscode.length <= 10) 
+                        ? "text-slate-400" 
+                        : "text-amber-500 font-semibold"
+                  }`}>
+                    {editHasPasscode ? `${editSpacePasscode.length}/10` : "—"}
+                  </span>
+                </div>
+              </div>
+
+              {/* 2. 空間存取密碼 */}
+              <div className="bg-slate-950/50 p-3 xs:p-4 border border-slate-800/80 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between select-none">
+                  <div className="flex items-center gap-2">
+                    <EyeOff className="w-3.5 h-3.5 text-rose-400" />
+                    <span className="text-xs font-semibold text-slate-200">啟用私密球團空間</span>
+                  </div>
+                  <div 
+                    onClick={() => {
+                      const nextVal = !editHasSpacePasscode;
+                      setEditHasSpacePasscode(nextVal);
+                      if (!nextVal) setEditSpaceAccessPasscode('');
+                    }}
+                    className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer flex items-center shrink-0 ${
+                      editHasSpacePasscode ? 'bg-purple-600' : 'bg-slate-800'
+                    }`}
+                  >
+                    <div 
+                      className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform duration-200 ease-in-out ${
+                        editHasSpacePasscode ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </div>
+                </div>
+                <input
+                  type="password"
+                  placeholder={editHasSpacePasscode ? "設定空間存取密碼 (4-10 位)" : "空間密碼已停用"}
+                  disabled={!editHasSpacePasscode}
+                  className={`w-full h-9 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
+                    editHasSpacePasscode 
+                      ? 'border-slate-800 focus:ring-indigo-500 opacity-100' 
+                      : 'border-slate-900/50 opacity-30 cursor-not-allowed select-none'
+                  }`}
+                  value={editSpaceAccessPasscode}
+                  onChange={e => setEditSpaceAccessPasscode(e.target.value)}
+                  required={editHasSpacePasscode}
+                />
+                <div className="flex justify-between items-center text-[9px]">
+                  <span className={`transition-all duration-300 ${
+                    !editHasSpacePasscode 
+                      ? "text-slate-600 opacity-40" 
+                      : editSpaceAccessPasscode.length === 0 
+                        ? "text-slate-500" 
+                        : (editSpaceAccessPasscode.length >= 4 && editSpaceAccessPasscode.length <= 10) 
+                          ? "text-emerald-400 font-semibold" 
+                          : "text-amber-500 font-semibold"
+                  }`}>
+                    {!editHasSpacePasscode 
+                      ? "—" 
+                      : editSpaceAccessPasscode.length === 0 
+                        ? "請輸入 4-10 位密碼" 
+                        : (editSpaceAccessPasscode.length >= 4 && editSpaceAccessPasscode.length <= 10) 
+                          ? "✓ 密碼長度安全" 
+                          : "⚠ 密碼長度不符 (需為 4-10 位)"
+                    }
+                  </span>
+                  <span className={`font-mono transition-all duration-300 ${
+                    !editHasSpacePasscode 
+                      ? "text-slate-600 opacity-40" 
+                      : (editSpaceAccessPasscode.length >= 4 && editSpaceAccessPasscode.length <= 10) 
+                        ? "text-slate-400" 
+                        : "text-amber-500 font-semibold"
+                  }`}>
+                    {editHasSpacePasscode ? `${editSpaceAccessPasscode.length}/10` : "—"}
+                  </span>
+                </div>
+              </div>
+
+              {/* 按鈕區 */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSpaceSettingsOpen(false)}
+                  className="flex-1 h-10 border border-slate-800 hover:bg-slate-800 text-slate-300 text-xs font-semibold rounded-xl transition-all"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 h-10 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition-all shadow-lg"
+                >
+                  儲存設定
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
