@@ -45,6 +45,8 @@ export default function App() {
   });
   const [spaceMetadata, setSpaceMetadata] = useState<SpaceMetadata | null>(null);
   const [isSpaceLoading, setIsSpaceLoading] = useState(false);
+  const [isSessionLoaded, setIsSessionLoaded] = useState(false);
+  const [isMembersLoaded, setIsMembersLoaded] = useState(false);
   const [spaceError, setSpaceError] = useState<string | null>(null);
 
   // --- 大廳 (Landing Page) 輸入 State ---
@@ -162,6 +164,8 @@ export default function App() {
       setSpaceMetadata(null);
       setIsLoggingInAsPlayer(false);
       setLoginSearchTerm('');
+      setIsSessionLoaded(false);
+      setIsMembersLoaded(false);
       
       // 回到大廳時，若有已驗證的管理員權限，則清除並移除本地登入紀錄（防範無限重繪迴圈）
       if (Object.keys(verifiedAdmins).length > 0) {
@@ -177,6 +181,8 @@ export default function App() {
 
     async function initSpace() {
       setIsSpaceLoading(true);
+      setIsSessionLoaded(false);
+      setIsMembersLoaded(false);
       setSpaceError(null);
       isFirstLoadRef.current = true; // 重置首載標記
 
@@ -252,6 +258,7 @@ export default function App() {
           setQueueSlots(session.queueSlots || []);
           setIsWarmupDone(session.isWarmupDone ?? false);
           setAnnounceMode(session.announceMode || 'local');
+          setIsSessionLoaded(true);
 
           // 實時語音播報判定
           if (session.lastAnnouncement) {
@@ -281,6 +288,7 @@ export default function App() {
         // 2. 訂閱會員名冊
         unsubMembers = subscribeToMembers(spaceId!, (list) => {
           setMembers(list);
+          setIsMembersLoaded(true);
         });
 
       } catch (e) {
@@ -1062,6 +1070,62 @@ export default function App() {
     return newId;
   }, [players, updateCloudSession]);
 
+  // --- 專屬球員自動報到與選取邏輯 ---
+  const hasAutoSelectedRef = useRef(false);
+
+  // 當 spaceId 或登入球員變更時，重置自動選取狀態
+  useEffect(() => {
+    hasAutoSelectedRef.current = false;
+  }, [spaceId, currentUser?.memberId, currentUser?.role]);
+
+  useEffect(() => {
+    if (
+      spaceId &&
+      !spaceError &&
+      !isSpaceLoading &&
+      isSessionLoaded &&
+      isMembersLoaded &&
+      currentUser?.role === 'player' &&
+      currentUser.memberId
+    ) {
+      const member = members.find(m => m.id === currentUser.memberId);
+      if (!member) return;
+
+      const currentMemberName = member.name;
+      const matchedPlayer = players.find(p => p.name === currentMemberName);
+
+      if (!matchedPlayer) {
+        // 尚未報到，自動報到
+        console.log(`[Auto Check-In] 球員 ${currentMemberName} 尚未報到，執行自動報到...`);
+        const pId = checkInMember(member);
+        if (pId) {
+          setSelectedPlayerForMove(pId);
+          hasAutoSelectedRef.current = true;
+        }
+      } else {
+        // 已經報到
+        if (!hasAutoSelectedRef.current) {
+          // 如果尚未進行過自動選取，且球員在休息區 (idle)，則自動選取
+          if (matchedPlayer.status === 'idle') {
+            console.log(`[Auto Select] 自動選取休息區中的球員 ${currentMemberName}`);
+            setSelectedPlayerForMove(matchedPlayer.id);
+          }
+          hasAutoSelectedRef.current = true;
+        }
+      }
+    }
+  }, [
+    spaceId,
+    spaceError,
+    isSpaceLoading,
+    isSessionLoaded,
+    isMembersLoaded,
+    currentUser,
+    members,
+    players,
+    checkInMember
+  ]);
+
   const removeMember = useCallback(async (memberId: string) => {
     if (!spaceId) return;
     if (confirm('確定要刪除此會員嗎？（這不會影響目前場上的球員）')) {
@@ -1723,7 +1787,7 @@ export default function App() {
   // ==========================================
   // 渲染載入中 / 錯誤頁面
   // ==========================================
-  if (isSpaceLoading) {
+  if (isSpaceLoading || (spaceId && (!isSessionLoaded || !isMembersLoaded))) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-200 p-4">
         <div className="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
