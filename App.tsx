@@ -1222,9 +1222,9 @@ export default function App() {
             <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-2 rounded-lg shadow-lg shadow-indigo-500/25">
               <Trophy className="w-6 h-6 text-white animate-pulse" />
             </div>
-            <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">羽球排隊助手 🚀</h1>
+            <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">羽球排隊助手</h1>
           </div>
-          <span className="text-xs text-slate-500 font-mono">v2.0 雲端版</span>
+          <span className="text-xs text-slate-500 font-mono">v1.2</span>
         </header>
 
         {/* 主內容區 */}
