@@ -1217,10 +1217,10 @@ export default function App() {
         </div>
 
         {/* 頂部裝飾 */}
-        <header className="px-6 py-6 border-b border-slate-900 flex justify-between items-center z-10 shrink-0 bg-slate-950/80 backdrop-blur-md">
+        <header className="h-16 px-4 border-b border-slate-900 flex justify-between items-center z-10 shrink-0 bg-slate-950/80 backdrop-blur-md">
           <div className="flex items-center gap-3">
             <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-2 rounded-lg shadow-lg shadow-indigo-500/25">
-              <Trophy className="w-6 h-6 text-white animate-pulse" />
+              <Trophy className="w-5 h-5 text-white" />
             </div>
             <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">羽球排隊助手</h1>
           </div>
@@ -1999,7 +1999,7 @@ export default function App() {
         const p = players.find(p => p.id === selectedPlayerForMove);
         if (!p) return null;
         return (
-          <header className="px-4 py-3 bg-indigo-950 border-b border-indigo-900/50 flex items-center justify-between z-20 shrink-0 animate-in fade-in duration-200">
+          <header className="h-16 px-4 bg-indigo-950 border-b border-indigo-900/50 flex items-center justify-between z-20 shrink-0 animate-in fade-in duration-200">
             <div className="flex items-center justify-between w-full flex-1">
               <div className="flex items-center gap-3">
                  <PlayerAvatar identifier={p.name} className="w-9 h-9 shrink-0 rounded-full shadow-sm" />
@@ -2016,7 +2016,7 @@ export default function App() {
           </header>
         );
       })() : (
-        <header className="px-4 py-3 bg-slate-950 border-b border-slate-800 flex items-center justify-between z-20 shrink-0">
+        <header className="h-16 px-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between z-20 shrink-0">
             <div className="flex items-center justify-between w-full flex-1">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-2 rounded-lg shadow-lg shadow-indigo-500/20 shrink-0">
