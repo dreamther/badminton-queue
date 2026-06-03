@@ -1232,8 +1232,8 @@ export default function App() {
           <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-8 my-auto">
             
             {/* 左側：進入/加入空間 */}
-            <div className="bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl p-8 rounded-3xl shadow-2xl flex flex-col justify-between min-h-[460px]">
-              <div>
+            <div className="bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl p-8 rounded-3xl shadow-2xl flex flex-col justify-between min-h-[460px] md:h-[55vh] md:min-h-[500px] md:max-h-[580px]">
+              <div className="flex-1 flex flex-col min-h-0">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-xl">
                     <ExternalLink className="w-5 h-5" />
@@ -1267,14 +1267,14 @@ export default function App() {
                 </form>
 
                 {/* 最近造訪紀錄 */}
-                <div className="mt-8">
+                <div className="mt-8 flex-1 flex flex-col min-h-0">
                   <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">最近造訪的球團</h3>
                   {recentSpaces.length === 0 ? (
                     <div className="py-6 text-center border border-dashed border-slate-800/60 rounded-2xl text-slate-600 text-xs">
                       目前此瀏覽器尚無造訪紀錄
                     </div>
                   ) : (
-                    <div className="space-y-2 max-h-[236px] overflow-y-auto pr-1.5 scroll-smooth [scrollbar-width:thin] [scrollbar-color:theme(colors.slate.800)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-800 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+                    <div className="space-y-2 max-h-[180px] md:max-h-none overflow-y-auto pr-1.5 flex-1 min-h-0 scroll-smooth [scrollbar-width:thin] [scrollbar-color:theme(colors.slate.800)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-800 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
                       {recentSpaces.map(space => (
                         <div
                           key={space.id}
@@ -1332,7 +1332,7 @@ export default function App() {
             </div>
 
             {/* 右側：建立全新空間 */}
-            <div className="bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl p-8 rounded-3xl shadow-2xl flex flex-col justify-between min-h-[460px]">
+            <div className="bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl p-8 rounded-3xl shadow-2xl flex flex-col justify-between min-h-[460px] md:h-[55vh] md:min-h-[500px] md:max-h-[580px]">
               <div>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 bg-purple-500/10 text-purple-400 rounded-xl">
