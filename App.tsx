@@ -2238,20 +2238,20 @@ export default function App() {
                   </button>
 
                   {isProfileMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-800 rounded-xl shadow-xl py-1 z-50 animate-in fade-in slide-in-from-top-2">
-                      <div className="px-3 py-2.5 border-b border-slate-800 flex items-baseline gap-1.5">
-                        <p className="text-[10px] text-slate-400 font-medium shrink-0">
+                    <div className="absolute right-0 mt-2 w-52 bg-slate-900 border border-slate-800 rounded-xl shadow-xl py-1 z-50 animate-in fade-in slide-in-from-top-2">
+                      <div className="px-3 py-2 border-b border-slate-800/60 flex items-baseline gap-1.5 bg-slate-950/20">
+                        <p className="text-[10px] text-slate-500 font-medium shrink-0">
                           {!currentUser ? '未登入' : (currentUser.role === 'admin' ? '團主' : '球員')}
                         </p>
                         {currentUser && (
-                          <p className="text-xs font-bold text-white truncate flex-1">
+                          <p className="text-xs font-bold text-slate-300 truncate flex-1">
                             {currentUser.role === 'admin' ? '管理員' : members.find(m => m.id === currentUser.memberId)?.name || ''}
                           </p>
                         )}
                       </div>
                       
                       {currentUser?.role === 'admin' && (
-                        <>
+                        <div className="py-1">
                           <button
                             onClick={() => {
                               setIsSpaceSettingsOpen(true);
@@ -2262,45 +2262,55 @@ export default function App() {
                             <Settings className="w-4 h-4 text-slate-500" />
                             球團空間設定
                           </button>
-                          <div className="h-px bg-slate-800 my-1 mx-2" />
-                        </>
+                          <button
+                            onClick={() => {
+                              resetSession();
+                              setIsProfileMenuOpen(false);
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-xs text-red-400/90 hover:text-red-400 hover:bg-red-500/10 transition-colors group"
+                          >
+                            <Power className="w-4 h-4 text-red-500/70 group-hover:text-red-400 transition-colors" />
+                            結束本日打球
+                          </button>
+                          <div className="h-px bg-slate-800/60 my-1 mx-2" />
+                        </div>
                       )}
                       
-                      <button
-                        onClick={() => {
-                          // 切換身分時，清除當前球團的管理員驗證狀態，確保下次切回團主時需要重輸密碼
-                          if (spaceId) {
-                            const updatedVerified = { ...verifiedAdmins };
-                            delete updatedVerified[spaceId];
-                            setVerifiedAdmins(updatedVerified);
-                            localStorage.setItem('badminton_verified_admins', JSON.stringify(updatedVerified));
-                            
-                            // 同時清除本地儲存的登入狀態，確保不會在 useEffect 中被自動還原
-                            localStorage.removeItem(`badminton_current_user_${spaceId}`);
-                          }
-                          setCurrentUser(null);
-                          setIsLoggingInAsPlayer(false); // 重置為選擇身分（我是團主/一般球員）畫面
-                          setLoginSearchTerm('');        // 清除搜尋字詞
-                          setSelectedPlayerForMove(null);
-                          setIsProfileMenuOpen(false);
-                        }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
-                      >
-                        <LogOut className="w-4 h-4 text-slate-500" />
-                        切換身分
-                      </button>
+                      <div className="py-1">
+                        <button
+                          onClick={() => {
+                            // 切換身分時，清除當前球團的管理員驗證狀態，確保下次切回團主時需要重輸密碼
+                            if (spaceId) {
+                              const updatedVerified = { ...verifiedAdmins };
+                              delete updatedVerified[spaceId];
+                              setVerifiedAdmins(updatedVerified);
+                              localStorage.setItem('badminton_verified_admins', JSON.stringify(updatedVerified));
+                              
+                              // 同時清除本地儲存的登入狀態，確保不會在 useEffect 中被自動還原
+                              localStorage.removeItem(`badminton_current_user_${spaceId}`);
+                            }
+                            setCurrentUser(null);
+                            setIsLoggingInAsPlayer(false); // 重置為選擇身分（我是團主/一般球員）畫面
+                            setLoginSearchTerm('');        // 清除搜尋字詞
+                            setSelectedPlayerForMove(null);
+                            setIsProfileMenuOpen(false);
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                        >
+                          <LogOut className="w-4 h-4 text-slate-500" />
+                          切換身分
+                        </button>
 
-                      <div className="h-px bg-slate-800 my-1 mx-2" />
-
-                      <button
-                        onClick={() => {
-                          window.location.hash = '';
-                        }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-red-400 hover:text-red-300 hover:bg-slate-800 transition-colors"
-                      >
-                        <ArrowLeft className="w-4 h-4" />
-                        返回大廳 (切換球團)
-                      </button>
+                        <button
+                          onClick={() => {
+                            window.location.hash = '';
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                        >
+                          <ArrowLeft className="w-4 h-4 text-slate-500" />
+                          返回大廳
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2876,18 +2886,6 @@ export default function App() {
                 {isWarmupDone ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Flame className="w-3.5 h-3.5" />}
                 <span>{isWarmupDone ? '已熱身' : '熱身中'}</span>
               </button>
-
-              {/* 打球結束 */}
-              {currentUser?.role === 'admin' && (
-                <button
-                  onClick={resetSession}
-                  className="flex items-center justify-center gap-1.5 px-3 h-8 bg-transparent text-red-400 border border-red-500/40 hover:bg-red-500 hover:text-white hover:border-red-500 text-xs font-semibold rounded-lg transition-colors"
-                  title="清空今日賽事"
-                >
-                  <Power className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">打球結束</span>
-                </button>
-              )}
             </div>
           </div>
 
