@@ -2725,7 +2725,7 @@ export default function App() {
           {/* Toolbar */}
           <div className="py-3 sm:py-0 sm:h-16 border-b border-slate-800 flex items-center px-4 sm:px-8 justify-between bg-slate-900/50 backdrop-blur-sm sticky top-0 z-10 shrink-0">
             <div className="flex items-center gap-4">
-              <h2 className="font-semibold text-slate-200 hidden sm:block">球場調度</h2>
+              <h2 className="font-semibold text-slate-200 hidden sm:block">場地區</h2>
 
               {idleCourtsCount === 0 ? (
                 <span className="flex items-center gap-1.5 text-green-400 hidden sm:flex text-xs font-semibold bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full">
