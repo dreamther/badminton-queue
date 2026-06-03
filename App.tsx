@@ -2417,7 +2417,7 @@ export default function App() {
                         onClick={restAllQueue}
                         className="text-xs text-red-400 hover:text-red-300 bg-red-500/10 border border-red-500/20 px-2 py-1 rounded-md transition-colors font-medium"
                       >
-                        清空佇列
+                        清空
                       </button>
                     )}
                   </div>
@@ -2801,12 +2801,12 @@ export default function App() {
           {/* Toolbar */}
           <div className="py-3 sm:py-0 sm:h-16 border-b border-slate-800 flex items-center px-4 sm:px-8 justify-between bg-slate-900/50 backdrop-blur-sm sticky top-0 z-10 shrink-0">
             <div className="flex items-center gap-4">
-              <h2 className="font-semibold text-slate-200 hidden sm:block">場地區</h2>
+              {/* <h2 className="font-semibold text-slate-200 hidden sm:block">場地區111</h2> */}
 
               {idleCourtsCount === 0 ? (
                 <span className="flex items-center gap-1.5 text-green-400 hidden sm:flex text-xs font-semibold bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full">
                   <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-                  所有場地滿載中
+                  滿場中
                 </span>
               ) : (
                 <span className="flex items-center gap-1.5 text-amber-400 hidden sm:flex text-xs font-semibold bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
@@ -2939,7 +2939,7 @@ export default function App() {
       {/* Rest Area Floating Button */}
       <button
         onClick={() => setIsRestAreaOpen(true)}
-        className="fixed bottom-6 right-6 z-45 bg-slate-850 hover:bg-slate-800 text-white shadow-2xl shadow-indigo-500/10 rounded-full py-3.5 px-6 flex items-center gap-2 border border-slate-700 transition-all font-semibold animate-[fadeIn_0.3s_ease-out]"
+        className="fixed bottom-6 right-6 z-40 bg-slate-850 hover:bg-slate-800 text-white shadow-2xl shadow-indigo-500/10 rounded-full py-3.5 px-6 flex items-center gap-2 border border-slate-700 transition-all font-semibold animate-[fadeIn_0.3s_ease-out]"
       >
         <Coffee className="w-5 h-5 text-amber-400" />
         休息區 <span className="bg-slate-950 text-amber-400 px-2 py-0.5 rounded-full text-xs font-bold shrink-0 ml-1">{idlePlayers.length}</span>
