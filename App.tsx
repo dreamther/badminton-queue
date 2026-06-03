@@ -2229,9 +2229,9 @@ export default function App() {
             <div className="flex items-center justify-between w-full flex-1">
               <div className="flex items-center gap-3">
                  <PlayerAvatar identifier={p.name} className="w-9 h-9 shrink-0 rounded-full shadow-sm" />
-                 <div className="flex flex-col justify-center">
+                 <div className="flex flex-col justify-center gap-1">
                     <div className="font-bold text-white text-sm leading-tight">已選取 {p.name}</div>
-                    <div className="text-[11px] text-indigo-200/70 leading-tight">請點擊目標球場空位 (或點擊排隊空位) 放置</div>
+                    <div className="text-[11px] text-indigo-200/70 leading-tight">請點擊 ”移動至此“ 的空位放置</div>
                  </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
