@@ -21,12 +21,13 @@ import { Player, Court, Member } from './types';
 // 💡 請將下方的預留欄位替換為您在 Firebase Console 取得的 Web 應用程式設定金鑰。
 // 💡 若尚未設定，系統將自動啟用「LocalStorage Mock 備用模式」，依然可進行完整的本地排隊操作！
 export const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.firebasestorage.app",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "YOUR_API_KEY",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "YOUR_PROJECT_ID",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "YOUR_PROJECT_ID.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "YOUR_SENDER_ID",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "YOUR_APP_ID",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "YOUR_MEASUREMENT_ID"
 };
 
 // 檢查是否為有效的 Firebase 金鑰配置
@@ -122,10 +123,18 @@ export async function createSpace(
   const metadata: SpaceMetadata = {
     id: cleanId,
     name,
-    adminPasscode: adminPasscode?.trim() || undefined,
-    spacePasscode: spacePasscode?.trim() || undefined,
     createdAt: Date.now()
   };
+
+  const trimmedAdminPasscode = adminPasscode?.trim();
+  if (trimmedAdminPasscode) {
+    metadata.adminPasscode = trimmedAdminPasscode;
+  }
+
+  const trimmedSpacePasscode = spacePasscode?.trim();
+  if (trimmedSpacePasscode) {
+    metadata.spacePasscode = trimmedSpacePasscode;
+  }
 
   const initialSession: SessionState = {
     players: [],
