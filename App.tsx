@@ -1841,7 +1841,7 @@ export default function App() {
   // ==========================================
   if (isSpaceLoading || (spaceId && (!isSessionLoaded || !isMembersLoaded))) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-200 p-4">
+      <div className="h-full w-full bg-slate-950 flex flex-col items-center justify-center text-slate-200 p-4">
         <div className="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
         <p className="text-sm text-slate-400 font-medium">正在加載「{spaceId}」賽局狀態與雲端連線中...</p>
       </div>
@@ -1850,7 +1850,7 @@ export default function App() {
 
   if (spaceError) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-200 p-6">
+      <div className="h-full w-full bg-slate-950 flex flex-col items-center justify-center text-slate-200 p-6">
         <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-md w-full shadow-2xl text-center space-y-6">
           <div className="w-16 h-16 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center mx-auto">
             <Unlink className="w-8 h-8" />
@@ -1873,7 +1873,7 @@ export default function App() {
   // ==========================================
   if (spacePasscodePromptOpen) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-200 p-4">
+      <div className="h-full w-full bg-slate-950 flex flex-col items-center justify-center text-slate-200 p-4">
         <style>{`
           @keyframes shake {
             0%, 100% { transform: translateX(0); }
@@ -1944,7 +1944,7 @@ export default function App() {
       .sort((a, b) => b.createdAt - a.createdAt);
 
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 text-slate-200 p-4">
+      <div className="flex flex-col items-center justify-center h-full w-full bg-slate-950 text-slate-200 p-4">
         <div className="bg-slate-900 border border-slate-800 p-6 xs:p-7 sm:p-8 rounded-2xl shadow-2xl max-w-sm w-full mx-auto relative overflow-hidden">
           
           {/* 返回大廳按鈕 */}
