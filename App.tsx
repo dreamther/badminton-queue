@@ -2801,7 +2801,7 @@ export default function App() {
           {/* Toolbar */}
           <div className="py-3 sm:py-0 sm:h-16 border-b border-slate-800 flex items-center px-4 sm:px-8 justify-between bg-slate-900/50 backdrop-blur-sm sticky top-0 z-10 shrink-0">
             <div className="flex items-center gap-4">
-              {/* <h2 className="font-semibold text-slate-200 hidden sm:block">場地區111</h2> */}
+              <h2 className="font-semibold text-slate-200 hidden sm:block">場地狀況</h2>
 
               {idleCourtsCount === 0 ? (
                 <span className="flex items-center gap-1.5 text-green-400 hidden sm:flex text-xs font-semibold bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full">
@@ -2881,7 +2881,7 @@ export default function App() {
               {currentUser?.role === 'admin' && (
                 <button
                   onClick={resetSession}
-                  className="flex items-center justify-center gap-1.5 px-3 h-8 bg-transparent text-red-400 border border-red-500/40 hover:bg-red-500 hover:text-white hover:border-red-500 text-xs font-semibold rounded-lg transition-colors animate-[pulse_5s_infinite]"
+                  className="flex items-center justify-center gap-1.5 px-3 h-8 bg-transparent text-red-400 border border-red-500/40 hover:bg-red-500 hover:text-white hover:border-red-500 text-xs font-semibold rounded-lg transition-colors"
                   title="清空今日賽事"
                 >
                   <Power className="w-3.5 h-3.5" />
