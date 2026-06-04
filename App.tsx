@@ -1426,7 +1426,7 @@ export default function App() {
   // ==========================================
   if (!spaceId) {
     return (
-      <div className="relative h-full bg-slate-950 text-slate-100 flex flex-col overflow-y-auto overflow-x-hidden">
+      <div className="relative min-h-[100dvh] w-screen bg-slate-950 text-slate-100 flex flex-col overflow-y-auto overflow-x-hidden">
         {/* 背景發光光暈容器（使用 overflow-hidden 嚴格剪裁，防範行動裝置版面拓寬） */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
           <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/10 rounded-full blur-[120px]" />
@@ -2971,7 +2971,7 @@ export default function App() {
           className={`absolute inset-0 bg-black/60 transition-opacity duration-300 ${isRestAreaOpen ? 'opacity-100' : 'opacity-0'}`}
           onClick={() => setIsRestAreaOpen(false)}
         />
-        <div className={`relative w-full lg:max-w-2xl lg:mx-auto bg-slate-950 border-t border-slate-800 rounded-t-3xl shadow-2xl flex flex-col max-h-[40vh] pb-safe transition-transform duration-300 ease-out ${isRestAreaOpen ? 'translate-y-0' : 'translate-y-full'}`}>
+        <div className={`relative w-full lg:max-w-2xl lg:mx-auto bg-slate-950 border-t border-slate-800 rounded-t-3xl shadow-2xl flex flex-col max-h-[40dvh] pb-safe transition-transform duration-300 ease-out ${isRestAreaOpen ? 'translate-y-0' : 'translate-y-full'}`}>
           <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pt-2">
             <div className="pb-6 flex-1 flex flex-col">
               {renderRestArea()}
