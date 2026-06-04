@@ -597,7 +597,7 @@ export default function App() {
   }, [queueSlots, players, updateCloudSession]);
 
   const deletePlayer = useCallback((playerId: string) => {
-    if (confirm('確定要讓此球員早退嗎？（將回到會員列表）')) {
+    if (confirm('確定要讓此球員早退嗎？')) {
       setSelectedPlayerForMove(prev => prev === playerId ? null : prev);
       const newSlots = queueSlots.map(id => id === playerId ? null : id);
       while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
@@ -1088,10 +1088,12 @@ export default function App() {
 
   // --- 專屬球員自動報到與選取邏輯 ---
   const hasAutoSelectedRef = useRef(false);
+  const hasCheckedInOnMountRef = useRef(false);
 
-  // 當 spaceId 或登入球員變更時，重置自動選取狀態
+  // 當 spaceId 或登入球員變更時，重置自動選取與報到狀態
   useEffect(() => {
     hasAutoSelectedRef.current = false;
+    hasCheckedInOnMountRef.current = false;
   }, [spaceId, currentUser?.memberId, currentUser?.role]);
 
   useEffect(() => {
@@ -1111,15 +1113,28 @@ export default function App() {
       const matchedPlayer = players.find(p => p.name === currentMemberName);
 
       if (!matchedPlayer) {
-        // 尚未報到，自動報到
-        console.log(`[Auto Check-In] 球員 ${currentMemberName} 尚未報到，執行自動報到...`);
-        const pId = checkInMember(member);
-        if (pId) {
-          setSelectedPlayerForMove(pId);
-          hasAutoSelectedRef.current = true;
+        // 尚未報到
+        if (!hasCheckedInOnMountRef.current) {
+          // 首次載入或切換身分，執行自動報到
+          console.log(`[Auto Check-In] 球員 ${currentMemberName} 尚未報到，執行自動報到...`);
+          const pId = checkInMember(member);
+          if (pId) {
+            setSelectedPlayerForMove(pId);
+            hasAutoSelectedRef.current = true;
+          }
+          hasCheckedInOnMountRef.current = true;
+        } else {
+          // 之前已經報到過，但現在不見了，說明已被移出賽局（早退），此時自動登出返回身分選擇頁
+          console.log(`[Auto Logout] 球員 ${currentMemberName} 已早退/被移出，自動清除登入狀態。`);
+          localStorage.removeItem(`badminton_current_user_${spaceId}`);
+          setCurrentUser(null);
+          setIsLoggingInAsPlayer(false);
+          setLoginSearchTerm('');
+          setSelectedPlayerForMove(null);
         }
       } else {
         // 已經報到
+        hasCheckedInOnMountRef.current = true;
         if (!hasAutoSelectedRef.current) {
           // 如果尚未進行過自動選取，且球員在休息區 (idle)，則自動選取
           if (matchedPlayer.status === 'idle') {
