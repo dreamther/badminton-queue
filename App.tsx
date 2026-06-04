@@ -157,6 +157,7 @@ export default function App() {
   const lastVoiceTimestampRef = useRef<number>(0);
   const isFirstLoadRef = useRef<boolean>(true);
   const isSessionLoadedRef = useRef<boolean>(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
   // --- 監聽 Hash 路由變化 ---
   useEffect(() => {
@@ -306,7 +307,7 @@ export default function App() {
               // 首載：僅記錄時間戳，不發出聲音，避免一進網頁就吵人
               lastVoiceTimestampRef.current = ann.timestamp;
               isFirstLoadRef.current = false;
-            } else if (ann.timestamp > lastVoiceTimestampRef.current) {
+            } else if (ann.timestamp !== lastVoiceTimestampRef.current) {
               lastVoiceTimestampRef.current = ann.timestamp;
               
               // 判定是否播放：
@@ -391,27 +392,99 @@ export default function App() {
   }, []);
 
   // --- iOS/行動端語音引擎解鎖 ---
-  useEffect(() => {
-    const unlockSpeech = () => {
-      if ('speechSynthesis' in window) {
-        try {
-          const u = new SpeechSynthesisUtterance('');
-          window.speechSynthesis.speak(u);
-          console.log('[Speech] 語音播報引擎已成功解鎖！');
-        } catch (e) {
-          console.warn('[Speech] 解鎖語音引擎失敗:', e);
-        }
+  // iOS Safari 要求第一次 speak() 必須在使用者手勢中產生「真實可聽」的音訊（volume > 0）
+  // 才會永久啟動音訊 session。volume=0 或 0.01 都會被 iOS 視為空操作。
+
+  // 解鎖 iOS 音訊引擎（在使用者手勢中呼叫）
+  const activateSpeechEngine = useCallback(() => {
+    try {
+      // 1. AudioContext 解鎖
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       }
+      if (audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume();
+      }
+      // 2. speechSynthesis 解鎖：volume=1.0 是必要的，iOS 才認定為真實音訊
+      //    使用 '.' + rate=10 讓聲音幾乎聽不到（極短促）
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance('語音廣播已開啟');
+        u.lang = 'zh-TW';
+        u.volume = 0.3;
+        u.rate = 1.2;
+        window.speechSynthesis.speak(u);
+      }
+    } catch (e) {
+      console.warn('[Speech] 解鎖語音引擎失敗:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = false;
+    
+    const unlockSpeech = () => {
+      // 觸控解鎖：在用戶首次觸控時執行（自動還原登入狀態的管理員回退機制）
+      try {
+        if (!audioCtxRef.current) {
+          audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
+        if (audioCtxRef.current.state === 'suspended') {
+          audioCtxRef.current.resume();
+        }
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance('語音廣播已開啟');
+          u.volume = 0.3;
+          u.rate = 1.2;
+          u.lang = 'zh-TW';
+          window.speechSynthesis.speak(u);
+        }
+        console.log('[Speech] 語音引擎解鎖成功');
+      } catch (e) {
+        console.warn('[Speech] 解鎖失敗:', e);
+      }
+      removeListeners();
+    };
+
+    const addListeners = () => {
+      if (active) return;
+      active = true;
+      document.addEventListener('click', unlockSpeech);
+      document.addEventListener('touchstart', unlockSpeech);
+    };
+
+    const removeListeners = () => {
+      active = false;
       document.removeEventListener('click', unlockSpeech);
       document.removeEventListener('touchstart', unlockSpeech);
     };
 
-    document.addEventListener('click', unlockSpeech);
-    document.addEventListener('touchstart', unlockSpeech);
+    addListeners();
+
+    // 預載語音列表
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.addEventListener('voiceschanged', () => {
+        window.speechSynthesis.getVoices();
+      });
+    }
+
+    // 頁面可見性變化時重新解鎖
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+          audioCtxRef.current.resume();
+        }
+        addListeners();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      document.removeEventListener('click', unlockSpeech);
-      document.removeEventListener('touchstart', unlockSpeech);
+      removeListeners();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
@@ -578,16 +651,24 @@ export default function App() {
   const speak = useCallback((text: string) => {
     if (!isAutoAnnounceRef.current) return;
     if ('speechSynthesis' in window) {
+      // 先清除佇列中殘留的舊語音（包括 priming 的 '.'），再播新內容
       window.speechSynthesis.cancel();
-      const createUtterance = () => {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'zh-TW';
-        utterance.rate = 1.0; 
-        utterance.pitch = 1.2; 
-        return utterance;
-      };
-      window.speechSynthesis.speak(createUtterance());
-      window.speechSynthesis.speak(createUtterance());
+      
+      // 若引擎處於 paused 狀態（如分頁切換後），先 resume
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
+      
+      // 確保 AudioContext 也處於活動狀態
+      if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume();
+      }
+      
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'zh-TW';
+      utterance.rate = 1.0;
+      utterance.pitch = 1.2;
+      window.speechSynthesis.speak(utterance);
     }
   }, []);
 
@@ -1233,6 +1314,8 @@ export default function App() {
       setCurrentUser(user);
       localStorage.setItem(`badminton_current_user_${spaceId}`, JSON.stringify(user));
       setIsAutoAnnounce(true); // 團主預設開啟語音播報
+      isAutoAnnounceRef.current = true;
+      activateSpeechEngine(); // 在使用者手勢中用真實語音解鎖 iOS 音訊引擎
       setActiveTab('members');
       showToast("已成功切換為團主模式");
       return;
@@ -1244,6 +1327,8 @@ export default function App() {
       setCurrentUser(user);
       localStorage.setItem(`badminton_current_user_${spaceId}`, JSON.stringify(user));
       setIsAutoAnnounce(true); // 團主預設開啟語音播報
+      isAutoAnnounceRef.current = true;
+      activateSpeechEngine();
       setActiveTab('members');
       return;
     }
@@ -1265,6 +1350,8 @@ export default function App() {
       setCurrentUser(user);
       localStorage.setItem(`badminton_current_user_${spaceId}`, JSON.stringify(user));
       setIsAutoAnnounce(true); // 團主預設開啟語音播報
+      isAutoAnnounceRef.current = true;
+      activateSpeechEngine();
 
       // 儲存已驗證標記
       const updatedVerified = { ...verifiedAdmins, [spaceId]: true };
@@ -2958,18 +3045,16 @@ export default function App() {
                 onClick={() => {
                   const val = !isAutoAnnounce;
                   setIsAutoAnnounce(val);
+                  isAutoAnnounceRef.current = val;
                   showToast(val ? "🔊 本裝置開啟語音播報" : "🔇 本裝置關閉語音播報");
                   
-                  if ('speechSynthesis' in window) {
-                    try {
-                      if (val) {
-                        const u = new SpeechSynthesisUtterance('');
-                        window.speechSynthesis.speak(u);
-                      } else {
-                        window.speechSynthesis.cancel();
-                      }
-                    } catch (e) {
-                      console.warn(e);
+                  if (val) {
+                    // 開啟播報：此按鈕點擊本身就是使用者手勢，用真實語音解鎖 iOS 引擎
+                    activateSpeechEngine();
+                  } else {
+                    // 關閉播報：停止當前正在播放的聲音
+                    if ('speechSynthesis' in window) {
+                      window.speechSynthesis.cancel();
                     }
                   }
                 }}
