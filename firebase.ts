@@ -146,7 +146,7 @@ export async function createSpace(
     })),
     queueSlots: [],
     isWarmupDone: false,
-    announceMode: 'local',
+    announceMode: 'all',
     updatedAt: Date.now()
   };
 
@@ -306,7 +306,7 @@ export function subscribeToSession(
         courts: [],
         queueSlots: [],
         isWarmupDone: false,
-        announceMode: 'local',
+        announceMode: 'all',
         updatedAt: Date.now()
       };
     };
