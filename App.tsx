@@ -130,7 +130,7 @@ export default function App() {
   const [isRestAreaOpen, setIsRestAreaOpen] = useState(false); 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); 
   const [currentTime, setCurrentTime] = useState(new Date()); 
-  const [isAutoAnnounce, setIsAutoAnnounce] = useState(true); // 本地裝置的語音開關
+  const [isAutoAnnounce, setIsAutoAnnounce] = useState(false); // 本地裝置的語音開關
   const isAutoAnnounceRef = useRef(isAutoAnnounce);
   useEffect(() => {
     isAutoAnnounceRef.current = isAutoAnnounce;
@@ -268,7 +268,9 @@ export default function App() {
               setCurrentUser(null);
             } else {
               setCurrentUser(savedUser);
-              setIsAutoAnnounce(true); // 管理員預設開啟播報
+              setIsAutoAnnounce(false); // 避免聲音通道被鎖定，預設先關閉，由用戶點擊按鈕啟用
+              isAutoAnnounceRef.current = false;
+              showToast("📢 已自動還原團主身分，若要播報請點擊語音按鈕");
             }
           } else {
             setCurrentUser(savedUser);
@@ -290,8 +292,9 @@ export default function App() {
             if (savedUserStr) {
               const savedUser = JSON.parse(savedUserStr);
               if (savedUser.role === 'player') {
-                const currentMode = session.announceMode || 'admin';
-                setIsAutoAnnounce(currentMode === 'all');
+                // 為了避免聲音通道鎖定，自動還原的球員一律預設為關閉播報，由其點擊喇叭開啟
+                setIsAutoAnnounce(false);
+                isAutoAnnounceRef.current = false;
               }
             }
           }
@@ -424,7 +427,7 @@ export default function App() {
     let active = false;
     
     const unlockSpeech = () => {
-      // 觸控解鎖：在用戶首次觸控時執行（自動還原登入狀態的管理員回退機制）
+      // 觸控解鎖：在用戶首次觸控時執行（自動還原登入狀態的 AudioContext 回退機制）
       try {
         if (!audioCtxRef.current) {
           audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -432,15 +435,7 @@ export default function App() {
         if (audioCtxRef.current.state === 'suspended') {
           audioCtxRef.current.resume();
         }
-        if ('speechSynthesis' in window) {
-          window.speechSynthesis.cancel();
-          const u = new SpeechSynthesisUtterance('語音廣播已開啟');
-          u.volume = 0.3;
-          u.rate = 1.2;
-          u.lang = 'zh-TW';
-          window.speechSynthesis.speak(u);
-        }
-        console.log('[Speech] 語音引擎解鎖成功');
+        console.log('[Speech] 音訊引擎 (AudioContext) 解鎖成功');
       } catch (e) {
         console.warn('[Speech] 解鎖失敗:', e);
       }
@@ -2194,7 +2189,12 @@ export default function App() {
                         const user: CurrentUser = { role: 'player', memberId: member.id };
                         setCurrentUser(user);
                         localStorage.setItem(`badminton_current_user_${spaceId}`, JSON.stringify(user));
-                        setIsAutoAnnounce(announceMode === 'all'); // 根據當前空間設定決定預設開關
+                        const shouldAnnounce = announceMode === 'all';
+                        setIsAutoAnnounce(shouldAnnounce);
+                        isAutoAnnounceRef.current = shouldAnnounce;
+                        if (shouldAnnounce) {
+                          activateSpeechEngine();
+                        }
                         setActiveTab('queue');
                         
                         const pId = checkInMember(member);
