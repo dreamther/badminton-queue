@@ -1891,17 +1891,8 @@ export default function App() {
   }
 
   // ==========================================
-  // 渲染載入中 / 錯誤頁面
+  // 渲染錯誤與私密驗證頁面 (優先判定，避免攔截)
   // ==========================================
-  if (isSpaceLoading || (spaceId && (!isSessionLoaded || !isMembersLoaded))) {
-    return (
-      <div className="h-[100dvh] w-screen bg-slate-950 flex flex-col items-center justify-center text-slate-200 p-4">
-        <div className="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
-        <p className="text-sm text-slate-400 font-medium">正在加載「{spaceId}」賽局狀態與雲端連線中...</p>
-      </div>
-    );
-  }
-
   if (spaceError) {
     return (
       <div className="h-[100dvh] w-screen bg-slate-950 flex flex-col items-center justify-center text-slate-200 p-6">
@@ -1985,6 +1976,18 @@ export default function App() {
             </button>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // 渲染載入中頁面
+  // ==========================================
+  if (isSpaceLoading || (spaceId && (!isSessionLoaded || !isMembersLoaded))) {
+    return (
+      <div className="h-[100dvh] w-screen bg-slate-950 flex flex-col items-center justify-center text-slate-200 p-4">
+        <div className="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
+        <p className="text-sm text-slate-400 font-medium">正在加載「{spaceId}」賽局狀態與雲端連線中...</p>
       </div>
     );
   }
