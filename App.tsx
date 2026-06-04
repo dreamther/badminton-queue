@@ -78,7 +78,7 @@ export default function App() {
   const [editSpacePasscode, setEditSpacePasscode] = useState('');
   const [editHasSpacePasscode, setEditHasSpacePasscode] = useState(false);
   const [editSpaceAccessPasscode, setEditSpaceAccessPasscode] = useState('');
-  const [editAnnounceMode, setEditAnnounceMode] = useState<'local' | 'all'>('all');
+  const [editAnnounceMode, setEditAnnounceMode] = useState<'admin' | 'all'>('admin');
   const [recentSpaces, setRecentSpaces] = useState<SpaceMetadata[]>(() => {
     const saved = localStorage.getItem('badminton_recent_spaces');
     return saved ? JSON.parse(saved) : [];
@@ -86,6 +86,10 @@ export default function App() {
 
   // --- 密碼驗證與身分 State ---
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const currentUserRef = useRef(currentUser);
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
   const [isLoggingInAsPlayer, setIsLoggingInAsPlayer] = useState(false);
   const [loginSearchTerm, setLoginSearchTerm] = useState('');
   const [passcodePromptOpen, setPasscodePromptOpen] = useState(false);
@@ -116,7 +120,7 @@ export default function App() {
   const [courts, setCourts] = useState<Court[]>([]);
   const [queueSlots, setQueueSlots] = useState<(string | null)[]>([]);
   const [isWarmupDone, setIsWarmupDone] = useState(false);
-  const [announceMode, setAnnounceMode] = useState<'local' | 'all'>('all');
+  const [announceMode, setAnnounceMode] = useState<'admin' | 'all'>('admin');
 
   // --- 靜態/低頻同步狀態 ---
   const [members, setMembers] = useState<Member[]>([]);
@@ -152,6 +156,7 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastVoiceTimestampRef = useRef<number>(0);
   const isFirstLoadRef = useRef<boolean>(true);
+  const isSessionLoadedRef = useRef<boolean>(false);
 
   // --- 監聽 Hash 路由變化 ---
   useEffect(() => {
@@ -182,6 +187,7 @@ export default function App() {
       setIsLoggingInAsPlayer(false);
       setLoginSearchTerm('');
       setIsSessionLoaded(false);
+      isSessionLoadedRef.current = false;
       setIsMembersLoaded(false);
       
       // 回到大廳時，若有已驗證的管理員權限，則清除並移除本地登入紀錄（防範無限重繪迴圈）
@@ -199,6 +205,7 @@ export default function App() {
     async function initSpace() {
       setIsSpaceLoading(true);
       setIsSessionLoaded(false);
+      isSessionLoadedRef.current = false;
       setIsMembersLoaded(false);
       setSpaceError(null);
       isFirstLoadRef.current = true; // 重置首載標記
@@ -260,6 +267,7 @@ export default function App() {
               setCurrentUser(null);
             } else {
               setCurrentUser(savedUser);
+              setIsAutoAnnounce(true); // 管理員預設開啟播報
             }
           } else {
             setCurrentUser(savedUser);
@@ -274,8 +282,22 @@ export default function App() {
           setCourts(session.courts || []);
           setQueueSlots(session.queueSlots || []);
           setIsWarmupDone(session.isWarmupDone ?? false);
-          setAnnounceMode(session.announceMode || 'all');
+          
+          if (!isSessionLoadedRef.current) {
+            const savedUserKey = `badminton_current_user_${spaceId}`;
+            const savedUserStr = localStorage.getItem(savedUserKey);
+            if (savedUserStr) {
+              const savedUser = JSON.parse(savedUserStr);
+              if (savedUser.role === 'player') {
+                const currentMode = session.announceMode || 'admin';
+                setIsAutoAnnounce(currentMode === 'all');
+              }
+            }
+          }
+
+          setAnnounceMode(session.announceMode || 'admin');
           setIsSessionLoaded(true);
+          isSessionLoadedRef.current = true;
 
           // 實時語音播報判定
           if (session.lastAnnouncement) {
@@ -288,10 +310,9 @@ export default function App() {
               lastVoiceTimestampRef.current = ann.timestamp;
               
               // 判定是否播放：
-              // - 若為「全裝置播音 (all)」且非本裝置發送
-              // - 且本裝置未靜音 (isAutoAnnounce)
+              // - 只要本機未靜音且非本機發送，即可發聲
               const isAnotherDevice = ann.deviceId !== DEVICE_ID;
-              if (session.announceMode === 'all' && isAnotherDevice && isAutoAnnounce) {
+              if (isAnotherDevice && isAutoAnnounceRef.current) {
                 speak(ann.text);
               }
             }
@@ -1211,6 +1232,7 @@ export default function App() {
       const user: CurrentUser = { role: 'admin' };
       setCurrentUser(user);
       localStorage.setItem(`badminton_current_user_${spaceId}`, JSON.stringify(user));
+      setIsAutoAnnounce(true); // 團主預設開啟語音播報
       setActiveTab('members');
       showToast("已成功切換為團主模式");
       return;
@@ -1221,6 +1243,7 @@ export default function App() {
       const user: CurrentUser = { role: 'admin' };
       setCurrentUser(user);
       localStorage.setItem(`badminton_current_user_${spaceId}`, JSON.stringify(user));
+      setIsAutoAnnounce(true); // 團主預設開啟語音播報
       setActiveTab('members');
       return;
     }
@@ -1241,6 +1264,7 @@ export default function App() {
       const user: CurrentUser = { role: 'admin' };
       setCurrentUser(user);
       localStorage.setItem(`badminton_current_user_${spaceId}`, JSON.stringify(user));
+      setIsAutoAnnounce(true); // 團主預設開啟語音播報
 
       // 儲存已驗證標記
       const updatedVerified = { ...verifiedAdmins, [spaceId]: true };
@@ -2083,6 +2107,7 @@ export default function App() {
                         const user: CurrentUser = { role: 'player', memberId: member.id };
                         setCurrentUser(user);
                         localStorage.setItem(`badminton_current_user_${spaceId}`, JSON.stringify(user));
+                        setIsAutoAnnounce(announceMode === 'all'); // 根據當前空間設定決定預設開關
                         setActiveTab('queue');
                         
                         const pId = checkInMember(member);
@@ -2903,6 +2928,31 @@ export default function App() {
             {/* Toolbar Actions */}
             <div className="flex items-center gap-3 text-sm">
               
+              {/* 增減球場 */}
+              {currentUser?.role === 'admin' && (
+                <div className="flex items-center bg-slate-950 rounded-lg border border-slate-800 h-8">
+                  <button
+                    onClick={removeCourt}
+                    className="w-8 h-full flex items-center justify-center hover:bg-slate-800 text-slate-400 hover:text-red-400 rounded-l-lg transition-colors"
+                    title="減少場地"
+                  >
+                    <Minus className="w-3.5 h-3.5" />
+                  </button>
+                  <div className="w-px h-4 bg-slate-800/50"></div>
+                  <span className="px-2 text-xs font-mono text-slate-400 flex items-center justify-center min-w-[3rem]">
+                    {courts.length} 面
+                  </span>
+                  <div className="w-px h-4 bg-slate-800/50"></div>
+                  <button
+                    onClick={addCourt}
+                    className="w-8 h-full flex items-center justify-center hover:bg-slate-800 text-slate-400 hover:text-indigo-400 rounded-r-lg transition-colors"
+                    title="新增場地"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
               {/* 語音開關 (本地控制) */}
               <button
                 onClick={() => {
@@ -2932,31 +2982,6 @@ export default function App() {
               >
                 {isAutoAnnounce ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
               </button>
-
-              {/* 增減球場 */}
-              {currentUser?.role === 'admin' && (
-                <div className="flex items-center bg-slate-950 rounded-lg border border-slate-800 h-8">
-                  <button
-                    onClick={removeCourt}
-                    className="w-8 h-full flex items-center justify-center hover:bg-slate-800 text-slate-400 hover:text-red-400 rounded-l-lg transition-colors"
-                    title="減少場地"
-                  >
-                    <Minus className="w-3.5 h-3.5" />
-                  </button>
-                  <div className="w-px h-4 bg-slate-800/50"></div>
-                  <span className="px-2 text-xs font-mono text-slate-400 flex items-center justify-center min-w-[3rem]">
-                    {courts.length} 面
-                  </span>
-                  <div className="w-px h-4 bg-slate-800/50"></div>
-                  <button
-                    onClick={addCourt}
-                    className="w-8 h-full flex items-center justify-center hover:bg-slate-800 text-slate-400 hover:text-indigo-400 rounded-r-lg transition-colors"
-                    title="新增場地"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
 
               {/* 熱身切換 */}
               <button
@@ -3109,14 +3134,14 @@ export default function App() {
                     <div className="grid grid-cols-2 gap-2 pt-1 text-[10px]">
                       <button
                         type="button"
-                        onClick={() => setEditAnnounceMode('local')}
+                        onClick={() => setEditAnnounceMode('admin')}
                         className={`py-2 rounded-xl font-semibold text-center border transition-all ${
-                          editAnnounceMode === 'local'
+                          editAnnounceMode === 'admin'
                             ? 'bg-indigo-600/20 text-indigo-400 border-indigo-500/30'
                             : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
                         }`}
                       >
-                        僅開賽裝置播音
+                        僅團主裝置播音
                       </button>
                       <button
                         type="button"
