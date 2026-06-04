@@ -34,6 +34,18 @@ import {
 
 type Tab = 'courts' | 'queue' | 'members';
 
+// 產生安全或相容的 UUID (相容非安全 HTTP 網域環境下的 crypto.randomUUID 未定義)
+const generateUUID = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 export default function App() {
   // --- 路由與空間 State ---
   const [spaceId, setSpaceId] = useState<string | null>(() => {
@@ -910,7 +922,7 @@ export default function App() {
     }
 
     const newMember: Member = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       name: name,
       level: newMemberLevel,
       createdAt: Date.now()
@@ -970,7 +982,7 @@ export default function App() {
         }
 
         newMembers.push({
-          id: crypto.randomUUID(),
+          id: generateUUID(),
           name,
           level,
           createdAt: Date.now()
@@ -1047,7 +1059,7 @@ export default function App() {
     const existingPlayer = players.find(p => p.name === member.name);
     if (existingPlayer) return existingPlayer.id;
 
-    const newId = crypto.randomUUID();
+    const newId = generateUUID();
     const newPlayer: Player = {
       id: newId,
       name: member.name,
