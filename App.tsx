@@ -673,27 +673,72 @@ export default function App() {
 
   const joinQueue = useCallback((playerId: string) => {
     setSelectedPlayerForMove(null);
-    const updatedSlots = [...queueSlots, playerId];
+
+    // 清除已有的排隊位置 (防重)
+    const cleanedSlots = queueSlots.map(id => id === playerId ? null : id);
+    const updatedSlots = [...cleanedSlots, playerId];
+    while (updatedSlots.length > 0 && updatedSlots[updatedSlots.length - 1] === null) updatedSlots.pop();
+
     const updatedPlayers = players.map(p => 
       p.id === playerId ? { ...p, status: 'queued', joinedAt: Date.now() } as Player : p
     );
-    updateCloudSession({ queueSlots: updatedSlots, players: updatedPlayers });
-  }, [queueSlots, players, updateCloudSession]);
+
+    // 確保也從球場中移出 (以防萬一)
+    const updatedCourts = courts.map(c => {
+      if (!c.playerIds.includes(playerId)) return c;
+      const newPlayerIds = c.playerIds.map(id => id === playerId ? null : id);
+      while (newPlayerIds.length > 0 && newPlayerIds[newPlayerIds.length - 1] === null) newPlayerIds.pop();
+      return {
+        ...c,
+        playerIds: newPlayerIds,
+        startTime: newPlayerIds.filter(id => id !== null).length >= MAX_PLAYERS_PER_COURT ? c.startTime : null
+      };
+    });
+
+    updateCloudSession({ 
+      queueSlots: updatedSlots, 
+      players: updatedPlayers,
+      courts: updatedCourts
+    });
+  }, [queueSlots, players, courts, updateCloudSession]);
 
   const insertIntoQueueAt = useCallback((playerId: string, position: number) => {
     setSelectedPlayerForMove(null);
-    const newSlots = [...queueSlots];
+
+    // 先清除已有的排隊位置 (防重)
+    const cleanedSlots = queueSlots.map(id => id === playerId ? null : id);
+
+    const newSlots = [...cleanedSlots];
     while (newSlots.length <= position) newSlots.push(null);
     if (newSlots[position] === null) {
       newSlots[position] = playerId;
     } else {
       newSlots.splice(position, 0, playerId);
     }
+    while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
+
     const updatedPlayers = players.map(p =>
       p.id === playerId ? { ...p, status: 'queued', joinedAt: Date.now() } as Player : p
     );
-    updateCloudSession({ queueSlots: newSlots, players: updatedPlayers });
-  }, [queueSlots, players, updateCloudSession]);
+
+    // 確保也從球場中移出 (以防萬一)
+    const updatedCourts = courts.map(c => {
+      if (!c.playerIds.includes(playerId)) return c;
+      const newPlayerIds = c.playerIds.map(id => id === playerId ? null : id);
+      while (newPlayerIds.length > 0 && newPlayerIds[newPlayerIds.length - 1] === null) newPlayerIds.pop();
+      return {
+        ...c,
+        playerIds: newPlayerIds,
+        startTime: newPlayerIds.filter(id => id !== null).length >= MAX_PLAYERS_PER_COURT ? c.startTime : null
+      };
+    });
+
+    updateCloudSession({ 
+      queueSlots: newSlots, 
+      players: updatedPlayers,
+      courts: updatedCourts
+    });
+  }, [queueSlots, players, courts, updateCloudSession]);
 
   const moveInQueue = useCallback((playerId: string, toPosition: number) => {
     setSelectedPlayerForMove(null);
@@ -987,19 +1032,69 @@ export default function App() {
     });
   }, [courts, queueSlots, players, updateCloudSession]);
 
+  const movePlayerFromCourtToQueue = useCallback((playerId: string, toPosition?: number) => {
+    setSelectedPlayerForMove(null);
+
+    // 1. 從所有球場中徹底移出該玩家
+    const updatedCourts = courts.map(c => {
+      if (!c.playerIds.includes(playerId)) return c;
+      const newPlayerIds = c.playerIds.map(id => id === playerId ? null : id);
+      while (newPlayerIds.length > 0 && newPlayerIds[newPlayerIds.length - 1] === null) newPlayerIds.pop();
+      return {
+        ...c,
+        playerIds: newPlayerIds,
+        startTime: newPlayerIds.filter(id => id !== null).length >= MAX_PLAYERS_PER_COURT ? c.startTime : null
+      };
+    });
+
+    // 2. 加入排隊 (並從排隊的其他地方移出，以防重複)
+    const newSlots = queueSlots.map(id => id === playerId ? null : id);
+    if (toPosition === undefined) {
+      newSlots.push(playerId);
+    } else {
+      while (newSlots.length <= toPosition) newSlots.push(null);
+      if (newSlots[toPosition] === null) {
+        newSlots[toPosition] = playerId;
+      } else {
+        newSlots.splice(toPosition, 0, playerId);
+      }
+    }
+    while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
+
+    // 3. 更新玩家狀態
+    const updatedPlayers = players.map(p =>
+      p.id === playerId ? { ...p, status: 'queued', joinedAt: Date.now() } as Player : p
+    );
+
+    // 4. 單一更新
+    updateCloudSession({
+      courts: updatedCourts,
+      queueSlots: newSlots,
+      players: updatedPlayers
+    });
+  }, [courts, queueSlots, players, updateCloudSession]);
+
   const movePlayerToCourtSlot = useCallback((playerId: string, courtId: number, slotIdx: number) => {
     setSelectedPlayerForMove(null);
 
+    // 1. 從排隊區移除該玩家
     const newSlots = queueSlots.map(id => id === playerId ? null : id);
     while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
 
+    // 2. 預備玩家狀態更新 (預設將移動的玩家 status 設為 'playing')
     const updatedPlayers = players.map(p =>
       p.id === playerId ? { ...p, status: 'playing' } as Player : p
     );
 
+    // 3. 更新所有場地以確保沒有重複
     const updatedCourts = courts.map(c => {
+      // 標準化 slots：清除該場地中所有原本就等於 playerId 的重複值
+      const slots: (string | null)[] = Array.from({ length: MAX_PLAYERS_PER_COURT }, (_, i) => c.playerIds[i] ?? null)
+        .map(id => id === playerId ? null : id);
+
       if (c.id !== courtId) {
-        const newPlayerIds = c.playerIds.filter(id => id !== playerId);
+        const newPlayerIds = [...slots];
+        while (newPlayerIds.length > 0 && newPlayerIds[newPlayerIds.length - 1] === null) newPlayerIds.pop();
         return {
           ...c,
           playerIds: newPlayerIds,
@@ -1007,16 +1102,27 @@ export default function App() {
         };
       }
 
-      const slots: (string | null)[] = Array.from({ length: MAX_PLAYERS_PER_COURT }, (_, i) => c.playerIds[i] ?? null);
-      const currentSlot = slots.indexOf(playerId);
-      if (currentSlot !== -1) slots[currentSlot] = null;
-
+      // 目標場地處理
       const targetIdx = Math.min(slotIdx, MAX_PLAYERS_PER_COURT - 1);
-      if (slots[targetIdx] !== null && slots[targetIdx] !== playerId) {
-        if (currentSlot !== -1) {
-          slots[currentSlot] = slots[targetIdx];
+      const originallyOnThisCourt = c.playerIds.includes(playerId);
+      const originalSlotIdx = c.playerIds.indexOf(playerId);
+
+      if (slots[targetIdx] !== null) {
+        if (originallyOnThisCourt && originalSlotIdx !== -1) {
+          // 如果原本就在同個場地，進行位置對調 (Swap)
+          slots[originalSlotIdx] = slots[targetIdx];
+        } else {
+          // 如果是從別的地方移入，而被覆蓋的球員則下場休息 (設為 idle)
+          const displacedPlayerId = slots[targetIdx];
+          if (displacedPlayerId) {
+            const idxInPlayers = updatedPlayers.findIndex(p => p.id === displacedPlayerId);
+            if (idxInPlayers !== -1) {
+              updatedPlayers[idxInPlayers] = { ...updatedPlayers[idxInPlayers], status: 'idle' } as Player;
+            }
+          }
         }
       }
+
       slots[targetIdx] = playerId;
 
       const newPlayerIds = [...slots];
@@ -2637,9 +2743,12 @@ export default function App() {
                     const playerId = e.dataTransfer.getData('text/plain');
                     if (!playerId) return;
                     const source = e.dataTransfer.getData('source');
+                    if (source === 'queue') {
+                      // 如果原本就在排隊，拖曳到排隊區背景空白處放開，不進行任何重複加入操作
+                      return;
+                    }
                     if (source === 'court') {
-                      removePlayerFromCourt(playerId);
-                      joinQueue(playerId);
+                      movePlayerFromCourtToQueue(playerId);
                     } else {
                       joinQueue(playerId);
                     }
@@ -2758,8 +2867,9 @@ export default function App() {
                                               const flatIdx = chunkIdx * 4 + idx;
                                               const source = e.dataTransfer.getData('source');
                                               if (source === 'court' && isWarmupDone) return;
-                                              if (source === 'court') removePlayerFromCourt(playerId);
-                                              if (source === 'queue') {
+                                              if (source === 'court') {
+                                                movePlayerFromCourtToQueue(playerId, flatIdx);
+                                              } else if (source === 'queue') {
                                                 moveInQueue(playerId, flatIdx);
                                               } else {
                                                 insertIntoQueueAt(playerId, flatIdx);
@@ -2773,8 +2883,7 @@ export default function App() {
                                               const flatIdx = chunkIdx * 4 + idx;
                                               const source = selectedPlayer?.status;
                                               if (source === 'playing') {
-                                                removePlayerFromCourt(selectedPlayerForMove);
-                                                insertIntoQueueAt(selectedPlayerForMove, flatIdx);
+                                                movePlayerFromCourtToQueue(selectedPlayerForMove, flatIdx);
                                               } else if (source === 'queued') {
                                                 moveInQueue(selectedPlayerForMove, flatIdx);
                                               } else if (source === 'idle') {
