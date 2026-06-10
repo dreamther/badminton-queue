@@ -1592,7 +1592,7 @@ export default function App() {
   // ==========================================
   if (!spaceId) {
     return (
-      <div className="relative min-h-[100dvh] w-screen bg-slate-950 text-slate-100 flex flex-col overflow-y-auto overflow-x-hidden">
+      <div className="relative h-[100dvh] w-screen bg-slate-950 text-slate-100 flex flex-col overflow-y-auto overflow-x-hidden">
         {/* 背景發光光暈容器（使用 overflow-hidden 嚴格剪裁，防範行動裝置版面拓寬） */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
           <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/10 rounded-full blur-[120px]" />
@@ -1607,7 +1607,7 @@ export default function App() {
             </div>
             <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">羽球排隊助手</h1>
           </div>
-          <span className="text-xs text-slate-500 font-mono">v1.2</span>
+          <span className="text-xs text-slate-500 font-mono">v1.3.0</span>
         </header>
 
         {/* 主內容區 */}
@@ -2001,19 +2001,21 @@ export default function App() {
   // ==========================================
   if (spaceError) {
     return (
-      <div className="h-[100dvh] w-screen bg-slate-950 flex flex-col items-center justify-center text-slate-200 p-6">
-        <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-md w-full shadow-2xl text-center space-y-6">
-          <div className="w-16 h-16 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center mx-auto">
-            <Unlink className="w-8 h-8" />
+      <div className="h-[100dvh] w-screen bg-slate-950 text-slate-200 overflow-y-auto">
+        <div className="min-h-full w-full flex flex-col items-center justify-center p-6">
+          <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-md w-full shadow-2xl text-center space-y-6">
+            <div className="w-16 h-16 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center mx-auto">
+              <Unlink className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-bold text-white">球團空間加載失敗</h2>
+            <p className="text-slate-400 text-sm leading-relaxed">{spaceError}</p>
+            <button
+              onClick={() => window.location.hash = ''}
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl transition-all flex items-center justify-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" /> 返回系統大廳
+            </button>
           </div>
-          <h2 className="text-xl font-bold text-white">球團空間加載失敗</h2>
-          <p className="text-slate-400 text-sm leading-relaxed">{spaceError}</p>
-          <button
-            onClick={() => window.location.hash = ''}
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl transition-all flex items-center justify-center gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" /> 返回系統大廳
-          </button>
         </div>
       </div>
     );
@@ -2024,7 +2026,7 @@ export default function App() {
   // ==========================================
   if (spacePasscodePromptOpen) {
     return (
-      <div className="h-[100dvh] w-screen bg-slate-950 flex flex-col items-center justify-center text-slate-200 p-4">
+      <div className="h-[100dvh] w-screen bg-slate-950 text-slate-200 overflow-y-auto">
         <style>{`
           @keyframes shake {
             0%, 100% { transform: translateX(0); }
@@ -2036,50 +2038,52 @@ export default function App() {
           }
         `}</style>
         
-        <div className={`bg-slate-900 border border-slate-800 p-6 xs:p-7 sm:p-8 rounded-3xl shadow-2xl max-w-sm w-full relative overflow-hidden text-center ${spacePasscodeIsShaking ? 'animate-shake' : ''}`}>
-          {/* 返回鍵 */}
-          <button
-            onClick={() => window.location.hash = ''}
-            className="absolute top-4 left-4 p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-            title="返回大廳"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-
-          <div className="flex justify-center mb-6 mt-2">
-            <div className="bg-rose-500/10 text-rose-400 p-4 rounded-full flex items-center justify-center">
-              <EyeOff className="w-8 h-8" />
-            </div>
-          </div>
-
-          <h2 className="text-xl font-bold text-white mb-2">私密球團空間驗證</h2>
-          <p className="text-sm text-slate-400 mb-6">
-            此空間（ID: <span className="font-mono text-indigo-400">{spaceId}</span>）設有專屬存取密碼。請輸入密碼以進入觀看或操作。
-          </p>
-
-          <div className="space-y-4">
-            <input
-              type="password"
-              placeholder="請輸入空間專屬密碼"
-              className="w-full h-12 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 text-center font-mono text-slate-200 placeholder-slate-700"
-              value={spacePasscodeInput}
-              onChange={e => setSpacePasscodeInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleVerifySpacePasscode()}
-              autoFocus
-            />
-
-            {spacePasscodeError && (
-              <p className="text-xs text-rose-400 text-center font-medium animate-[fadeIn_0.2s_ease-out]">
-                ❌ {spacePasscodeError}
-              </p>
-            )}
-
+        <div className="min-h-full w-full flex flex-col items-center justify-center p-4">
+          <div className={`bg-slate-900 border border-slate-800 p-6 xs:p-7 sm:p-8 rounded-3xl shadow-2xl max-w-sm w-full relative overflow-hidden text-center ${spacePasscodeIsShaking ? 'animate-shake' : ''}`}>
+            {/* 返回鍵 */}
             <button
-              onClick={handleVerifySpacePasscode}
-              className="w-full h-12 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-rose-600/20"
+              onClick={() => window.location.hash = ''}
+              className="absolute top-4 left-4 p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+              title="返回大廳"
             >
-              進入球團
+              <ArrowLeft className="w-5 h-5" />
             </button>
+
+            <div className="flex justify-center mb-6 mt-2">
+              <div className="bg-rose-500/10 text-rose-400 p-4 rounded-full flex items-center justify-center">
+                <EyeOff className="w-8 h-8" />
+              </div>
+            </div>
+
+            <h2 className="text-xl font-bold text-white mb-2">私密球團空間驗證</h2>
+            <p className="text-sm text-slate-400 mb-6">
+              此空間（ID: <span className="font-mono text-indigo-400">{spaceId}</span>）設有專屬存取密碼。請輸入密碼以進入觀看或操作。
+            </p>
+
+            <div className="space-y-4">
+              <input
+                type="password"
+                placeholder="請輸入空間專屬密碼"
+                className="w-full h-12 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 text-center font-mono text-slate-200 placeholder-slate-700"
+                value={spacePasscodeInput}
+                onChange={e => setSpacePasscodeInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleVerifySpacePasscode()}
+                autoFocus
+              />
+
+              {spacePasscodeError && (
+                <p className="text-xs text-rose-400 text-center font-medium animate-[fadeIn_0.2s_ease-out]">
+                  ❌ {spacePasscodeError}
+                </p>
+              )}
+
+              <button
+                onClick={handleVerifySpacePasscode}
+                className="w-full h-12 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-rose-600/20"
+              >
+                進入球團
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -2107,8 +2111,9 @@ export default function App() {
       .sort((a, b) => b.createdAt - a.createdAt);
 
     return (
-      <div className="flex flex-col items-center justify-center h-[100dvh] w-screen bg-slate-950 text-slate-200 p-4">
-        <div className="bg-slate-900 border border-slate-800 p-6 xs:p-7 sm:p-8 rounded-2xl shadow-2xl max-w-sm w-full mx-auto relative overflow-hidden">
+      <div className="h-[100dvh] w-screen bg-slate-950 text-slate-200 overflow-y-auto">
+        <div className="min-h-full w-full flex flex-col items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 p-6 xs:p-7 sm:p-8 rounded-2xl shadow-2xl max-w-sm w-full mx-auto relative overflow-hidden">
           
           {/* 返回大廳按鈕 */}
           {/* 返回鍵：球員選取時返回身分選取，否則返回大廳 */}
@@ -2214,6 +2219,7 @@ export default function App() {
             </div>
           )}
         </div>
+      </div>
 
         {/* 密碼驗證彈出視窗 */}
         {passcodePromptOpen && (
