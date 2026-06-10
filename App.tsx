@@ -394,6 +394,43 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
+  // --- 手勢滑動切換分頁 (Mobile Tab Swipe) ---
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    // 僅在行動裝置（螢幕寬度 < 1024px）且未開啟選擇移動模式時啟用滑動
+    if (window.innerWidth >= 1024 || selectedPlayerForMove !== null) return;
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartRef.current || selectedPlayerForMove !== null) return;
+    const touch = e.changedTouches[0];
+    const diffX = touch.clientX - touchStartRef.current.x;
+    const diffY = touch.clientY - touchStartRef.current.y;
+    touchStartRef.current = null;
+
+    // 門檻值：水平移動需大於 60px，且垂直移動需小於 40px (防止與正常上下滾動衝突)
+    if (Math.abs(diffX) > 60 && Math.abs(diffY) < 40) {
+      const availableTabs = currentUser?.role === 'player' ? ['queue', 'courts'] : ['members', 'queue', 'courts'];
+      const currentIdx = availableTabs.indexOf(activeTab);
+      if (currentIdx === -1) return;
+
+      if (diffX < 0) {
+        // 向左滑動 -> 切換到右邊下一個分頁 (Next Tab)
+        if (currentIdx < availableTabs.length - 1) {
+          setActiveTab(availableTabs[currentIdx + 1] as Tab);
+        }
+      } else {
+        // 向右滑動 -> 切換到左邊上一個分頁 (Prev Tab)
+        if (currentIdx > 0) {
+          setActiveTab(availableTabs[currentIdx - 1] as Tab);
+        }
+      }
+    }
+  };
+
   // --- iOS/行動端語音引擎解鎖 ---
   // iOS Safari 要求第一次 speak() 必須在使用者手勢中產生「真實可聽」的音訊（volume > 0）
   // 才會永久啟動音訊 session。volume=0 或 0.01 都會被 iOS 視為空操作。
@@ -1683,6 +1720,35 @@ export default function App() {
     setNewSpaceId(formatted);
   };
 
+  // 計算行動版 Tabs 滑動底線樣式
+  const getMobileUnderlineStyle = () => {
+    const isPlayer = currentUser?.role === 'player';
+    if (isPlayer) {
+      const width = '50%';
+      const left = activeTab === 'queue' ? '0%' : '100%';
+      return { width, left };
+    } else {
+      const width = '33.333%';
+      let left = '0%';
+      if (activeTab === 'queue') left = '100%';
+      if (activeTab === 'courts') left = '200%';
+      return { width, left };
+    }
+  };
+
+  // 計算桌機版 Tabs 滑動底線樣式
+  const getDesktopUnderlineStyle = () => {
+    const isPlayer = currentUser?.role === 'player';
+    if (isPlayer) {
+      return { width: '100%', left: '0%' };
+    } else {
+      const desktopAsideTab = activeTab === 'courts' ? 'queue' : activeTab;
+      const width = '50%';
+      const left = desktopAsideTab === 'members' ? '0%' : '100%';
+      return { width, left };
+    }
+  };
+
   // 刪除最近造訪的球團紀錄
   const handleDeleteRecentSpace = (id: string) => {
     setRecentSpaces(prev => {
@@ -2653,13 +2719,14 @@ export default function App() {
       )}
 
       {/* Mobile Global Tabs */}
-      <div className="lg:hidden flex border-b border-slate-800 px-2 shrink-0 bg-slate-950 z-10">
+      <div className="lg:hidden border-b border-slate-800 bg-slate-950 z-10 shrink-0 px-2">
+        <div className="flex relative">
           {currentUser?.role !== 'player' && (
             <button
               onClick={() => setActiveTab('members')}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'members'
-                ? 'border-indigo-500 text-indigo-400'
-                : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-700'
+              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${activeTab === 'members'
+                ? 'text-indigo-400 font-semibold'
+                : 'text-slate-500 hover:text-slate-300'
                 }`}
             >
               <Users className="w-4 h-4" />
@@ -2668,9 +2735,9 @@ export default function App() {
           )}
           <button
             onClick={() => setActiveTab('queue')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'queue'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-700'
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${activeTab === 'queue'
+              ? 'text-indigo-400 font-semibold'
+              : 'text-slate-500 hover:text-slate-300'
               }`}
           >
             <Swords className="w-4 h-4" />
@@ -2678,17 +2745,27 @@ export default function App() {
           </button>
           <button
             onClick={() => setActiveTab('courts')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'courts'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-700'
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${activeTab === 'courts'
+              ? 'text-indigo-400 font-semibold'
+              : 'text-slate-500 hover:text-slate-300'
               }`}
           >
             <Trophy className="w-4 h-4" />
             場地區
           </button>
+
+          {/* 滑動底線 */}
+          <div 
+            className="absolute bottom-0 h-0.5 bg-indigo-500 transition-all duration-300 ease-out"
+            style={{
+              width: getMobileUnderlineStyle().width,
+              transform: `translateX(${getMobileUnderlineStyle().left})`
+            }}
+          />
+        </div>
       </div>
 
-      <div className="flex flex-1 min-h-0 overflow-hidden relative">
+      <div className="flex flex-1 min-h-0 overflow-hidden relative" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 
         <aside
           className={`
@@ -2699,35 +2776,48 @@ export default function App() {
         >
           {/* Desktop Tabs */}
           <div className="hidden lg:flex border-b border-slate-800 px-2 shrink-0">
-            {currentUser?.role !== 'player' && (
+            <div className="flex flex-1 relative">
+              {currentUser?.role !== 'player' && (
+                <button
+                  onClick={() => setActiveTab('members')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${asideTab === 'members'
+                    ? 'text-indigo-400 font-semibold'
+                    : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                >
+                  <Users className="w-4 h-4" />
+                  報到區
+                </button>
+              )}
               <button
-                onClick={() => setActiveTab('members')}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${asideTab === 'members'
-                  ? 'border-indigo-500 text-indigo-400'
-                  : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-700'
+                onClick={() => setActiveTab('queue')}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${asideTab === 'queue' || asideTab === 'courts'
+                  ? 'text-indigo-400 font-semibold'
+                  : 'text-slate-500 hover:text-slate-300'
                   }`}
               >
-                <Users className="w-4 h-4" />
-                報到區
+                <Swords className="w-4 h-4" />
+                排隊區
               </button>
-            )}
-            <button
-              onClick={() => setActiveTab('queue')}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${asideTab === 'queue' || asideTab === 'courts'
-                ? 'border-indigo-500 text-indigo-400'
-                : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-700'
-                }`}
-            >
-              <Swords className="w-4 h-4" />
-              排隊區
-            </button>
+
+              {/* 桌機版滑動底線 */}
+              {currentUser?.role !== 'player' && (
+                <div 
+                  className="absolute bottom-0 h-0.5 bg-indigo-500 transition-all duration-300 ease-out"
+                  style={{
+                    width: getDesktopUnderlineStyle().width,
+                    transform: `translateX(${getDesktopUnderlineStyle().left})`
+                  }}
+                />
+              )}
+            </div>
           </div>
 
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             
             {/* Tab Content: Queue Management */}
             {asideTab === 'queue' && (
-              <div className="flex-1 overflow-y-auto scrollbar-gutter-stable flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out]">
+              <div className="flex-1 overflow-y-auto scrollbar-gutter-stable flex flex-col min-h-0">
                 {/* Waiting Queue */}
                 <div
                   className={`p-4 transition-colors ${dragOverSlotKey === 'container' ? 'bg-indigo-500/10 ring-2 ring-inset ring-indigo-500/50 rounded-xl' : ''}`}
@@ -2778,7 +2868,7 @@ export default function App() {
                       chunkedQueueItems.map((chunk, chunkIdx) => {
                         return (
                           <React.Fragment key={chunkIdx}>
-                            <div className="relative flex items-center py-2 animate-[fadeIn_0.3s_ease-out]">
+                            <div className="relative flex items-center py-2">
                               <div className="flex-1 flex items-center gap-3 min-w-0 overflow-hidden">
                                 <span className="font-mono text-xs text-slate-500 w-4 text-center shrink-0">{chunkIdx + 1}</span>
                                 <div className="grid grid-cols-2 gap-3 min-w-0 flex-1">
@@ -2915,7 +3005,7 @@ export default function App() {
 
             {/* Tab Content: Member List */}
             {asideTab === 'members' && (
-              <div className="flex-1 overflow-y-auto scrollbar-gutter-stable flex flex-col min-h-0 animate-[fadeIn_0.2s_ease-out] bg-slate-950">
+              <div className="flex-1 overflow-y-auto scrollbar-gutter-stable flex flex-col min-h-0 bg-slate-950">
                 <div className="px-6 pt-4 pb-3 sticky top-0 bg-slate-950/95 backdrop-blur z-10 space-y-2">
                   <div className="flex items-center justify-between min-h-[32px]">
                     <h2 className="text-sm font-semibold text-slate-400">
@@ -3107,8 +3197,7 @@ export default function App() {
           </div>
         </aside>
 
-        {/* Main Content: Courts Grid */}
-        <main className={`flex-1 flex-col min-w-0 h-full relative z-0 ${activeTab === 'courts' ? 'flex' : 'hidden lg:flex'}`}>
+        <main className={`flex-1 flex-col min-w-0 h-full relative z-0 bg-slate-950 lg:bg-transparent ${activeTab === 'courts' ? 'flex' : 'hidden lg:flex'}`}>
           {/* Toolbar */}
           <div className="py-3 sm:py-0 sm:h-16 border-b border-slate-800 flex items-center px-4 sm:px-8 justify-between bg-slate-900/50 backdrop-blur-sm sticky top-0 z-10 shrink-0">
             <div className="flex items-center gap-4">

@@ -32,6 +32,13 @@
       .pb-safe {
         padding-bottom: env(safe-area-inset-bottom);
       }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      .animate-tab-fade {
+        animation: fadeIn 0.3s ease-out forwards;
+      }
     </style>
   <link rel="stylesheet" href="/index.css">
 </head>
