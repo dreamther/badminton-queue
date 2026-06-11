@@ -195,6 +195,7 @@ export default function App() {
   const isFirstLoadRef = useRef<boolean>(true);
   const isSessionLoadedRef = useRef<boolean>(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const isCreatingSpaceRef = useRef<boolean>(false);
 
   // --- 監聽 Hash 路由變化 ---
   useEffect(() => {
@@ -1640,6 +1641,8 @@ export default function App() {
   // ==========================================
   const handleCreateSpace = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isCreatingSpaceRef.current) return;
+
     const cleanId = newSpaceId.trim().toLowerCase();
     const name = newSpaceName.trim();
     const passcode = newSpacePasscode.trim();
@@ -1654,12 +1657,12 @@ export default function App() {
       return;
     }
 
+    isCreatingSpaceRef.current = true;
     setIsSpaceLoading(true);
     try {
       const exists = await checkSpaceExists(cleanId);
       if (exists) {
         await showAlert("此空間 ID 已被使用，請另選一個網址。");
-        setIsSpaceLoading(false);
         return;
       }
 
@@ -1698,6 +1701,7 @@ export default function App() {
       console.error(e);
       await showAlert("建立空間失敗，請確認網路或稍後重試。");
     } finally {
+      isCreatingSpaceRef.current = false;
       setIsSpaceLoading(false);
     }
   };
