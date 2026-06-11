@@ -4,7 +4,7 @@ import {
   Volume2, VolumeX, X, Swords, UserCheck, Search, CheckCircle2, ChevronDown, 
   ChevronRight, Unlink, ArrowUp, PanelLeft, LogOut, UserX, ChevronUp, Flame, 
   Lock, Unlock, UserPlus, Upload, Settings, MoreVertical, Power, Share2, Copy, 
-  ArrowLeft, ExternalLink, Check, Key, EyeOff, Shield
+  ArrowLeft, ExternalLink, Check, Key, EyeOff, Shield, HelpCircle, AlertTriangle, Info
 } from 'lucide-react';
 import { 
   Player, Court, Member, INITIAL_COURT_COUNT, MAX_PLAYERS_PER_COURT, 
@@ -73,6 +73,43 @@ export default function App() {
   
   // --- 球團內部空間設定 State ---
   const [isSpaceSettingsOpen, setIsSpaceSettingsOpen] = useState(false);
+
+  // --- 自訂對話框 (Alert / Confirm) State ---
+  const [customDialog, setCustomDialog] = useState<{
+    isOpen: boolean;
+    type: 'alert' | 'confirm';
+    message: string;
+    title?: string;
+    resolve?: (value: boolean) => void;
+  }>({
+    isOpen: false,
+    type: 'alert',
+    message: ''
+  });
+
+  const showConfirm = useCallback((message: string, title?: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      setCustomDialog({
+        isOpen: true,
+        type: 'confirm',
+        message,
+        title,
+        resolve
+      });
+    });
+  }, []);
+
+  const showAlert = useCallback((message: string, title?: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      setCustomDialog({
+        isOpen: true,
+        type: 'alert',
+        message,
+        title,
+        resolve
+      });
+    });
+  }, []);
   const [editSpaceName, setEditSpaceName] = useState('');
   const [editHasPasscode, setEditHasPasscode] = useState(false);
   const [editSpacePasscode, setEditSpacePasscode] = useState('');
@@ -158,6 +195,7 @@ export default function App() {
   const isFirstLoadRef = useRef<boolean>(true);
   const isSessionLoadedRef = useRef<boolean>(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const isCreatingSpaceRef = useRef<boolean>(false);
 
   // --- 監聽 Hash 路由變化 ---
   useEffect(() => {
@@ -796,8 +834,8 @@ export default function App() {
     updateCloudSession({ queueSlots: newSlots });
   }, [queueSlots, updateCloudSession]);
 
-  const removeFromQueue = useCallback((playerId: string) => {
-    if (!confirm('確定要讓此球員回到休息區嗎？')) return;
+  const removeFromQueue = useCallback(async (playerId: string) => {
+    if (!await showConfirm('確定要讓此球員回到休息區嗎？')) return;
     setSelectedPlayerForMove(null);
     const newSlots = queueSlots.map(id => id === playerId ? null : id);
     while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
@@ -805,10 +843,10 @@ export default function App() {
       p.id === playerId ? { ...p, status: 'idle' } as Player : p
     );
     updateCloudSession({ queueSlots: newSlots, players: updatedPlayers });
-  }, [queueSlots, players, updateCloudSession]);
+  }, [queueSlots, players, updateCloudSession, showConfirm]);
 
-  const deletePlayer = useCallback((playerId: string) => {
-    if (confirm('確定要讓此球員早退嗎？')) {
+  const deletePlayer = useCallback(async (playerId: string) => {
+    if (await showConfirm('確定要讓此球員早退嗎？')) {
       setSelectedPlayerForMove(prev => prev === playerId ? null : prev);
       const newSlots = queueSlots.map(id => id === playerId ? null : id);
       while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
@@ -820,32 +858,32 @@ export default function App() {
       }));
       updateCloudSession({ queueSlots: newSlots, players: updatedPlayers, courts: updatedCourts });
     }
-  }, [queueSlots, players, courts, updateCloudSession]);
+  }, [queueSlots, players, courts, updateCloudSession, showConfirm]);
 
-  const restAllQueue = useCallback(() => {
+  const restAllQueue = useCallback(async () => {
     const queuedCount = players.filter(p => p.status === 'queued').length;
     if (queuedCount === 0) return;
 
-    if (confirm(`確定要讓排隊中的 ${queuedCount} 人全部回到休息區嗎？`)) {
+    if (await showConfirm(`確定要讓排隊中的 ${queuedCount} 人全部回到休息區嗎？`)) {
       const updatedPlayers = players.map(p =>
         p.status === 'queued' ? { ...p, status: 'idle' } as Player : p
       );
       updateCloudSession({ queueSlots: [], players: updatedPlayers });
     }
-  }, [players, updateCloudSession]);
+  }, [players, updateCloudSession, showConfirm]);
 
-  const clearBench = useCallback(() => {
+  const clearBench = useCallback(async () => {
     const idleCount = players.filter(p => p.status === 'idle').length;
     if (idleCount === 0) return;
 
-    if (confirm(`確定要讓休息區的 ${idleCount} 人全部離開球場嗎？\n他們將回到會員列表。`)) {
+    if (await showConfirm(`確定要讓休息區的 ${idleCount} 人全部離開球場嗎？\n他們將回到會員列表。`)) {
       const updatedPlayers = players.filter(p => p.status !== 'idle');
       updateCloudSession({ players: updatedPlayers });
     }
-  }, [players, updateCloudSession]);
+  }, [players, updateCloudSession, showConfirm]);
 
-  const resetSession = useCallback(() => {
-    if (confirm('確定要結束所有比賽嗎？\n所有場上和排隊的球員將會回到會員列表。')) {
+  const resetSession = useCallback(async () => {
+    if (await showConfirm('確定要結束所有比賽嗎？\n所有場上和排隊的球員將會回到會員列表。')) {
       setSelectedPlayerForMove(null);
       const clearedCourts = courts.map(c => ({ ...c, playerIds: [], startTime: null }));
       updateCloudSession({
@@ -855,7 +893,7 @@ export default function App() {
         courts: clearedCourts
       });
     }
-  }, [courts, updateCloudSession]);
+  }, [courts, updateCloudSession, showConfirm]);
 
   const addCourt = useCallback(() => {
     const nextId = courts.length > 0 ? Math.max(...courts.map(c => c.id)) + 1 : 1;
@@ -868,30 +906,30 @@ export default function App() {
     updateCloudSession({ courts: [...courts, newCourt] });
   }, [courts, updateCloudSession]);
 
-  const removeCourt = useCallback(() => {
+  const removeCourt = useCallback(async () => {
     if (courts.length <= 1) {
-      alert("至少需要保留一個場地");
+      await showAlert("至少需要保留一個場地");
       return;
     }
     const lastCourt = courts[courts.length - 1];
     if (lastCourt.playerIds.some(id => id !== null)) {
-      alert(`無法移除 ${lastCourt.name}：場上還有人`);
+      await showAlert(`無法移除 ${lastCourt.name}：場上還有人`);
       return;
     }
     updateCloudSession({ courts: courts.slice(0, -1) });
-  }, [courts, updateCloudSession]);
+  }, [courts, updateCloudSession, showAlert]);
 
-  const renameCourt = useCallback((courtId: number, newName: string) => {
+  const renameCourt = useCallback(async (courtId: number, newName: string) => {
     const trimmedName = newName.trim();
     if (!trimmedName) {
-      alert("場地名稱不能為空");
+      await showAlert("場地名稱不能為空");
       return;
     }
     const updatedCourts = courts.map(c =>
       c.id === courtId ? { ...c, name: trimmedName } : c
     );
     updateCloudSession({ courts: updatedCourts });
-  }, [courts, updateCloudSession]);
+  }, [courts, updateCloudSession, showAlert]);
 
   const announceCourtPlayers = useCallback((courtId: number) => {
     const court = courts.find(c => c.id === courtId);
@@ -907,10 +945,10 @@ export default function App() {
     }
   }, [courts, players, speak]);
 
-  const startMatch = useCallback((courtId: number) => {
+  const startMatch = useCallback(async (courtId: number) => {
     const playersToStart = getNextMatchBatch(queueSlots, players);
     if (playersToStart.length < MAX_PLAYERS_PER_COURT) {
-      alert("人數不足四人，無法開賽。請等待球員補滿空位。");
+      await showAlert("人數不足四人，無法開賽。請等待球員補滿空位。");
       return;
     }
 
@@ -950,7 +988,7 @@ export default function App() {
         deviceId: DEVICE_ID
       } : undefined
     });
-  }, [queueSlots, players, courts, speak, isAutoAnnounce, getNextMatchBatch, updateCloudSession]);
+  }, [queueSlots, players, courts, speak, isAutoAnnounce, getNextMatchBatch, updateCloudSession, showAlert]);
 
   const endMatch = useCallback((courtId: number) => {
     const court = courts.find(c => c.id === courtId);
@@ -980,8 +1018,8 @@ export default function App() {
     updateCloudSession({ courts: updatedCourts });
   }, [courts, updateCloudSession]);
 
-  const restPlayerFromCourt = useCallback((playerId: string) => {
-    if (!confirm('確定要讓此球員下場休息嗎？')) return;
+  const restPlayerFromCourt = useCallback(async (playerId: string) => {
+    if (!await showConfirm('確定要讓此球員下場休息嗎？')) return;
     setSelectedPlayerForMove(null);
     
     const updatedCourts = courts.map(c => {
@@ -998,23 +1036,23 @@ export default function App() {
       p.id === playerId ? { ...p, status: 'idle' } as Player : p
     );
     updateCloudSession({ courts: updatedCourts, players: updatedPlayers });
-  }, [courts, players, updateCloudSession]);
+  }, [courts, players, updateCloudSession, showConfirm]);
 
-  const handleWarmupToggle = useCallback(() => {
+  const handleWarmupToggle = useCallback(async () => {
     if (!isWarmupDone) {
       if (idleCourtsCount > 0) {
-        alert('目前場地尚未滿場，請保持熱身階段🔥');
+        await showAlert('目前場地尚未滿場，請保持熱身階段🔥');
         return;
       }
-      if (confirm('確定要結束熱身嗎？')) {
+      if (await showConfirm('確定要結束熱身嗎？')) {
         updateCloudSession({ isWarmupDone: true });
       }
     } else {
-      if (confirm('確定要重新開始熱身嗎？\n(會開放直接排上場的功能)')) {
+      if (await showConfirm('確定要重新開始熱身嗎？\n(會開放直接排上場的功能)')) {
         updateCloudSession({ isWarmupDone: false });
       }
     }
-  }, [idleCourtsCount, isWarmupDone, updateCloudSession]);
+  }, [idleCourtsCount, isWarmupDone, updateCloudSession, showConfirm, showAlert]);
 
   const dropPlayerToCourt = useCallback((courtId: number, playerId: string) => {
     setSelectedPlayerForMove(null);
@@ -1189,7 +1227,7 @@ export default function App() {
     if (!name) return;
 
     if (members.some(m => m.name === name)) {
-      alert('此會員已存在');
+      await showAlert('此會員已存在');
       return;
     }
 
@@ -1205,23 +1243,23 @@ export default function App() {
       setNewMemberName('');
       setNewMemberLevel('intermediate'); 
     } catch (e) {
-      alert("新增會員失敗");
+      await showAlert("新增會員失敗");
     }
-  }, [spaceId, members, newMemberLevel]);
+  }, [spaceId, members, newMemberLevel, showAlert]);
 
   const parseCsvAndImport = useCallback(async (csvText: string) => {
     if (!spaceId) return;
     try {
       const lines = csvText.trim().split('\n');
       if (lines.length < 2) {
-        alert('CSV 檔案格式錯誤：至少需要標題列和一筆資料');
+        await showAlert('CSV 檔案格式錯誤：至少需要標題列和一筆資料');
         return;
       }
 
       const headers = lines[0].split(',').map(h => h.trim());
       const nameIndex = headers.findIndex(h => h === '姓名' || h === 'name' || h === '名稱');
       if (nameIndex === -1) {
-        alert('CSV 格式錯誤：缺少「姓名」欄位');
+        await showAlert('CSV 格式錯誤：缺少「姓名」欄位');
         return;
       }
 
@@ -1269,18 +1307,18 @@ export default function App() {
       if (skippedNames.length > 0) {
         message += `\n跳過 ${skippedNames.length} 位重複會員：${skippedNames.join(', ')}`;
       }
-      alert(message);
+      await showAlert(message);
     } catch (error) {
-      alert('CSV 檔案解析失敗，請確認檔案格式正確');
+      await showAlert('CSV 檔案解析失敗，請確認檔案格式正確');
     }
-  }, [spaceId, members]);
+  }, [spaceId, members, showAlert]);
 
-  const handleBatchImport = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBatchImport = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     if (!file.name.endsWith('.csv')) {
-      alert('請上傳 CSV 格式的檔案');
+      await showAlert('請上傳 CSV 格式的檔案');
       return;
     }
 
@@ -1291,7 +1329,7 @@ export default function App() {
     };
     reader.readAsText(file, 'UTF-8');
     if (event.target) event.target.value = '';
-  }, [parseCsvAndImport]);
+  }, [parseCsvAndImport, showAlert]);
 
   const updateMemberLevel = useCallback(async (memberId: string, newLevel: SkillLevel) => {
     if (!spaceId) return;
@@ -1431,14 +1469,14 @@ export default function App() {
 
   const removeMember = useCallback(async (memberId: string) => {
     if (!spaceId) return;
-    if (confirm('確定要刪除此會員嗎？（這不會影響目前場上的球員）')) {
+    if (await showConfirm('確定要刪除此會員嗎？（這不會影響目前場上的球員）')) {
       try {
         await deleteMember(spaceId, memberId);
       } catch (e) {
-        alert("刪除會員失敗");
+        await showAlert("刪除會員失敗");
       }
     }
-  }, [spaceId]);
+  }, [spaceId, showConfirm, showAlert]);
 
   // ==========================================
   // 管理員密碼驗證邏輯
@@ -1603,26 +1641,28 @@ export default function App() {
   // ==========================================
   const handleCreateSpace = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isCreatingSpaceRef.current) return;
+
     const cleanId = newSpaceId.trim().toLowerCase();
     const name = newSpaceName.trim();
     const passcode = newSpacePasscode.trim();
     const spacePasscode = newSpaceAccessPasscode.trim();
 
     if (hasPasscode && (passcode.length < 4 || passcode.length > 10)) {
-      alert("管理員密碼長度必須在 4 到 10 位數之間！");
+      await showAlert("管理員密碼長度必須在 4 到 10 位數之間！");
       return;
     }
     if (hasSpacePasscode && (spacePasscode.length < 4 || spacePasscode.length > 10)) {
-      alert("空間專屬存取密碼長度必須在 4 到 10 位數之間！");
+      await showAlert("空間專屬存取密碼長度必須在 4 到 10 位數之間！");
       return;
     }
 
+    isCreatingSpaceRef.current = true;
     setIsSpaceLoading(true);
     try {
       const exists = await checkSpaceExists(cleanId);
       if (exists) {
-        alert("此空間 ID 已被使用，請另選一個網址。");
-        setIsSpaceLoading(false);
+        await showAlert("此空間 ID 已被使用，請另選一個網址。");
         return;
       }
 
@@ -1659,8 +1699,9 @@ export default function App() {
       window.location.hash = `#/space/${cleanId}`;
     } catch (e) {
       console.error(e);
-      alert("建立空間失敗，請確認網路或稍後重試。");
+      await showAlert("建立空間失敗，請確認網路或稍後重試。");
     } finally {
+      isCreatingSpaceRef.current = false;
       setIsSpaceLoading(false);
     }
   };
@@ -2008,7 +2049,7 @@ export default function App() {
                         if (!nextVal) setNewSpacePasscode(''); // 停用時清空輸入值
                       }}
                       className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer flex items-center shrink-0 ${
-                        hasPasscode ? 'bg-purple-600' : 'bg-slate-800'
+                        hasPasscode ? 'bg-indigo-600' : 'bg-slate-800'
                       }`}
                     >
                       <div 
@@ -2083,7 +2124,7 @@ export default function App() {
                         if (!nextVal) setNewSpaceAccessPasscode(''); // 停用時清空輸入值
                       }}
                       className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer flex items-center shrink-0 ${
-                        hasSpacePasscode ? 'bg-purple-600' : 'bg-slate-800'
+                        hasSpacePasscode ? 'bg-indigo-600' : 'bg-slate-800'
                       }`}
                     >
                       <div 
@@ -2145,13 +2186,13 @@ export default function App() {
 
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     if (hasPasscode && (newSpacePasscode.length < 4 || newSpacePasscode.length > 10)) {
-                      alert("管理員密碼長度必須在 4 到 10 位數之間！");
+                      await showAlert("管理員密碼長度必須在 4 到 10 位數之間！");
                       return;
                     }
                     if (hasSpacePasscode && (newSpaceAccessPasscode.length < 4 || newSpaceAccessPasscode.length > 10)) {
-                      alert("空間專屬存取密碼長度必須在 4 到 10 位數之間！");
+                      await showAlert("空間專屬存取密碼長度必須在 4 到 10 位數之間！");
                       return;
                     }
                     setIsSecuritySettingsOpen(false);
@@ -2222,7 +2263,7 @@ export default function App() {
             </button>
 
             <div className="flex justify-center mb-6 mt-2">
-              <div className="bg-rose-500/10 text-rose-400 p-4 rounded-full flex items-center justify-center">
+              <div className="bg-indigo-500/10 text-indigo-400 p-4 rounded-full flex items-center justify-center">
                 <EyeOff className="w-8 h-8" />
               </div>
             </div>
@@ -2236,7 +2277,7 @@ export default function App() {
               <input
                 type="password"
                 placeholder="請輸入空間專屬密碼"
-                className="w-full h-12 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 text-center font-mono text-slate-200 placeholder-slate-700"
+                className="w-full h-12 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center font-mono text-slate-200 placeholder-slate-700"
                 value={spacePasscodeInput}
                 onChange={e => setSpacePasscodeInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleVerifySpacePasscode()}
@@ -2251,7 +2292,7 @@ export default function App() {
 
               <button
                 onClick={handleVerifySpacePasscode}
-                className="w-full h-12 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-rose-600/20"
+                className="w-full h-12 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-indigo-500/20"
               >
                 進入球團
               </button>
@@ -2395,7 +2436,7 @@ export default function App() {
 
         {/* 密碼驗證彈出視窗 */}
         {passcodePromptOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]">
             <style>{`
               @keyframes shake {
                 0%, 100% { transform: translateX(0); }
@@ -2406,7 +2447,7 @@ export default function App() {
                 animation: shake 0.4s ease-in-out;
               }
             `}</style>
-            <div className={`bg-slate-900 border border-slate-800 p-4 xs:p-5 sm:p-6 rounded-2xl max-w-sm w-full shadow-2xl animate-[fadeIn_0.2s_ease-out] relative ${isShaking ? 'animate-shake' : ''}`}>
+            <div className={`bg-slate-900 border border-slate-800 p-4 xs:p-5 sm:p-6 rounded-2xl max-w-sm w-full shadow-2xl relative ${isShaking ? 'animate-shake' : ''}`}>
               <button
                 onClick={() => setPasscodePromptOpen(false)}
                 className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-all"
@@ -3344,6 +3385,53 @@ export default function App() {
         休息區 <span className="bg-slate-950 text-amber-400 px-2 py-0.5 rounded-full text-xs font-bold shrink-0 ml-1">{idlePlayers.length}</span>
       </button>
 
+      {/* 自訂對話框 (Alert / Confirm) */}
+      {customDialog.isOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]">
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl max-w-sm w-full shadow-2xl relative flex flex-col text-center">
+            {/* 圖標 (Icon) */}
+            <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 bg-indigo-500/10 text-indigo-400">
+              {customDialog.type === 'confirm' ? (
+                <Info className="w-6 h-6 text-indigo-400" />
+              ) : (
+                <AlertTriangle className="w-6 h-6 text-indigo-400" />
+              )}
+            </div>
+
+            {customDialog.title && (
+              <h3 className="text-base font-bold text-white mb-2">{customDialog.title}</h3>
+            )}
+
+            <p className="text-sm text-slate-300 break-words leading-relaxed mb-6 whitespace-pre-line">
+              {customDialog.message}
+            </p>
+
+            <div className="flex gap-3 justify-center">
+              {customDialog.type === 'confirm' && (
+                <button
+                  onClick={() => {
+                    if (customDialog.resolve) customDialog.resolve(false);
+                    setCustomDialog(prev => ({ ...prev, isOpen: false }));
+                  }}
+                  className="flex-1 px-4 py-2 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 text-sm font-semibold rounded-xl transition-colors min-w-[5.5rem]"
+                >
+                  取消
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  if (customDialog.resolve) customDialog.resolve(true);
+                  setCustomDialog(prev => ({ ...prev, isOpen: false }));
+                }}
+                className="flex-1 px-4 py-2 text-sm font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 transition-colors min-w-[5.5rem]"
+              >
+                確定
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Check-in Success Modal Banner */}
       {checkInSuccessName && (
         <div key={checkInCounter} className="fixed bottom-6 left-0 right-0 flex justify-center z-[100] pointer-events-none px-4">
@@ -3359,6 +3447,15 @@ export default function App() {
             }
           `}</style>
           <div className="max-w-[400px] w-full bg-slate-900/80 border border-indigo-500/30 rounded-3xl p-6 shadow-2xl shadow-indigo-500/10 backdrop-blur-2xl relative overflow-hidden flex flex-col items-center text-center animate-toast-fade pointer-events-auto">
+            {/* 關閉按鈕 */}
+            <button
+              onClick={() => setCheckInSuccessName(null)}
+              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white rounded-full hover:bg-slate-800/50 transition-all"
+              title="關閉"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
             <div className="w-14 h-14 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 text-indigo-400 rounded-full flex items-center justify-center mb-4 shadow-inner">
               <CheckCircle2 className="w-7 h-7 text-indigo-400" />
             </div>
@@ -3390,12 +3487,8 @@ export default function App() {
               <X className="w-4 h-4" />
             </button>
 
-            <div className="flex flex-col items-center mb-5 shrink-0 px-5 xs:px-6 sm:px-7 text-center">
-              <div className="w-12 h-12 bg-indigo-500/10 text-indigo-400 rounded-full flex items-center justify-center mb-3">
-                <Settings className="w-6 h-6 animate-[spin_8s_linear_infinite]" />
-              </div>
+            <div className="flex flex-col items-center mb-4 shrink-0 px-5 xs:px-6 sm:px-7 text-center">
               <h3 className="text-lg font-bold text-white">球團空間設定</h3>
-              <p className="text-xs text-slate-400 mt-1">修改目前球團名稱與安全防護密碼</p>
             </div>
 
             <form onSubmit={handleSaveSpaceSettings} className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -3417,9 +3510,6 @@ export default function App() {
                 <div className="px-5 xs:px-6 sm:px-7">
                   <div className="bg-slate-950/50 p-3 xs:p-4 border border-slate-800/80 rounded-2xl space-y-2">
                     <label className="block text-xs font-semibold text-slate-200">語音播報同步方式</label>
-                    <p className="text-[10px] text-slate-500 leading-relaxed">
-                      設定當有場地開賽時，是否同步在其他所有人的手機上播放聲音。
-                    </p>
                     <div className="grid grid-cols-2 gap-2 pt-1 text-[10px]">
                       <button
                         type="button"
@@ -3462,7 +3552,7 @@ export default function App() {
                           if (!nextVal) setEditSpacePasscode('');
                         }}
                         className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer flex items-center shrink-0 ${
-                          editHasPasscode ? 'bg-purple-600' : 'bg-slate-800'
+                          editHasPasscode ? 'bg-indigo-600' : 'bg-slate-800'
                         }`}
                       >
                         <div 
@@ -3532,7 +3622,7 @@ export default function App() {
                           if (!nextVal) setEditSpaceAccessPasscode('');
                         }}
                         className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer flex items-center shrink-0 ${
-                          editHasSpacePasscode ? 'bg-purple-600' : 'bg-slate-800'
+                          editHasSpacePasscode ? 'bg-indigo-600' : 'bg-slate-800'
                         }`}
                       >
                         <div 
