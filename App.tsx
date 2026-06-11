@@ -3359,6 +3359,15 @@ export default function App() {
             }
           `}</style>
           <div className="max-w-[400px] w-full bg-slate-900/80 border border-indigo-500/30 rounded-3xl p-6 shadow-2xl shadow-indigo-500/10 backdrop-blur-2xl relative overflow-hidden flex flex-col items-center text-center animate-toast-fade pointer-events-auto">
+            {/* 關閉按鈕 */}
+            <button
+              onClick={() => setCheckInSuccessName(null)}
+              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white rounded-full hover:bg-slate-800/50 transition-all"
+              title="關閉"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
             <div className="w-14 h-14 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 text-indigo-400 rounded-full flex items-center justify-center mb-4 shadow-inner">
               <CheckCircle2 className="w-7 h-7 text-indigo-400" />
             </div>
