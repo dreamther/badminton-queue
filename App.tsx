@@ -2432,7 +2432,7 @@ export default function App() {
 
         {/* 密碼驗證彈出視窗 */}
         {passcodePromptOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]">
             <style>{`
               @keyframes shake {
                 0%, 100% { transform: translateX(0); }
@@ -2443,7 +2443,7 @@ export default function App() {
                 animation: shake 0.4s ease-in-out;
               }
             `}</style>
-            <div className={`bg-slate-900 border border-slate-800 p-4 xs:p-5 sm:p-6 rounded-2xl max-w-sm w-full shadow-2xl animate-[fadeIn_0.2s_ease-out] relative ${isShaking ? 'animate-shake' : ''}`}>
+            <div className={`bg-slate-900 border border-slate-800 p-4 xs:p-5 sm:p-6 rounded-2xl max-w-sm w-full shadow-2xl relative ${isShaking ? 'animate-shake' : ''}`}>
               <button
                 onClick={() => setPasscodePromptOpen(false)}
                 className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-all"
