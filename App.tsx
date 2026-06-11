@@ -2049,7 +2049,7 @@ export default function App() {
                         if (!nextVal) setNewSpacePasscode(''); // 停用時清空輸入值
                       }}
                       className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer flex items-center shrink-0 ${
-                        hasPasscode ? 'bg-purple-600' : 'bg-slate-800'
+                        hasPasscode ? 'bg-indigo-600' : 'bg-slate-800'
                       }`}
                     >
                       <div 
@@ -2124,7 +2124,7 @@ export default function App() {
                         if (!nextVal) setNewSpaceAccessPasscode(''); // 停用時清空輸入值
                       }}
                       className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer flex items-center shrink-0 ${
-                        hasSpacePasscode ? 'bg-purple-600' : 'bg-slate-800'
+                        hasSpacePasscode ? 'bg-indigo-600' : 'bg-slate-800'
                       }`}
                     >
                       <div 
@@ -3487,12 +3487,8 @@ export default function App() {
               <X className="w-4 h-4" />
             </button>
 
-            <div className="flex flex-col items-center mb-5 shrink-0 px-5 xs:px-6 sm:px-7 text-center">
-              <div className="w-12 h-12 bg-indigo-500/10 text-indigo-400 rounded-full flex items-center justify-center mb-3">
-                <Settings className="w-6 h-6 animate-[spin_8s_linear_infinite]" />
-              </div>
+            <div className="flex flex-col items-center mb-4 shrink-0 px-5 xs:px-6 sm:px-7 text-center">
               <h3 className="text-lg font-bold text-white">球團空間設定</h3>
-              <p className="text-xs text-slate-400 mt-1">修改目前球團名稱與安全防護密碼</p>
             </div>
 
             <form onSubmit={handleSaveSpaceSettings} className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -3514,9 +3510,6 @@ export default function App() {
                 <div className="px-5 xs:px-6 sm:px-7">
                   <div className="bg-slate-950/50 p-3 xs:p-4 border border-slate-800/80 rounded-2xl space-y-2">
                     <label className="block text-xs font-semibold text-slate-200">語音播報同步方式</label>
-                    <p className="text-[10px] text-slate-500 leading-relaxed">
-                      設定當有場地開賽時，是否同步在其他所有人的手機上播放聲音。
-                    </p>
                     <div className="grid grid-cols-2 gap-2 pt-1 text-[10px]">
                       <button
                         type="button"
@@ -3559,7 +3552,7 @@ export default function App() {
                           if (!nextVal) setEditSpacePasscode('');
                         }}
                         className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer flex items-center shrink-0 ${
-                          editHasPasscode ? 'bg-purple-600' : 'bg-slate-800'
+                          editHasPasscode ? 'bg-indigo-600' : 'bg-slate-800'
                         }`}
                       >
                         <div 
@@ -3629,7 +3622,7 @@ export default function App() {
                           if (!nextVal) setEditSpaceAccessPasscode('');
                         }}
                         className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer flex items-center shrink-0 ${
-                          editHasSpacePasscode ? 'bg-purple-600' : 'bg-slate-800'
+                          editHasSpacePasscode ? 'bg-indigo-600' : 'bg-slate-800'
                         }`}
                       >
                         <div 
