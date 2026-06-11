@@ -2263,7 +2263,7 @@ export default function App() {
             </button>
 
             <div className="flex justify-center mb-6 mt-2">
-              <div className="bg-rose-500/10 text-rose-400 p-4 rounded-full flex items-center justify-center">
+              <div className="bg-indigo-500/10 text-indigo-400 p-4 rounded-full flex items-center justify-center">
                 <EyeOff className="w-8 h-8" />
               </div>
             </div>
@@ -2277,7 +2277,7 @@ export default function App() {
               <input
                 type="password"
                 placeholder="請輸入空間專屬密碼"
-                className="w-full h-12 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 text-center font-mono text-slate-200 placeholder-slate-700"
+                className="w-full h-12 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center font-mono text-slate-200 placeholder-slate-700"
                 value={spacePasscodeInput}
                 onChange={e => setSpacePasscodeInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleVerifySpacePasscode()}
@@ -2292,7 +2292,7 @@ export default function App() {
 
               <button
                 onClick={handleVerifySpacePasscode}
-                className="w-full h-12 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-rose-600/20"
+                className="w-full h-12 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-indigo-500/20"
               >
                 進入球團
               </button>
