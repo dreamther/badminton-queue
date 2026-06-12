@@ -498,3 +498,36 @@ export async function deleteMember(spaceId: string, memberId: string): Promise<v
     window.dispatchEvent(new CustomEvent(`mock_members_update_${cleanId}`, { detail: updatedList }));
   }
 }
+
+/**
+ * 刪除球團空間 (包含空間 metadata 與 session 狀態)
+ */
+export async function deleteSpace(spaceId: string): Promise<void> {
+  const cleanId = spaceId.trim().toLowerCase();
+  if (!cleanId) throw new Error("空間 ID 不可為空");
+
+  if (isFirebaseEnabled && db) {
+    // 1. 刪除 spaces/{spaceId}/state/session
+    const sessionDocRef = doc(db, 'spaces', cleanId, 'state', 'session');
+    await deleteDoc(sessionDocRef);
+
+    // 2. 刪除 spaces/{spaceId}
+    const spaceDocRef = doc(db, 'spaces', cleanId);
+    await deleteDoc(spaceDocRef);
+  } else {
+    // Mock 模式
+    // 1. 從 mock_spaces 移除
+    const spaces = JSON.parse(localStorage.getItem('mock_spaces') || '{}');
+    delete spaces[cleanId];
+    localStorage.setItem('mock_spaces', JSON.stringify(spaces));
+
+    // 2. 移除 session 與 members 儲存
+    localStorage.removeItem(`mock_session_${cleanId}`);
+    localStorage.removeItem(`mock_members_${cleanId}`);
+
+    // 3. 發送自訂事件通知
+    window.dispatchEvent(
+      new CustomEvent(`mock_space_metadata_update_${cleanId}`, { detail: null })
+    );
+  }
+}
