@@ -18,6 +18,7 @@ import {
   DEVICE_ID,
   checkSpaceExists,
   createSpace,
+  deleteSpace,
   getSpaceMetadata,
   updateSpaceMetadata,
   subscribeToSpaceMetadata,
@@ -73,6 +74,8 @@ export default function App() {
   
   // --- 球團內部空間設定 State ---
   const [isSpaceSettingsOpen, setIsSpaceSettingsOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false); // 刪除確認彈窗
+  const [deleteInputId, setDeleteInputId] = useState(''); // 刪除確認輸入的值
 
   // --- 自訂對話框 (Alert / Confirm) State ---
   const [customDialog, setCustomDialog] = useState<{
@@ -228,6 +231,7 @@ export default function App() {
       setIsSessionLoaded(false);
       isSessionLoadedRef.current = false;
       setIsMembersLoaded(false);
+      setSpaceError(null);
       
       // 回到大廳時，若有已驗證的管理員權限，則清除並移除本地登入紀錄（防範無限重繪迴圈）
       if (Object.keys(verifiedAdmins).length > 0) {
@@ -1633,6 +1637,56 @@ export default function App() {
     } catch (err) {
       console.error(err);
       showToast("❌ 更新設定失敗，請確認網路連線。");
+    }
+  };
+
+  // ==========================================
+  // 刪除球團空間邏輯
+  // ==========================================
+  const handleDeleteSpaceConfirm = async () => {
+    if (!spaceId) return;
+    if (deleteInputId.trim().toLowerCase() !== spaceId.toLowerCase()) {
+      await showAlert("輸入的球團 ID 不正確，請重新輸入。");
+      return;
+    }
+
+    try {
+      setIsSpaceLoading(true);
+      
+      // 先移出該空間，觸發退訂，避免刪除過程中收到 Firestore「文檔不存在」的錯誤事件
+      window.location.hash = '';
+      
+      // 等待短暫的 100 毫秒，確保路由切換與退訂已執行完畢
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      await deleteSpace(spaceId);
+
+      // 清理管理員與空間存取授權憑證
+      const updatedVerifiedAdmins = { ...verifiedAdmins };
+      delete updatedVerifiedAdmins[spaceId];
+      setVerifiedAdmins(updatedVerifiedAdmins);
+      localStorage.setItem('badminton_verified_admins', JSON.stringify(updatedVerifiedAdmins));
+
+      const updatedVerifiedSpaces = { ...verifiedSpaces };
+      delete updatedVerifiedSpaces[spaceId];
+      setVerifiedSpaces(updatedVerifiedSpaces);
+      localStorage.setItem('badminton_verified_spaces', JSON.stringify(updatedVerifiedSpaces));
+
+      // 清理「最近造訪」紀錄
+      const updatedRecent = recentSpaces.filter(s => s.id !== spaceId);
+      setRecentSpaces(updatedRecent);
+      localStorage.setItem('badminton_recent_spaces', JSON.stringify(updatedRecent));
+
+      setIsDeleteConfirmOpen(false);
+      setIsSpaceSettingsOpen(false);
+      setDeleteInputId('');
+
+      showToast("👋 球團已成功刪除！已為您返回系統大廳");
+    } catch (e) {
+      console.error(e);
+      await showAlert("刪除球團失敗，請確認網路或稍後重試。");
+    } finally {
+      setIsSpaceLoading(false);
     }
   };
 
@@ -3676,6 +3730,21 @@ export default function App() {
                     </div>
                   </div>
                 </div>
+
+                {/* 移除球團危險區 */}
+                <div className="px-5 xs:px-6 sm:px-7">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteInputId('');
+                      setIsDeleteConfirmOpen(true);
+                    }}
+                    className="w-full h-9 border border-red-500/20 hover:border-red-500/40 hover:bg-red-500/10 text-red-400 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    移除此球團空間
+                  </button>
+                </div>
               </div>
 
               {/* 按鈕區 */}
@@ -3695,6 +3764,70 @@ export default function App() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 刪除確認彈窗 (GitHub 風格) */}
+      {isDeleteConfirmOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]">
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl max-w-sm w-full shadow-2xl relative text-center flex flex-col">
+            <button
+              type="button"
+              onClick={() => setIsDeleteConfirmOpen(false)}
+              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-all"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="w-12 h-12 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+
+            <h3 className="text-lg font-bold text-white mb-2">確認要刪除此球團空間？</h3>
+            
+            <p className="text-xs text-slate-300 bg-red-500/5 border border-red-500/15 p-3 rounded-xl text-left leading-relaxed mb-4">
+              <span className="text-red-400 font-bold">⚠️ 警告：此操作無法復原！</span><br />
+              這將永久移除球團「{spaceMetadata?.name}」及其所有場地配置、排隊記錄與會員名冊。
+            </p>
+
+            <div className="space-y-4 text-left">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 mb-1.5">
+                  請輸入球團 ID <span className="font-mono text-indigo-400 font-bold select-all">{spaceId}</span> 以確認刪除：
+                </label>
+                <input
+                  type="text"
+                  placeholder="請在此輸入球團 ID"
+                  className="w-full h-11 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center font-mono text-slate-200 text-sm placeholder-slate-700 transition-all"
+                  value={deleteInputId}
+                  onChange={e => setDeleteInputId(e.target.value)}
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsDeleteConfirmOpen(false)}
+                  className="flex-1 h-11 border border-slate-800 hover:bg-slate-800 text-slate-300 text-xs font-semibold rounded-xl transition-all"
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  disabled={deleteInputId.trim().toLowerCase() !== (spaceId || '').toLowerCase()}
+                  onClick={handleDeleteSpaceConfirm}
+                  className={`flex-1 h-11 text-xs font-semibold rounded-xl transition-all shadow-lg flex items-center justify-center gap-1.5 ${
+                    deleteInputId.trim().toLowerCase() === (spaceId || '').toLowerCase()
+                      ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-500/25'
+                      : 'bg-slate-800 text-slate-500 cursor-not-allowed shadow-none'
+                  }`}
+                >
+                  我同意，永久刪除
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
