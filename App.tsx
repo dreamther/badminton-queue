@@ -1497,7 +1497,7 @@ export default function App() {
       isAutoAnnounceRef.current = true;
       activateSpeechEngine(); // 在使用者手勢中用真實語音解鎖 iOS 音訊引擎
       setActiveTab('members');
-      showToast("已成功切換為團主模式");
+      showToast("✨ 已成功切換為團主模式");
       return;
     }
 
@@ -1768,7 +1768,7 @@ export default function App() {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url)
         .then(() => {
-          showToast("已成功複製分享網址！");
+          showToast("🔗 已成功複製分享網址！");
         })
         .catch((err) => {
           console.error("Clipboard copy failed:", err);
@@ -1796,7 +1796,7 @@ export default function App() {
     try {
       const successful = document.execCommand('copy');
       if (successful) {
-        showToast("已成功複製分享網址！");
+        showToast("🔗 已成功複製分享網址！");
       } else {
         showToast("❌ 複製網址失敗，請手動複製");
       }
@@ -2653,10 +2653,7 @@ export default function App() {
       {/* Toast Alert */}
       {toastMessage && (
         <div key={toastCounter} className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-[100] animate-[fadeIn_0.2s_ease-out] pointer-events-none w-full px-4 flex justify-center">
-          <div className="bg-slate-950/95 border border-slate-800 shadow-2xl rounded-xl px-5 py-3 text-sm text-slate-200 flex items-center gap-2.5 backdrop-blur-md w-max max-w-full">
-            <div className="w-5 h-5 bg-indigo-500/20 text-indigo-400 rounded-full flex items-center justify-center">
-              <Check className="w-3.5 h-3.5" />
-            </div>
+          <div className="bg-slate-950/95 border border-slate-800 shadow-2xl rounded-xl px-5 py-3 text-sm text-slate-200 flex items-center backdrop-blur-md w-max max-w-full">
             {toastMessage}
           </div>
         </div>
