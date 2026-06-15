@@ -68,7 +68,7 @@ export interface SessionState {
   courts: Court[];
   queueSlots: (string | null)[];
   isWarmupDone: boolean;
-  announceMode: 'admin' | 'all'; // 語音播報設定：僅團主裝置 | 全裝置
+  allowPlayerAnnounce?: boolean; // 語音播報設定：是否允許球員端觸發團主裝置播音
   lastAnnouncement?: {
     text: string;
     timestamp: number;
@@ -146,7 +146,7 @@ export async function createSpace(
     })),
     queueSlots: [],
     isWarmupDone: false,
-    announceMode: 'admin',
+    allowPlayerAnnounce: true,
     updatedAt: Date.now()
   };
 
@@ -306,7 +306,7 @@ export function subscribeToSession(
         courts: [],
         queueSlots: [],
         isWarmupDone: false,
-        announceMode: 'admin',
+        allowPlayerAnnounce: true,
         updatedAt: Date.now()
       };
     };

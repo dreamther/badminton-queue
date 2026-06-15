@@ -4,7 +4,8 @@ import {
   Volume2, VolumeX, X, Swords, UserCheck, Search, CheckCircle2, ChevronDown, 
   ChevronRight, Unlink, ArrowUp, PanelLeft, LogOut, UserX, ChevronUp, Flame, 
   Lock, Unlock, UserPlus, Upload, Settings, MoreVertical, Power, Share2, Copy, 
-  ArrowLeft, ExternalLink, Check, Key, EyeOff, Shield, HelpCircle, AlertTriangle, Info
+  ArrowLeft, ExternalLink, Check, Key, EyeOff, Shield, HelpCircle, AlertTriangle, Info,
+  Megaphone
 } from 'lucide-react';
 import { 
   Player, Court, Member, INITIAL_COURT_COUNT, MAX_PLAYERS_PER_COURT, 
@@ -46,6 +47,10 @@ const generateUUID = (): string => {
     return v.toString(16);
   });
 };
+
+// 快取已選擇的本地語音 (避免每次 speak 都重新搜尋)
+let cachedLocalVoice: SpeechSynthesisVoice | null = null;
+let voiceCacheInitialized = false;
 
 export default function App() {
   // --- 路由與空間 State ---
@@ -118,7 +123,7 @@ export default function App() {
   const [editSpacePasscode, setEditSpacePasscode] = useState('');
   const [editHasSpacePasscode, setEditHasSpacePasscode] = useState(false);
   const [editSpaceAccessPasscode, setEditSpaceAccessPasscode] = useState('');
-  const [editAnnounceMode, setEditAnnounceMode] = useState<'admin' | 'all'>('admin');
+  const [editAllowPlayerAnnounce, setEditAllowPlayerAnnounce] = useState(true);
   const [recentSpaces, setRecentSpaces] = useState<SpaceMetadata[]>(() => {
     const saved = localStorage.getItem('badminton_recent_spaces');
     return saved ? JSON.parse(saved) : [];
@@ -130,6 +135,30 @@ export default function App() {
   useEffect(() => {
     currentUserRef.current = currentUser;
   }, [currentUser]);
+
+  // 預熱 Web Speech API 的語音清單，解決 Chrome 異步載入 voices 的問題
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      const cacheVoice = () => {
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length > 0 && !voiceCacheInitialized) {
+          // 優先選擇繁體中文的本地語音 (避免 Google 雲端語音在 Chrome macOS 上靜默失敗)
+          const zhTWLocal = voices.find(v => v.lang.includes('zh') && v.lang.includes('TW') && v.localService);
+          const zhLocal = voices.find(v => v.lang.startsWith('zh') && v.localService);
+          const anyZh = voices.find(v => v.lang.startsWith('zh'));
+          cachedLocalVoice = zhTWLocal || zhLocal || anyZh || null;
+          voiceCacheInitialized = true;
+        }
+      };
+      // 立即嘗試 + 監聽 voiceschanged
+      window.speechSynthesis.getVoices();
+      cacheVoice();
+      window.speechSynthesis.addEventListener('voiceschanged', cacheVoice);
+      return () => {
+        window.speechSynthesis.removeEventListener('voiceschanged', cacheVoice);
+      };
+    }
+  }, []);
   const [isLoggingInAsPlayer, setIsLoggingInAsPlayer] = useState(false);
   const [loginSearchTerm, setLoginSearchTerm] = useState('');
   const [passcodePromptOpen, setPasscodePromptOpen] = useState(false);
@@ -160,7 +189,7 @@ export default function App() {
   const [courts, setCourts] = useState<Court[]>([]);
   const [queueSlots, setQueueSlots] = useState<(string | null)[]>([]);
   const [isWarmupDone, setIsWarmupDone] = useState(false);
-  const [announceMode, setAnnounceMode] = useState<'admin' | 'all'>('admin');
+  const [allowPlayerAnnounce, setAllowPlayerAnnounce] = useState(true);
 
   // --- 靜態/低頻同步狀態 ---
   const [members, setMembers] = useState<Member[]>([]);
@@ -171,10 +200,6 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); 
   const [currentTime, setCurrentTime] = useState(new Date()); 
   const [isAutoAnnounce, setIsAutoAnnounce] = useState(false); // 本地裝置的語音開關
-  const isAutoAnnounceRef = useRef(isAutoAnnounce);
-  useEffect(() => {
-    isAutoAnnounceRef.current = isAutoAnnounce;
-  }, [isAutoAnnounce]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const [dragOverSlotKey, setDragOverSlotKey] = useState<string | null>(null);
@@ -194,11 +219,18 @@ export default function App() {
   // Refs
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const lastVoiceTimestampRef = useRef<number>(0);
-  const isFirstLoadRef = useRef<boolean>(true);
   const isSessionLoadedRef = useRef<boolean>(false);
-  const audioCtxRef = useRef<AudioContext | null>(null);
   const isCreatingSpaceRef = useRef<boolean>(false);
+  const lastRestoredSpaceRef = useRef<string | null>(null);
+
+  const isAutoAnnounceRef = useRef(isAutoAnnounce);
+  useEffect(() => {
+    isAutoAnnounceRef.current = isAutoAnnounce;
+  }, [isAutoAnnounce]);
+
+
+  const lastSpokenTimestampRef = useRef<number>(0);
+  const isFirstSessionLoadRef = useRef<boolean>(true);
 
   // --- 監聽 Hash 路由變化 ---
   useEffect(() => {
@@ -217,8 +249,26 @@ export default function App() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
+  // --- 預載語音列表，確保 Chrome 等瀏覽器能正確且即時載入本地語音 ---
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.getVoices();
+      const handleVoicesChanged = () => {
+        window.speechSynthesis.getVoices();
+      };
+      window.speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
+      return () => {
+        window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+      };
+    }
+  }, []);
+
   // --- 載入空間元資料與訂閱實時同步 ---
   useEffect(() => {
+    // 每次空間改變，確實重置首次載入的語音播放判定狀態，避免收到舊播報
+    isFirstSessionLoadRef.current = true;
+    lastSpokenTimestampRef.current = 0;
+
     if (!spaceId) {
       setPlayers([]);
       setCourts([]);
@@ -241,6 +291,7 @@ export default function App() {
       return;
     }
 
+    let isCancelled = false;
     let unsubMeta: (() => void) | null = null;
     let unsubSession: (() => void) | null = null;
     let unsubMembers: (() => void) | null = null;
@@ -251,10 +302,10 @@ export default function App() {
       isSessionLoadedRef.current = false;
       setIsMembersLoaded(false);
       setSpaceError(null);
-      isFirstLoadRef.current = true; // 重置首載標記
 
       try {
         const exists = await checkSpaceExists(spaceId!);
+        if (isCancelled) return;
         if (!exists) {
           setSpaceError(`球團空間「${spaceId}」不存在。請確認網址或返回大廳建立全新空間。`);
           setIsSpaceLoading(false);
@@ -263,6 +314,10 @@ export default function App() {
 
         // 訂閱空間元資料變動 (Real-time Space Metadata Sync)
         unsubMeta = subscribeToSpaceMetadata(spaceId!, (meta) => {
+          if (isCancelled) {
+            if (unsubMeta) unsubMeta();
+            return;
+          }
           setSpaceMetadata(meta);
 
           // 記錄至「最近造訪」
@@ -280,6 +335,7 @@ export default function App() {
 
         // 取得空間 Metadata 用於初始密碼檢查
         const meta = await getSpaceMetadata(spaceId!);
+        if (isCancelled) return;
         if (!meta) {
           setSpaceError(`無法取得球團空間「${spaceId}」的資料。`);
           setIsSpaceLoading(false);
@@ -311,7 +367,6 @@ export default function App() {
             } else {
               setCurrentUser(savedUser);
               setIsAutoAnnounce(false); // 避免聲音通道被鎖定，預設先關閉，由用戶點擊按鈕啟用
-              isAutoAnnounceRef.current = false;
               showToast("📢 已自動還原團主身分，若要播報請點擊語音按鈕");
             }
           } else {
@@ -321,8 +376,14 @@ export default function App() {
           setCurrentUser(null);
         }
 
+        if (isCancelled) return;
+
         // 1. 訂閱核心即時狀態
         unsubSession = subscribeToSession(spaceId!, (session) => {
+          if (isCancelled) {
+            if (unsubSession) unsubSession();
+            return;
+          }
           setPlayers(session.players || []);
           setCourts(session.courts || []);
           setQueueSlots(session.queueSlots || []);
@@ -336,34 +397,33 @@ export default function App() {
               if (savedUser.role === 'player') {
                 // 為了避免聲音通道鎖定，自動還原的球員一律預設為關閉播報，由其點擊喇叭開啟
                 setIsAutoAnnounce(false);
-                isAutoAnnounceRef.current = false;
               }
             }
           }
 
-          setAnnounceMode(session.announceMode || 'admin');
+          setAllowPlayerAnnounce(session.allowPlayerAnnounce ?? true);
           setIsSessionLoaded(true);
           isSessionLoadedRef.current = true;
 
           // 實時語音播報判定
           if (session.lastAnnouncement) {
             const ann = session.lastAnnouncement;
-            if (isFirstLoadRef.current) {
-              // 首載：僅記錄時間戳，不發出聲音，避免一進網頁就吵人
-              lastVoiceTimestampRef.current = ann.timestamp;
-              isFirstLoadRef.current = false;
-            } else if (ann.timestamp !== lastVoiceTimestampRef.current) {
-              lastVoiceTimestampRef.current = ann.timestamp;
-              
-              // 判定是否播放：
-              // - 只要本機未靜音且非本機發送，即可發聲
+            if (isFirstSessionLoadRef.current) {
+              lastSpokenTimestampRef.current = ann.timestamp;
+              isFirstSessionLoadRef.current = false;
+            } else {
+              const isAdmin = currentUserRef.current?.role === 'admin';
               const isAnotherDevice = ann.deviceId !== DEVICE_ID;
-              if (isAnotherDevice && isAutoAnnounceRef.current) {
-                speak(ann.text);
+              
+              if (isAdmin && isAutoAnnounceRef.current && isAnotherDevice) {
+                if (ann.timestamp > lastSpokenTimestampRef.current) {
+                  lastSpokenTimestampRef.current = ann.timestamp;
+                  speak(ann.text);
+                }
               }
             }
-          } else if (isFirstLoadRef.current) {
-            isFirstLoadRef.current = false;
+          } else if (isFirstSessionLoadRef.current) {
+            isFirstSessionLoadRef.current = false;
           }
         }, (err) => {
           setSpaceError("加載賽局狀態失敗，請稍後重試。");
@@ -371,21 +431,30 @@ export default function App() {
 
         // 2. 訂閱會員名冊
         unsubMembers = subscribeToMembers(spaceId!, (list) => {
+          if (isCancelled) {
+            if (unsubMembers) unsubMembers();
+            return;
+          }
           setMembers(list);
           setIsMembersLoaded(true);
         });
 
       } catch (e) {
         console.error(e);
-        setSpaceError("初始化球團空間出錯，請確認網路連線。");
+        if (!isCancelled) {
+          setSpaceError("初始化球團空間出錯，請確認網路連線。");
+        }
       } finally {
-        setIsSpaceLoading(false);
+        if (!isCancelled) {
+          setIsSpaceLoading(false);
+        }
       }
     }
 
     initSpace();
 
     return () => {
+      isCancelled = true;
       if (unsubMeta) unsubMeta();
       if (unsubSession) unsubSession();
       if (unsubMembers) unsubMembers();
@@ -424,9 +493,9 @@ export default function App() {
       setEditSpacePasscode(spaceMetadata.adminPasscode || '');
       setEditHasSpacePasscode(!!spaceMetadata.spacePasscode);
       setEditSpaceAccessPasscode(spaceMetadata.spacePasscode || '');
-      setEditAnnounceMode(announceMode);
+      setEditAllowPlayerAnnounce(allowPlayerAnnounce);
     }
-  }, [isSpaceSettingsOpen, spaceMetadata, announceMode]);
+  }, [isSpaceSettingsOpen, spaceMetadata, allowPlayerAnnounce]);
 
   // --- 時鐘定時器 ---
   useEffect(() => {
@@ -473,93 +542,53 @@ export default function App() {
     }
   };
 
-  // --- iOS/行動端語音引擎解鎖 ---
-  // iOS Safari 要求第一次 speak() 必須在使用者手勢中產生「真實可聽」的音訊（volume > 0）
-  // 才會永久啟動音訊 session。volume=0 或 0.01 都會被 iOS 視為空操作。
+  // 宣告用於提示音的 AudioContext Ref
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
-  // 解鎖 iOS 音訊引擎（在使用者手勢中呼叫）
+  // --- 語音引擎解鎖與提示音播放介面 ---
   const activateSpeechEngine = useCallback(() => {
     try {
-      // 1. AudioContext 解鎖
+      // 1. 播放柔和的和弦提示音以確認與解鎖 AudioContext
       if (!audioCtxRef.current) {
         audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       }
-      if (audioCtxRef.current.state === 'suspended') {
-        audioCtxRef.current.resume();
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume();
       }
-      // 2. speechSynthesis 解鎖：volume=1.0 是必要的，iOS 才認定為真實音訊
-      //    使用 '.' + rate=10 讓聲音幾乎聽不到（極短促）
+      
+      const now = ctx.currentTime;
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(523.25, now); // C5
+      osc1.frequency.exponentialRampToValueAtTime(880, now + 0.15); // A5
+      
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(659.25, now); // E5
+      osc2.frequency.exponentialRampToValueAtTime(1046.5, now + 0.15); // C6
+      
+      gainNode.gain.setValueAtTime(0.08, now); // 柔和音量
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+      
+      osc1.connect(gainNode);
+      osc2.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      osc1.start(now);
+      osc2.start(now);
+      osc1.stop(now + 0.25);
+      osc2.stop(now + 0.25);
+
+      // 2. 清除 speechSynthesis 可能殘留的卡住狀態 (不發送 dummy utterance，那會導致引擎永久卡死)
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance('語音廣播已開啟');
-        u.lang = 'zh-TW';
-        u.volume = 0.3;
-        u.rate = 1.2;
-        window.speechSynthesis.speak(u);
       }
     } catch (e) {
-      console.warn('[Speech] 解鎖語音引擎失敗:', e);
+      console.warn('[Speech] 提示音播放或語音解鎖失敗:', e);
     }
-  }, []);
-
-  useEffect(() => {
-    let active = false;
-    
-    const unlockSpeech = () => {
-      // 觸控解鎖：在用戶首次觸控時執行（自動還原登入狀態的 AudioContext 回退機制）
-      try {
-        if (!audioCtxRef.current) {
-          audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-        }
-        if (audioCtxRef.current.state === 'suspended') {
-          audioCtxRef.current.resume();
-        }
-        console.log('[Speech] 音訊引擎 (AudioContext) 解鎖成功');
-      } catch (e) {
-        console.warn('[Speech] 解鎖失敗:', e);
-      }
-      removeListeners();
-    };
-
-    const addListeners = () => {
-      if (active) return;
-      active = true;
-      document.addEventListener('click', unlockSpeech);
-      document.addEventListener('touchstart', unlockSpeech);
-    };
-
-    const removeListeners = () => {
-      active = false;
-      document.removeEventListener('click', unlockSpeech);
-      document.removeEventListener('touchstart', unlockSpeech);
-    };
-
-    addListeners();
-
-    // 預載語音列表
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.getVoices();
-      window.speechSynthesis.addEventListener('voiceschanged', () => {
-        window.speechSynthesis.getVoices();
-      });
-    }
-
-    // 頁面可見性變化時重新解鎖
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
-          audioCtxRef.current.resume();
-        }
-        addListeners();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      removeListeners();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
   }, []);
 
   // --- 點選移動模式的 Esc 鍵處理 ---
@@ -723,26 +752,44 @@ export default function App() {
 
   // --- 語音播報基礎函數 ---
   const speak = useCallback((text: string) => {
-    if (!isAutoAnnounceRef.current) return;
-    if ('speechSynthesis' in window) {
-      // 先清除佇列中殘留的舊語音（包括 priming 的 '.'），再播新內容
-      window.speechSynthesis.cancel();
-      
-      // 若引擎處於 paused 狀態（如分頁切換後），先 resume
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-      }
-      
-      // 確保 AudioContext 也處於活動狀態
-      if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
-        audioCtxRef.current.resume();
-      }
-      
+    if (!('speechSynthesis' in window)) return;
+
+    const synth = window.speechSynthesis;
+    
+    // 反卡死機制：如果引擎卡在 speaking 狀態，強制連續 cancel 清除
+    if (synth.speaking) {
+      synth.cancel();
+    }
+    synth.cancel();
+
+    const createUtterance = () => {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'zh-TW';
       utterance.rate = 1.0;
       utterance.pitch = 1.2;
-      window.speechSynthesis.speak(utterance);
+      // 強制使用已快取的本地語音
+      if (cachedLocalVoice) {
+        utterance.voice = cachedLocalVoice;
+      }
+      return utterance;
+    };
+
+    // 如果 cancel() 後引擎仍卡住，延遲 250ms 再播放 (給引擎時間 reset)
+    const doSpeak = () => {
+      const u1 = createUtterance();
+      const u2 = createUtterance();
+      synth.speak(u1);
+      synth.speak(u2);
+    };
+
+    if (synth.speaking) {
+      // 引擎仍卡住，等待後再試
+      setTimeout(() => {
+        synth.cancel();
+        setTimeout(doSpeak, 50);
+      }, 300);
+    } else {
+      doSpeak();
     }
   }, []);
 
@@ -944,10 +991,29 @@ export default function App() {
       .filter(Boolean);
 
     if (playerNames.length > 0) {
-      const announcement = `請 ${playerNames.join('，')}，到${court.name}打球`;
-      speak(announcement);
+      const announcementText = `請 ${playerNames.join('，')}，到${court.name}打球`;
+      
+      const isPlayer = currentUser?.role === 'player';
+      const shouldSyncAnnounce = !isPlayer || allowPlayerAnnounce;
+      
+      if (shouldSyncAnnounce) {
+        // 更新雲端廣播信號
+        updateCloudSession({
+          lastAnnouncement: {
+            text: announcementText,
+            timestamp: Date.now(),
+            deviceId: DEVICE_ID
+          }
+        });
+        
+        // 如果是本地端（且為團主啟用狀態），立即播放以提高反應度
+        const isAdmin = currentUser?.role === 'admin';
+        if (isAdmin && isAutoAnnounce) {
+          speak(announcementText);
+        }
+      }
     }
-  }, [courts, players, speak]);
+  }, [courts, players, currentUser, allowPlayerAnnounce, isAutoAnnounce, speak, updateCloudSession]);
 
   const startMatch = useCallback(async (courtId: number) => {
     const playersToStart = getNextMatchBatch(queueSlots, players);
@@ -964,8 +1030,10 @@ export default function App() {
     let announcementText = '';
     if (court) {
       announcementText = `請 ${playerNames.join('，')}，到${court.name}打球`;
-      if (isAutoAnnounce) {
-        // 本地發起端：立刻播報，提升反應度
+      
+      // 只有團主開啟本地播報時，才直接在本地端播放
+      const isAdmin = currentUser?.role === 'admin';
+      if (isAdmin && isAutoAnnounce) {
         speak(announcementText);
       }
     }
@@ -981,18 +1049,23 @@ export default function App() {
       c.id === courtId ? { ...c, playerIds, startTime: Date.now() } : c
     );
 
+    const isPlayer = currentUser?.role === 'player';
+    const shouldSyncAnnounce = !isPlayer || allowPlayerAnnounce;
+
     // 同步賽局與語音信號至雲端
     updateCloudSession({
       players: updatedPlayers,
       queueSlots: newSlots,
       courts: updatedCourts,
-      lastAnnouncement: announcementText ? {
-        text: announcementText,
-        timestamp: Date.now(),
-        deviceId: DEVICE_ID
-      } : undefined
+      ...(shouldSyncAnnounce && announcementText ? {
+        lastAnnouncement: {
+          text: announcementText,
+          timestamp: Date.now(),
+          deviceId: DEVICE_ID
+        }
+      } : {})
     });
-  }, [queueSlots, players, courts, speak, isAutoAnnounce, getNextMatchBatch, updateCloudSession, showAlert]);
+  }, [queueSlots, players, courts, speak, isAutoAnnounce, currentUser, allowPlayerAnnounce, getNextMatchBatch, updateCloudSession, showAlert]);
 
   const endMatch = useCallback((courtId: number) => {
     const court = courts.find(c => c.id === courtId);
@@ -1493,9 +1566,7 @@ export default function App() {
       const user: CurrentUser = { role: 'admin' };
       setCurrentUser(user);
       localStorage.setItem(`badminton_current_user_${spaceId}`, JSON.stringify(user));
-      setIsAutoAnnounce(true); // 團主預設開啟語音播報
-      isAutoAnnounceRef.current = true;
-      activateSpeechEngine(); // 在使用者手勢中用真實語音解鎖 iOS 音訊引擎
+      setIsAutoAnnounce(false); // 團主登入預設關閉播報，需主動點擊解鎖
       setActiveTab('members');
       showToast("✨ 已成功切換為團主模式");
       return;
@@ -1506,9 +1577,7 @@ export default function App() {
       const user: CurrentUser = { role: 'admin' };
       setCurrentUser(user);
       localStorage.setItem(`badminton_current_user_${spaceId}`, JSON.stringify(user));
-      setIsAutoAnnounce(true); // 團主預設開啟語音播報
-      isAutoAnnounceRef.current = true;
-      activateSpeechEngine();
+      setIsAutoAnnounce(false); // 團主登入預設關閉播報，需主動點擊解鎖
       setActiveTab('members');
       return;
     }
@@ -1529,9 +1598,7 @@ export default function App() {
       const user: CurrentUser = { role: 'admin' };
       setCurrentUser(user);
       localStorage.setItem(`badminton_current_user_${spaceId}`, JSON.stringify(user));
-      setIsAutoAnnounce(true); // 團主預設開啟語音播報
-      isAutoAnnounceRef.current = true;
-      activateSpeechEngine();
+      setIsAutoAnnounce(false); // 團主登入預設關閉播報，需主動點擊解鎖
 
       // 儲存已驗證標記
       const updatedVerified = { ...verifiedAdmins, [spaceId]: true };
@@ -1607,7 +1674,7 @@ export default function App() {
       };
 
       await updateSpaceMetadata(spaceId, updates);
-      await updateCloudSession({ announceMode: editAnnounceMode });
+      await updateCloudSession({ allowPlayerAnnounce: editAllowPlayerAnnounce });
       
       // 同步更新當前本地的驗證狀態
       if (!editHasPasscode) {
@@ -2460,13 +2527,7 @@ export default function App() {
                       onClick={() => {
                         const user: CurrentUser = { role: 'player', memberId: member.id };
                         setCurrentUser(user);
-                        localStorage.setItem(`badminton_current_user_${spaceId}`, JSON.stringify(user));
-                        const shouldAnnounce = announceMode === 'all';
-                        setIsAutoAnnounce(shouldAnnounce);
-                        isAutoAnnounceRef.current = shouldAnnounce;
-                        if (shouldAnnounce) {
-                          activateSpeechEngine();
-                        }
+                        setIsAutoAnnounce(false); // 球員端不播音
                         setActiveTab('queue');
                         
                         const pId = checkInMember(member);
@@ -3336,33 +3397,32 @@ export default function App() {
                 </div>
               )}
 
-              {/* 語音開關 (本地控制) */}
-              <button
-                onClick={() => {
-                  const val = !isAutoAnnounce;
-                  setIsAutoAnnounce(val);
-                  isAutoAnnounceRef.current = val;
-                  showToast(val ? "🔊 本裝置開啟語音播報" : "🔇 本裝置關閉語音播報");
-                  
-                  if (val) {
-                    // 開啟播報：此按鈕點擊本身就是使用者手勢，用真實語音解鎖 iOS 引擎
-                    activateSpeechEngine();
-                  } else {
-                    // 關閉播報：停止當前正在播放的聲音
-                    if ('speechSynthesis' in window) {
-                      window.speechSynthesis.cancel();
+              {/* 語音開關 (本地控制 - 僅限團主) */}
+              {currentUser?.role === 'admin' && (
+                <button
+                  onClick={() => {
+                    const val = !isAutoAnnounce;
+                    setIsAutoAnnounce(val);
+                    showToast(val ? "🔊 本裝置開啟語音播報" : "🔇 本裝置關閉語音播報");
+                    
+                    if (val) {
+                      activateSpeechEngine();
+                    } else {
+                      if ('speechSynthesis' in window) {
+                        window.speechSynthesis.cancel();
+                      }
                     }
-                  }
-                }}
-                className={`p-1.5 rounded-lg border transition-all ${
-                  isAutoAnnounce 
-                    ? 'bg-slate-850 border-slate-700 text-indigo-400 hover:text-indigo-300' 
-                    : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-400'
-                }`}
-                title={isAutoAnnounce ? "點擊靜音本裝置" : "點擊開啟本裝置播報"}
-              >
-                {isAutoAnnounce ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-              </button>
+                  }}
+                  className={`p-1.5 rounded-lg border transition-all ${
+                    isAutoAnnounce 
+                      ? 'bg-slate-850 border-slate-700 text-indigo-400 hover:text-indigo-300' 
+                      : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-400'
+                  }`}
+                  title={isAutoAnnounce ? "點擊靜音本裝置" : "點擊開啟本裝置播報"}
+                >
+                  {isAutoAnnounce ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                </button>
+              )}
 
               {/* 熱身切換 */}
               <button
@@ -3396,7 +3456,7 @@ export default function App() {
                   onRenameCourt={currentUser?.role === 'admin' ? renameCourt : undefined}
                   onAnnounce={announceCourtPlayers}
                   onRestPlayer={restPlayerFromCourt}
-                  isAutoAnnounce={isAutoAnnounce}
+                  isAutoAnnounce={currentUser?.role === 'admin' ? isAutoAnnounce : allowPlayerAnnounce}
                   canStartMatch={isQueueReady}
                   onDropPlayer={dropPlayerToCourt}
                   isWarmupDone={isWarmupDone}
@@ -3557,34 +3617,30 @@ export default function App() {
                   />
                 </div>
 
-                {/* 語音播報設定 - 移至球團名稱之下 */}
+                {/* 允許球員連動播報設定 */}
                 <div className="px-5 xs:px-6 sm:px-7">
                   <div className="bg-slate-950/50 p-3 xs:p-4 border border-slate-800/80 rounded-2xl space-y-2">
-                    <label className="block text-xs font-semibold text-slate-200">語音播報同步方式</label>
-                    <div className="grid grid-cols-2 gap-2 pt-1 text-[10px]">
-                      <button
-                        type="button"
-                        onClick={() => setEditAnnounceMode('admin')}
-                        className={`py-2 rounded-xl font-semibold text-center border transition-all ${
-                          editAnnounceMode === 'admin'
-                            ? 'bg-indigo-600/20 text-indigo-400 border-indigo-500/30'
-                            : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
+                    <div className="flex items-center justify-between select-none">
+                      <div className="flex items-center gap-2">
+                        <Megaphone className="w-3.5 h-3.5 text-indigo-400" />
+                        <span className="text-xs font-semibold text-slate-200">允許球員連動團主裝置播音</span>
+                      </div>
+                      <div 
+                        onClick={() => setEditAllowPlayerAnnounce(!editAllowPlayerAnnounce)}
+                        className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer flex items-center shrink-0 ${
+                          editAllowPlayerAnnounce ? 'bg-indigo-600' : 'bg-slate-800'
                         }`}
                       >
-                        僅團主裝置播音
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditAnnounceMode('all')}
-                        className={`py-2 rounded-xl font-semibold text-center border transition-all ${
-                          editAnnounceMode === 'all'
-                            ? 'bg-indigo-600/20 text-indigo-400 border-indigo-500/30'
-                            : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
-                        }`}
-                      >
-                        全裝置同步播音
-                      </button>
+                        <div 
+                          className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform duration-200 ease-in-out ${
+                            editAllowPlayerAnnounce ? 'translate-x-4' : 'translate-x-0'
+                          }`}
+                        />
+                      </div>
                     </div>
+                    <p className="text-[10px] text-slate-500 leading-normal">
+                      啟用後，球員在手機上點擊大聲公或開賽按鈕時，將可觸發團主裝置播出語音唱名。
+                    </p>
                   </div>
                 </div>
 
