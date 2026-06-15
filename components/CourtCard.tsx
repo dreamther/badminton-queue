@@ -151,9 +151,14 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                 <div className="flex items-center justify-end gap-2 h-6">
                     {isMatchStarted && onAnnounce && (
                         <button
+                            disabled={!isAutoAnnounce}
                             onClick={() => onAnnounce(court.id)}
-                            className="p-1 hover:bg-indigo-500/20 rounded text-indigo-400 hover:text-indigo-300 transition-all"
-                            title="手動語音提醒"
+                            className={`p-1 rounded transition-all ${
+                                !isAutoAnnounce
+                                    ? 'text-slate-700 cursor-not-allowed opacity-40 bg-transparent'
+                                    : 'hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300'
+                            }`}
+                            title={!isAutoAnnounce ? '語音播報已關閉' : '手動語音提醒'}
                         >
                             <Megaphone className="w-3.5 h-3.5" />
                         </button>
