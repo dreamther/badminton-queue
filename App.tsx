@@ -2482,7 +2482,7 @@ export default function App() {
     return (
       <div className="h-[100dvh] w-screen bg-slate-950 text-slate-200 overflow-y-auto">
         <div className="min-h-full w-full flex flex-col items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 p-6 xs:p-7 sm:p-8 rounded-2xl shadow-2xl max-w-sm w-full mx-auto relative overflow-hidden">
+          <div className="bg-slate-900 border border-slate-800 p-6 xs:p-7 sm:p-8 rounded-2xl shadow-2xl max-w-sm w-full mx-auto relative overflow-hidden animate-[fadeIn_0.2s_ease-out]">
           
           {/* 返回大廳按鈕 */}
           {/* 返回鍵：球員選取時返回身分選取，否則返回大廳 */}
