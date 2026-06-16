@@ -1,15 +1,15 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { 
-  Users, Activity, Coffee, ArrowRight, RotateCcw, Trash2, Trophy, Plus, Minus, 
+  Users, Coffee, ArrowRight, Trash2, Trophy, Plus, Minus, 
   Volume2, VolumeX, X, Swords, UserCheck, Search, CheckCircle2, ChevronDown, 
-  ChevronRight, Unlink, ArrowUp, PanelLeft, LogOut, UserX, ChevronUp, Flame, 
-  Lock, Unlock, UserPlus, Upload, Settings, MoreVertical, Power, Share2, Copy, 
-  ArrowLeft, ExternalLink, Check, Key, EyeOff, Shield, HelpCircle, AlertTriangle, Info,
+  ChevronRight, Unlink, LogOut, UserX, Flame, 
+  Lock, UserPlus, Upload, Settings, MoreVertical, Power, Share2, 
+  ArrowLeft, ExternalLink, Key, EyeOff, Shield, AlertTriangle, Info,
   Megaphone
 } from 'lucide-react';
 import { 
-  Player, Court, Member, INITIAL_COURT_COUNT, MAX_PLAYERS_PER_COURT, 
-  SkillLevel, SKILL_LEVELS, CurrentUser, UserRole 
+  Player, Court, Member, MAX_PLAYERS_PER_COURT, 
+  SkillLevel, SKILL_LEVELS, CurrentUser 
 } from './types';
 import { CourtCard } from './components/CourtCard';
 import { PlayerAvatar } from './components/PlayerAvatar';
@@ -28,7 +28,6 @@ import {
   subscribeToMembers,
   addMember,
   addMembersBatch,
-  updateMember,
   deleteMember,
   type SpaceMetadata,
   type SessionState
@@ -74,8 +73,12 @@ export default function App() {
   const [newSpaceName, setNewSpaceName] = useState('');
   const [newSpacePasscode, setNewSpacePasscode] = useState('');
   const [hasPasscode, setHasPasscode] = useState(false);
+  const [confirmedHasPasscode, setConfirmedHasPasscode] = useState(false); // 確認完成後才顯示 badge
+  const [confirmedPasscode, setConfirmedPasscode] = useState(''); // 上次確認的密碼快照（X 還原用）
   const [newSpaceAccessPasscode, setNewSpaceAccessPasscode] = useState('');
   const [hasSpacePasscode, setHasSpacePasscode] = useState(false);
+  const [confirmedHasSpacePasscode, setConfirmedHasSpacePasscode] = useState(false); // 確認完成後才顯示 badge
+  const [confirmedAccessPasscode, setConfirmedAccessPasscode] = useState(''); // 上次確認的存取密碼快照（X 還原用）
   const [isSecuritySettingsOpen, setIsSecuritySettingsOpen] = useState(false); // 安全設定彈窗
   const [joinSpaceIdInput, setJoinSpaceIdInput] = useState('');
   
@@ -199,8 +202,6 @@ export default function App() {
   // --- UI 與控制狀態 ---
   const [activeTab, setActiveTab] = useState<Tab>('courts');
   const [isRestAreaOpen, setIsRestAreaOpen] = useState(false); 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true); 
-  const [currentTime, setCurrentTime] = useState(new Date()); 
   const [isAutoAnnounce, setIsAutoAnnounce] = useState(false); // 本地裝置的語音開關
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -222,7 +223,7 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isSessionLoadedRef = useRef<boolean>(false);
   const isCreatingSpaceRef = useRef<boolean>(false);
-  const lastRestoredSpaceRef = useRef<string | null>(null);
+  const lastLoadedSpaceIdRef = useRef<string | null>(null);
 
   const isAutoAnnounceRef = useRef(isAutoAnnounce);
   useEffect(() => {
@@ -302,6 +303,7 @@ export default function App() {
       isSessionLoadedRef.current = false;
       setIsMembersLoaded(false);
       setSpaceError(null);
+      lastLoadedSpaceIdRef.current = null;
       
       // 回到大廳時，若有已驗證的管理員權限，則清除並移除本地登入紀錄（防範無限重繪迴圈）
       if (Object.keys(verifiedAdmins).length > 0) {
@@ -317,10 +319,15 @@ export default function App() {
     let unsubMembers: (() => void) | null = null;
 
     async function initSpace() {
-      setIsSpaceLoading(true);
-      setIsSessionLoaded(false);
-      isSessionLoadedRef.current = false;
-      setIsMembersLoaded(false);
+      const isSameSpace = lastLoadedSpaceIdRef.current === spaceId;
+      const wasLoaded = isSessionLoadedRef.current && isSameSpace;
+
+      if (!wasLoaded) {
+        setIsSpaceLoading(true);
+        setIsSessionLoaded(false);
+        isSessionLoadedRef.current = false;
+        setIsMembersLoaded(false);
+      }
       setSpaceError(null);
 
       try {
@@ -384,15 +391,18 @@ export default function App() {
               // 雖然有 local 紀錄，但若空間有設定密碼且本地未標註已驗證，則重置為未登入
               localStorage.removeItem(savedUserKey);
               setCurrentUser(null);
-            } else {
+            } else if (currentUserRef.current?.role !== 'admin') {
+              // 僅在當前非管理員身分時，才進行自動還原與顯示提示
               setCurrentUser(savedUser);
               setIsAutoAnnounce(false); // 避免聲音通道被鎖定，預設先關閉，由用戶點擊按鈕啟用
               showToast("📢 已自動還原團主身分，若要播報請點擊語音按鈕");
             }
-          } else {
+          } else if (currentUserRef.current?.role !== 'player' || currentUserRef.current?.memberId !== savedUser.memberId) {
+            // 僅在當前非對應球員身分時，才自動還原
             setCurrentUser(savedUser);
           }
-        } else {
+        } else if (currentUserRef.current !== null) {
+          // 本地無紀錄但當前有登入狀態，說明可能需要登出
           setCurrentUser(null);
         }
 
@@ -445,7 +455,7 @@ export default function App() {
           } else if (isFirstSessionLoadRef.current) {
             isFirstSessionLoadRef.current = false;
           }
-        }, (err) => {
+        }, () => {
           setSpaceError("加載賽局狀態失敗，請稍後重試。");
         });
 
@@ -458,6 +468,11 @@ export default function App() {
           setMembers(list);
           setIsMembersLoaded(true);
         });
+
+        // 成功建立所有訂閱，記錄當前載入的 SpaceId
+        if (!isCancelled) {
+          lastLoadedSpaceIdRef.current = spaceId;
+        }
 
       } catch (e) {
         console.error(e);
@@ -479,7 +494,7 @@ export default function App() {
       if (unsubSession) unsubSession();
       if (unsubMembers) unsubMembers();
     };
-  }, [spaceId, verifiedSpaces]);
+  }, [spaceId, verifiedSpaces, verifiedAdmins]);
 
   // --- 寫入雲端狀態的封裝函數 ---
   const updateCloudSession = useCallback(async (updates: Partial<SessionState>) => {
@@ -517,13 +532,6 @@ export default function App() {
     }
   }, [isSpaceSettingsOpen, spaceMetadata, allowPlayerAnnounce]);
 
-  // --- 時鐘定時器 ---
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   // --- 手勢滑動切換分頁 (Mobile Tab Swipe) ---
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -712,7 +720,6 @@ export default function App() {
     return result;
   }, [idlePlayers, restAreaSearchTerm, currentMemberName]);
 
-  const totalActivePlayers = useMemo(() => players.filter(p => p.status === 'playing').length, [players]);
   const idleCourtsCount = useMemo(() => courts.filter(c => c.startTime === null).length, [courts]);
 
   const getNextMatchBatch = useCallback((slots: (string | null)[], currentPlayers: Player[]) => {
@@ -939,14 +946,39 @@ export default function App() {
       const newSlots = queueSlots.map(id => id === playerId ? null : id);
       while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
       
+      // 找出該球員目前在哪個場地上
+      const activeCourt = courts.find(c => c.playerIds.includes(playerId));
+      
+      let updatedCourts = courts;
+      let shouldResetWarmup = false;
+      
+      if (activeCourt) {
+        // 只有早退的人離開場地（該位置設為 null），其他人保留在場地上
+        updatedCourts = courts.map(c => {
+          if (c.id === activeCourt.id) {
+            const newPlayerIds = c.playerIds.map(id => id === playerId ? null : id);
+            while (newPlayerIds.length > 0 && newPlayerIds[newPlayerIds.length - 1] === null) newPlayerIds.pop();
+            return { ...c, playerIds: newPlayerIds, startTime: null };
+          }
+          return c;
+        });
+        
+        // 如果原本已經是「已熱身」狀態（isWarmupDone === true），解除回到「熱身中」以允許強制拉人上場
+        if (isWarmupDone) {
+          shouldResetWarmup = true;
+        }
+      }
+      
       const updatedPlayers = players.filter(p => p.id !== playerId);
-      const updatedCourts = courts.map(c => ({
-        ...c,
-        playerIds: c.playerIds.filter(id => id !== playerId)
-      }));
-      updateCloudSession({ queueSlots: newSlots, players: updatedPlayers, courts: updatedCourts });
+
+      updateCloudSession({ 
+        queueSlots: newSlots, 
+        players: updatedPlayers, 
+        courts: updatedCourts,
+        ...(shouldResetWarmup ? { isWarmupDone: false } : {})
+      });
     }
-  }, [queueSlots, players, courts, updateCloudSession, showConfirm]);
+  }, [queueSlots, players, courts, isWarmupDone, updateCloudSession, showConfirm]);
 
   const restAllQueue = useCallback(async () => {
     const queuedCount = players.filter(p => p.status === 'queued').length;
@@ -1117,20 +1149,6 @@ export default function App() {
     );
     updateCloudSession({ courts: updatedCourts, players: updatedPlayers });
   }, [courts, players, updateCloudSession]);
-
-  const removePlayerFromCourt = useCallback((playerId: string) => {
-    const updatedCourts = courts.map(c => {
-      if (!c.playerIds.includes(playerId)) return c;
-      const newPlayerIds = c.playerIds.map(id => id === playerId ? null : id);
-      while (newPlayerIds.length > 0 && newPlayerIds[newPlayerIds.length - 1] === null) newPlayerIds.pop();
-      return {
-        ...c,
-        playerIds: newPlayerIds,
-        startTime: newPlayerIds.filter(id => id !== null).length >= MAX_PLAYERS_PER_COURT ? c.startTime : null
-      };
-    });
-    updateCloudSession({ courts: updatedCourts });
-  }, [courts, updateCloudSession]);
 
   const restPlayerFromCourt = useCallback(async (playerId: string) => {
     if (!await showConfirm('確定要讓此球員下場休息嗎？')) return;
@@ -1445,50 +1463,44 @@ export default function App() {
     if (event.target) event.target.value = '';
   }, [parseCsvAndImport, showAlert]);
 
-  const updateMemberLevel = useCallback(async (memberId: string, newLevel: SkillLevel) => {
-    if (!spaceId) return;
-    try {
-      await updateMember(spaceId, memberId, { level: newLevel });
-      const memberName = members.find(m => m.id === memberId)?.name;
-      if (memberName) {
-        const updatedPlayers = players.map(p => 
-          p.name === memberName ? { ...p, level: newLevel } as Player : p
-        );
-        updateCloudSession({ players: updatedPlayers });
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }, [spaceId, members, players, updateCloudSession]);
-
-  const updatePlayerLevel = useCallback(async (playerId: string, newLevel: SkillLevel) => {
-    const targetPlayer = players.find(p => p.id === playerId);
-    if (!targetPlayer || !spaceId) return;
-
-    const updatedPlayers = players.map(p =>
-      p.id === playerId ? { ...p, level: newLevel } as Player : p
-    );
-    await updateCloudSession({ players: updatedPlayers });
-
-    const targetMember = members.find(m => m.name === targetPlayer.name);
-    if (targetMember) {
-      await updateMember(spaceId, targetMember.id, { level: newLevel });
-    }
-  }, [spaceId, players, members, updateCloudSession]);
 
   const selectPlayerAndNavigate = useCallback((playerId: string) => {
-    setSelectedPlayerForMove(playerId);
+    const targetCourt = courts.find(c => c.playerIds.includes(playerId));
+    const isOnCourt = !!targetCourt;
     
-    if (window.innerWidth >= 1024) {
-      setActiveTab('queue');
+    if (isOnCourt) {
+      setSelectedPlayerForMove(null);
+      setActiveTab('courts');
+      
+      // 平滑滾動與雙次白色呼吸燈閃爍定位
+      setTimeout(() => {
+        const slotElement = document.getElementById(`player-slot-${playerId}`);
+        if (slotElement) {
+          slotElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          slotElement.classList.add('highlight-pulse-white-twice');
+          setTimeout(() => {
+            slotElement.classList.remove('highlight-pulse-white-twice');
+          }, 2500);
+        } else if (targetCourt) {
+          const courtElement = document.getElementById(`court-${targetCourt.id}`);
+          if (courtElement) {
+            courtElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+      }, 200);
     } else {
-      const hasEmptySlot = courts.some(
-        c => c.playerIds.length < MAX_PLAYERS_PER_COURT || c.playerIds.some(id => id === null)
-      );
-      if (!isWarmupDone && hasEmptySlot) {
-        setActiveTab('courts');
-      } else {
+      setSelectedPlayerForMove(playerId);
+      if (window.innerWidth >= 1024) {
         setActiveTab('queue');
+      } else {
+        const hasEmptySlot = courts.some(
+          c => c.playerIds.length < MAX_PLAYERS_PER_COURT || c.playerIds.some(id => id === null)
+        );
+        if (!isWarmupDone && hasEmptySlot) {
+          setActiveTab('courts');
+        } else {
+          setActiveTab('queue');
+        }
       }
     }
   }, [courts, isWarmupDone, setActiveTab, setSelectedPlayerForMove]);
@@ -1579,9 +1591,10 @@ export default function App() {
         // 已經報到
         hasCheckedInOnMountRef.current = true;
         if (!hasAutoSelectedRef.current) {
-          // 如果尚未進行過自動選取，且球員在休息區 (idle)，則自動選取
-          if (matchedPlayer.status === 'idle') {
-            console.log(`[Auto Select] 自動選取休息區中的球員 ${currentMemberName}`);
+          // 如果尚未進行過自動選取，且球員在休息區 (idle) 或場地區 (playing)，則自動導航/定位
+          const isOnCourt = courts.some(c => c.playerIds.includes(matchedPlayer.id));
+          if (matchedPlayer.status === 'idle' || isOnCourt) {
+            console.log(`[Auto Select/Navigate] 自動選取/定位場上或休息區球員 ${currentMemberName}`);
             selectPlayerAndNavigate(matchedPlayer.id);
           }
           hasAutoSelectedRef.current = true;
@@ -1597,6 +1610,7 @@ export default function App() {
     currentUser,
     members,
     players,
+    courts,
     checkInMember,
     selectPlayerAndNavigate
   ]);
@@ -1733,27 +1747,37 @@ export default function App() {
       await updateSpaceMetadata(spaceId, updates);
       await updateCloudSession({ allowPlayerAnnounce: editAllowPlayerAnnounce });
       
-      // 同步更新當前本地的驗證狀態
-      if (!editHasPasscode) {
-        const updatedVerified = { ...verifiedAdmins };
-        delete updatedVerified[spaceId];
-        setVerifiedAdmins(updatedVerified);
-        localStorage.setItem('badminton_verified_admins', JSON.stringify(updatedVerified));
-      } else {
-        const updatedVerified = { ...verifiedAdmins, [spaceId]: true };
-        setVerifiedAdmins(updatedVerified);
-        localStorage.setItem('badminton_verified_admins', JSON.stringify(updatedVerified));
+      // 同步更新當前本地的驗證狀態 (僅在密碼啟用狀態或密碼內容有變更時才更新，避免觸發不必要的訂閱重置)
+      const hasPasscodeChanged = editHasPasscode !== (!!spaceMetadata?.adminPasscode);
+      const adminPasscodeValChanged = editHasPasscode && editSpacePasscode.trim() !== (spaceMetadata?.adminPasscode || '');
+      
+      if (hasPasscodeChanged || adminPasscodeValChanged) {
+        if (!editHasPasscode) {
+          const updatedVerified = { ...verifiedAdmins };
+          delete updatedVerified[spaceId];
+          setVerifiedAdmins(updatedVerified);
+          localStorage.setItem('badminton_verified_admins', JSON.stringify(updatedVerified));
+        } else {
+          const updatedVerified = { ...verifiedAdmins, [spaceId]: true };
+          setVerifiedAdmins(updatedVerified);
+          localStorage.setItem('badminton_verified_admins', JSON.stringify(updatedVerified));
+        }
       }
 
-      if (!editHasSpacePasscode) {
-        const updatedVerifiedSpaces = { ...verifiedSpaces };
-        delete updatedVerifiedSpaces[spaceId];
-        setVerifiedSpaces(updatedVerifiedSpaces);
-        localStorage.setItem('badminton_verified_spaces', JSON.stringify(updatedVerifiedSpaces));
-      } else {
-        const updatedVerifiedSpaces = { ...verifiedSpaces, [spaceId]: true };
-        setVerifiedSpaces(updatedVerifiedSpaces);
-        localStorage.setItem('badminton_verified_spaces', JSON.stringify(updatedVerifiedSpaces));
+      const hasSpacePasscodeChanged = editHasSpacePasscode !== (!!spaceMetadata?.spacePasscode);
+      const spacePasscodeValChanged = editHasSpacePasscode && editSpaceAccessPasscode.trim() !== (spaceMetadata?.spacePasscode || '');
+
+      if (hasSpacePasscodeChanged || spacePasscodeValChanged) {
+        if (!editHasSpacePasscode) {
+          const updatedVerifiedSpaces = { ...verifiedSpaces };
+          delete updatedVerifiedSpaces[spaceId];
+          setVerifiedSpaces(updatedVerifiedSpaces);
+          localStorage.setItem('badminton_verified_spaces', JSON.stringify(updatedVerifiedSpaces));
+        } else {
+          const updatedVerifiedSpaces = { ...verifiedSpaces, [spaceId]: true };
+          setVerifiedSpaces(updatedVerifiedSpaces);
+          localStorage.setItem('badminton_verified_spaces', JSON.stringify(updatedVerifiedSpaces));
+        }
       }
 
       setIsSpaceSettingsOpen(false);
@@ -2104,7 +2128,7 @@ export default function App() {
 
             <h2 className="text-2xl font-bold text-slate-100 mb-2">再見，{goodbyePlayerName}！</h2>
             <p className="text-slate-400 text-sm leading-relaxed mb-6">
-              辛苦了！感謝你今天的參與，<br />
+              辛苦了～<br />
               期待下次再一起開心打球 🏸
             </p>
 
@@ -2317,10 +2341,10 @@ export default function App() {
                         <span className="text-xs font-semibold text-slate-300">安全與私密防護設定</span>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        {hasPasscode && (
+                        {confirmedHasPasscode && (
                           <span className="flex items-center bg-amber-500/10 text-amber-400 text-[9px] font-bold px-2 py-0.5 rounded-full border border-amber-500/20">🔑 管理</span>
                         )}
-                        {hasSpacePasscode && (
+                        {confirmedHasSpacePasscode && (
                           <span className="flex items-center bg-rose-500/10 text-rose-400 text-[9px] font-bold px-2 py-0.5 rounded-full border border-rose-500/20">🔒 私密</span>
                         )}
                         <ChevronRight className="w-3.5 h-3.5 text-slate-500 group-hover:translate-x-0.5 transition-all" />
@@ -2353,7 +2377,14 @@ export default function App() {
             <div className="bg-slate-900 border border-slate-800 p-4 xs:p-5 sm:p-6 rounded-3xl max-w-sm w-full shadow-2xl relative overflow-hidden">
               <button
                 type="button"
-                onClick={() => setIsSecuritySettingsOpen(false)}
+                onClick={() => {
+                  // X 關閉 = 取消，完整還原到上次「確認完成」的狀態
+                  setHasPasscode(confirmedHasPasscode);
+                  setNewSpacePasscode(confirmedPasscode);
+                  setHasSpacePasscode(confirmedHasSpacePasscode);
+                  setNewSpaceAccessPasscode(confirmedAccessPasscode);
+                  setIsSecuritySettingsOpen(false);
+                }}
                 className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-all"
               >
                 <X className="w-4 h-4" />
@@ -2399,6 +2430,7 @@ export default function App() {
                   <div className="pt-1">
                     <input
                       type="password"
+                      autoComplete="new-password"
                       placeholder={hasPasscode ? "請設定管理密碼 (4-10 位)" : "管理密碼已停用"}
                       disabled={!hasPasscode}
                       className={`w-full h-10 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
@@ -2474,6 +2506,7 @@ export default function App() {
                   <div className="pt-1">
                     <input
                       type="password"
+                      autoComplete="new-password"
                       placeholder={hasSpacePasscode ? "請設定空間存取密碼 (4-10 位)" : "空間密碼已停用"}
                       disabled={!hasSpacePasscode}
                       className={`w-full h-10 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
@@ -2529,11 +2562,44 @@ export default function App() {
                       await showAlert("空間專屬存取密碼長度必須在 4 到 10 位數之間！");
                       return;
                     }
+                    // 驗證通過，更新已確認 badge 狀態與密碼快照
+                    setConfirmedHasPasscode(hasPasscode);
+                    setConfirmedPasscode(hasPasscode ? newSpacePasscode : '');
+                    setConfirmedHasSpacePasscode(hasSpacePasscode);
+                    setConfirmedAccessPasscode(hasSpacePasscode ? newSpaceAccessPasscode : '');
                     setIsSecuritySettingsOpen(false);
                   }}
                   className="w-full h-11 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-all shadow-lg"
                 >
                   確認完成
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 自訂對話框 (Alert) - 確保大廳頁面中觸發的 showAlert 也能正常顯示 */}
+        {customDialog.isOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]">
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl max-w-sm w-full shadow-2xl relative flex flex-col text-center">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 bg-indigo-500/10 text-indigo-400">
+                <AlertTriangle className="w-6 h-6 text-indigo-400" />
+              </div>
+              {customDialog.title && (
+                <h3 className="text-base font-bold text-white mb-2">{customDialog.title}</h3>
+              )}
+              <p className="text-sm text-slate-300 break-words leading-relaxed mb-6 whitespace-pre-line">
+                {customDialog.message}
+              </p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => {
+                    if (customDialog.resolve) customDialog.resolve(true);
+                    setCustomDialog(prev => ({ ...prev, isOpen: false }));
+                  }}
+                  className="flex-1 px-4 py-2 text-sm font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 transition-colors min-w-[5.5rem]"
+                >
+                  確定
                 </button>
               </div>
             </div>
@@ -2610,6 +2676,7 @@ export default function App() {
             <div className="space-y-4">
               <input
                 type="password"
+                autoComplete="current-password"
                 placeholder="請輸入空間專屬密碼"
                 className="w-full h-12 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center font-mono text-slate-200 placeholder-slate-700"
                 value={spacePasscodeInput}
@@ -2745,6 +2812,7 @@ export default function App() {
                         const pId = checkInMember(member);
                         if (pId) {
                           selectPlayerAndNavigate(pId);
+                          hasAutoSelectedRef.current = true;
                         } else {
                           setActiveTab('queue');
                         }
@@ -2797,6 +2865,7 @@ export default function App() {
               <div className="space-y-4">
                 <input
                   type="password"
+                  autoComplete="current-password"
                   placeholder="請輸入管理密碼"
                   className="w-full h-11 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center font-mono text-slate-200 placeholder-slate-700"
                   value={passcodeInput}
@@ -2942,6 +3011,14 @@ export default function App() {
   return (
     <div className="flex flex-col h-[100dvh] w-screen bg-slate-900 text-slate-100 overflow-hidden relative">
       <style>{`
+        @keyframes pulse-white-twice {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+          50% { box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.6); }
+        }
+        .highlight-pulse-white-twice {
+          animation: pulse-white-twice 1s ease-in-out 2;
+          z-index: 20;
+        }
         .self-player-glow {
           position: relative;
           background: rgba(255, 255, 255, 0.15) !important;
@@ -3074,9 +3151,9 @@ export default function App() {
                             setIsSpaceSettingsOpen(true);
                             setIsProfileMenuOpen(false);
                           }}
-                          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-indigo-400/90 hover:text-indigo-300/75 hover:bg-indigo-500/10 transition-colors group/settings"
                         >
-                          <Settings className="w-4 h-4 text-slate-500" />
+                          <Settings className="w-4 h-4 text-indigo-500/70 group-hover/settings:text-indigo-300/75 transition-colors" />
                           球團空間設定
                         </button>
                         <button
@@ -3104,14 +3181,38 @@ export default function App() {
                                 const newSlots = queueSlots.map(id => id === playerId ? null : id);
                                 while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
                                 
+                                // 找出該球員目前在哪個場地上
+                                const activeCourt = courts.find(c => c.playerIds.includes(playerId));
+                                
+                                let updatedCourts = courts;
+                                let shouldResetWarmup = false;
+                                
+                                if (activeCourt) {
+                                  // 只有早退的人離開場地（該位置設為 null），其他人保留在場地上
+                                  updatedCourts = courts.map(c => {
+                                    if (c.id === activeCourt.id) {
+                                      const newPlayerIds = c.playerIds.map(id => id === playerId ? null : id);
+                                      while (newPlayerIds.length > 0 && newPlayerIds[newPlayerIds.length - 1] === null) newPlayerIds.pop();
+                                      return { ...c, playerIds: newPlayerIds, startTime: null };
+                                    }
+                                    return c;
+                                  });
+                                  
+                                  // 如果原本已經是「已熱身」狀態（isWarmupDone === true），解除回到「熱身中」以允許強制拉人上場
+                                  if (isWarmupDone) {
+                                    shouldResetWarmup = true;
+                                  }
+                                }
+                                
                                 const updatedPlayers = players.filter(p => p.id !== playerId);
-                                const updatedCourts = courts.map(c => ({
-                                  ...c,
-                                  playerIds: c.playerIds.filter(id => id !== playerId)
-                                }));
                                 
                                 // 非同步更新雲端資料，避免阻礙頁面切換
-                                updateCloudSession({ queueSlots: newSlots, players: updatedPlayers, courts: updatedCourts });
+                                updateCloudSession({ 
+                                  queueSlots: newSlots, 
+                                  players: updatedPlayers, 
+                                  courts: updatedCourts,
+                                  ...(shouldResetWarmup ? { isWarmupDone: false } : {})
+                                });
 
                                 const currentName = currentMemberName || '';
                                 if (spaceId) {
@@ -3873,7 +3974,7 @@ export default function App() {
               animation: toastFadeInOut 3.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
             }
           `}</style>
-          <div className="max-w-[400px] w-full bg-slate-900/80 border border-indigo-500/30 rounded-3xl p-6 shadow-2xl shadow-indigo-500/10 backdrop-blur-2xl relative overflow-hidden flex flex-col items-center text-center animate-toast-fade pointer-events-auto">
+          <div data-keep-selection="true" className="max-w-[400px] w-full bg-slate-900/80 border border-indigo-500/30 rounded-3xl p-6 shadow-2xl shadow-indigo-500/10 backdrop-blur-2xl relative overflow-hidden flex flex-col items-center text-center animate-toast-fade pointer-events-auto">
             {/* 關閉按鈕 */}
             <button
               onClick={() => setCheckInSuccessName(null)}
@@ -3987,6 +4088,7 @@ export default function App() {
                     </div>
                     <input
                       type="password"
+                      autoComplete="new-password"
                       placeholder={editHasPasscode ? "設定管理密碼 (4-10 位)" : "管理密碼已停用"}
                       disabled={!editHasPasscode}
                       className={`w-full h-9 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
@@ -4057,6 +4159,7 @@ export default function App() {
                     </div>
                     <input
                       type="password"
+                      autoComplete="new-password"
                       placeholder={editHasSpacePasscode ? "設定空間存取密碼 (4-10 位)" : "空間密碼已停用"}
                       disabled={!editHasSpacePasscode}
                       className={`w-full h-9 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-xs transition-all duration-[1000ms] ease-in-out font-mono ${

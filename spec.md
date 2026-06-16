@@ -73,7 +73,6 @@ badminton-queue/
 │   ├── CourtCard.tsx           # 場地卡片元件
 │   └── PlayerAvatar.tsx        # 球員頭像元件（依名字 hash 產生一致顏色）
 ├── App.tsx                     # 主應用 — 所有狀態與邏輯集中於此
-├── App.tsx.backup              # 備份檔
 ├── index.html                  # HTML 入口（TailwindCDN、字型、scrollbar 樣式）
 ├── index.tsx                   # React 入口（掛載 App 至 #root）
 ├── types.ts                    # TypeScript 型別定義與常數
@@ -208,7 +207,8 @@ interface CurrentUser {
                       │
                       └─ 選擇自己名字 ──→ role = 'player'，memberId = 對應 Member.id
                                           自動觸發 checkInMember()
-                                          進入排隊區 Tab
+                                          ├─ 若未在場上 ──→ 進入排隊區 Tab 並自動選取自己
+                                          └─ 若已在場上 ──→ 進入場地區 Tab，清除選取狀態，並平滑滾動對齊到場上槽位且閃爍 2 次白色呼吸燈
 ```
 
 ---
@@ -225,7 +225,6 @@ interface CurrentUser {
 | 報到         | 將會員加入今日球員（休息區）  | `checkInMember()`                            | admin / 本人 |
 | 刪除會員     | 從會員列表永久移除            | `removeMember()`                             | admin        |
 | 名單重置     | 清空尚未報到的會員            | Settings dropdown                            | admin        |
-| 修改等級     | 點擊等級標籤切換（季打⇄零打） | `updateMemberLevel()`                        | admin        |
 
 > **注意**：球員 role 僅能看到「排隊區」Tab，報到區對球員隱藏。
 
@@ -241,7 +240,6 @@ interface CurrentUser {
 | 全部回休息   | 批量清空排隊區                 | `restAllQueue()`                           | admin        |
 | 清空休息區   | 批量讓休息區球員離場           | `clearBench()`                             | admin        |
 | 早退         | 球員直接離場（回會員列表）     | `deletePlayer()`                           | admin / 本人 |
-| 修改等級     | 同會員等級修改並雙向同步       | `updatePlayerLevel()`                      | admin        |
 | 自己優先顯示 | 登入球員名字自動排在休息區最前 | `filteredIdlePlayers` (useMemo)            | —            |
 
 ### 6.3 場地管理（主區域）
@@ -258,7 +256,6 @@ interface CurrentUser {
 | 計時器         | 比賽開始後即時顯示已用時間     | CourtCard 內部 `useEffect`    | 全部（唯讀） |
 | 拖放球員至場地 | 熱身階段可直接拖球員入場       | `dropPlayerToCourt()`         | admin        |
 | 調整場上位置   | 點選或拖拉調整場內位置         | `movePlayerToCourtSlot()`     | admin        |
-| 從場地移除     | 將球員從場地中移出             | `removePlayerFromCourt()`     | admin        |
 
 ### 6.4 全局功能
 
@@ -382,7 +379,6 @@ interface CurrentUser {
 | `checkedInMembers` / `notCheckedInMembers` | 已報到 / 未報到會員分組                |
 | `queueDisplayItems`                        | 排隊區 UI 顯示資料（含空位）           |
 | `chunkedQueueItems`                        | 每 4 人一組的排隊顯示                  |
-| `totalActivePlayers`                       | 場上正在打球的人數                     |
 | `idleCourtsCount`                          | 空閒場地數                             |
 
 ### 8.3 排隊系統設計（Slot-Based Queue）
