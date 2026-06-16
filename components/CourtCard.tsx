@@ -96,7 +96,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
     }, [isMatchStarted, court.startTime]);
 
     return (
-        <div className={`relative flex flex-col rounded-xl border transition-all duration-300 overflow-hidden
+        <div id={`court-${court.id}`} className={`relative flex flex-col rounded-xl border transition-all duration-300 overflow-hidden
       ${isMatchStarted
                 ? 'bg-slate-900 border-indigo-500/30'
                 : hasPlayers
@@ -157,7 +157,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                             onClick={() => onAnnounce(court.id)}
                             className={`p-1 rounded transition-all ${
                                 !isAutoAnnounce
-                                    ? 'text-slate-700 cursor-not-allowed opacity-40 bg-transparent'
+                                    ? 'text-slate-500/60 cursor-not-allowed bg-transparent'
                                     : 'hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300'
                             }`}
                             title={!isAutoAnnounce ? '語音播報已關閉' : '手動語音提醒'}
@@ -189,6 +189,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                         return (
                             <div
                                 key={`slot-${idx}`}
+                                id={player ? `player-slot-${player.id}` : undefined}
                                 data-keep-selection={(player && selectedPlayerForMove === player.id) || (!player && selectedPlayerForMove !== null) ? "true" : undefined}
                                 className={`relative group h-10 flex items-center gap-2 px-2 rounded-lg text-sm transition-all cursor-pointer
                                 ${player
