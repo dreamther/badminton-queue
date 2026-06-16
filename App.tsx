@@ -1438,6 +1438,24 @@ export default function App() {
       await updateMember(spaceId, targetMember.id, { level: newLevel });
     }
   }, [spaceId, players, members, updateCloudSession]);
+
+  const selectPlayerAndNavigate = useCallback((playerId: string) => {
+    setSelectedPlayerForMove(playerId);
+    
+    if (window.innerWidth >= 1024) {
+      setActiveTab('queue');
+    } else {
+      const hasEmptySlot = courts.some(
+        c => c.playerIds.length < MAX_PLAYERS_PER_COURT || c.playerIds.some(id => id === null)
+      );
+      if (!isWarmupDone && hasEmptySlot) {
+        setActiveTab('courts');
+      } else {
+        setActiveTab('queue');
+      }
+    }
+  }, [courts, isWarmupDone, setActiveTab, setSelectedPlayerForMove]);
+
   const [checkInSuccessName, setCheckInSuccessName] = useState<string | null>(null);
   const [checkInCounter, setCheckInCounter] = useState(0);
   const checkInTimeoutRef = useRef<any>(null);
@@ -1506,7 +1524,7 @@ export default function App() {
           console.log(`[Auto Check-In] 球員 ${currentMemberName} 尚未報到，執行自動報到...`);
           const pId = checkInMember(member);
           if (pId) {
-            setSelectedPlayerForMove(pId);
+            selectPlayerAndNavigate(pId);
             hasAutoSelectedRef.current = true;
           }
           hasCheckedInOnMountRef.current = true;
@@ -1526,7 +1544,7 @@ export default function App() {
           // 如果尚未進行過自動選取，且球員在休息區 (idle)，則自動選取
           if (matchedPlayer.status === 'idle') {
             console.log(`[Auto Select] 自動選取休息區中的球員 ${currentMemberName}`);
-            setSelectedPlayerForMove(matchedPlayer.id);
+            selectPlayerAndNavigate(matchedPlayer.id);
           }
           hasAutoSelectedRef.current = true;
         }
@@ -1541,7 +1559,8 @@ export default function App() {
     currentUser,
     members,
     players,
-    checkInMember
+    checkInMember,
+    selectPlayerAndNavigate
   ]);
 
   const removeMember = useCallback(async (memberId: string) => {
@@ -2528,10 +2547,13 @@ export default function App() {
                         const user: CurrentUser = { role: 'player', memberId: member.id };
                         setCurrentUser(user);
                         setIsAutoAnnounce(false); // 球員端不播音
-                        setActiveTab('queue');
                         
                         const pId = checkInMember(member);
-                        if (pId) setSelectedPlayerForMove(pId);
+                        if (pId) {
+                          selectPlayerAndNavigate(pId);
+                        } else {
+                          setActiveTab('queue');
+                        }
                       }}
                       className="w-full flex items-center gap-3 p-3 bg-slate-950/50 hover:bg-slate-800 border border-slate-800 rounded-lg transition-colors text-left group"
                     >
@@ -2677,7 +2699,7 @@ export default function App() {
                   if (selectedPlayerForMove === player.id) {
                     setSelectedPlayerForMove(null);
                   } else {
-                    setSelectedPlayerForMove(player.id);
+                    selectPlayerAndNavigate(player.id);
                     setIsRestAreaOpen(false);
                   }
                 }}
