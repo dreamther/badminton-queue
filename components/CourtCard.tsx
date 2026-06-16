@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Court, Player, MAX_PLAYERS_PER_COURT } from '../types';
-import { Clock, Play, LogOut, Users, Coffee, Edit2, Check, X, Megaphone, CircleDashed } from 'lucide-react';
+import { Clock, Play, LogOut, Users, Coffee, Edit2, Check, X, Megaphone, CircleDashed, UserX } from 'lucide-react';
 import { PlayerAvatar } from './PlayerAvatar';
 
 interface CourtCardProps {
@@ -20,6 +20,7 @@ interface CourtCardProps {
     onMovePlayerToSlot?: (playerId: string, courtId: number, slotIdx: number) => void;
     canMovePlayer?: (playerId: string) => boolean;
     onRestPlayer?: (playerId: string) => void;
+    onEarlyLeavePlayer?: (playerId: string) => void;
     currentMemberName?: string | null;
 }
 
@@ -40,6 +41,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
     onMovePlayerToSlot,
     canMovePlayer,
     onRestPlayer,
+    onEarlyLeavePlayer,
     currentMemberName
 }) => {
     const [elapsed, setElapsed] = useState<string>('00:00');
@@ -187,7 +189,8 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                         return (
                             <div
                                 key={`slot-${idx}`}
-                                className={`group h-10 flex items-center gap-2 px-2 rounded-lg text-sm transition-all cursor-pointer
+                                data-keep-selection={(player && selectedPlayerForMove === player.id) || (!player && selectedPlayerForMove !== null) ? "true" : undefined}
+                                className={`relative group h-10 flex items-center gap-2 px-2 rounded-lg text-sm transition-all cursor-pointer
                                 ${player
                                         ? selectedPlayerForMove === player.id
                                             ? 'ring-2 ring-inset ring-blue-400 bg-indigo-500/15 border border-indigo-500/30 text-slate-200'
@@ -255,24 +258,40 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                     }
                                 } : {})}
                             >
+                                {player && (
+                                    <div className={`bubble-container ${selectedPlayerForMove === player.id ? 'active' : ''}`}>
+                                        {onRestPlayer && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onRestPlayer(player.id);
+                                                }}
+                                                className="w-6 h-6 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-lg border border-indigo-400 shadow-indigo-500/40 transition-all"
+                                                title="下場休息"
+                                            >
+                                                <Coffee className="w-3 h-3" />
+                                            </button>
+                                        )}
+                                        {onEarlyLeavePlayer && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onEarlyLeavePlayer(player.id);
+                                                }}
+                                                className="w-6 h-6 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-lg border border-indigo-400 shadow-indigo-500/40 transition-all"
+                                                title="早退"
+                                            >
+                                                <UserX className="w-3 h-3" />
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
                                 {player ? (
                                     <>
                                         <div className="flex items-center flex-1 min-w-0">
                                             <PlayerAvatar identifier={player.name} className="w-2.5 h-2.5 mr-1 shrink-0" />
                                             <span className={`truncate ${player.name === currentMemberName ? 'text-white font-bold pl-0.5' : 'font-medium'}`}>{player.name}</span>
                                         </div>
-                                        {onRestPlayer && (!canMovePlayer || canMovePlayer(player.id)) && (
-                                            <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                onRestPlayer(player.id);
-                                              }}
-                                              className="p-1 -mr-1 text-slate-500 hover:text-amber-400 transition-colors rounded opacity-0 group-hover:opacity-100"
-                                              title="讓球員休息"
-                                            >
-                                              <Coffee className="w-3.5 h-3.5" />
-                                            </button>
-                                        )}
                                     </>
                                 ) : (
                                     <span className="text-xs w-full text-center opacity-50">{selectedPlayerForMove && !isWarmupDone ? '移動到此' : '空位'}</span>

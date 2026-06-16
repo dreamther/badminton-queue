@@ -214,7 +214,6 @@ export default function App() {
 
   // 點選移動模式 State
   const [selectedPlayerForMove, setSelectedPlayerForMove] = useState<string | null>(null);
-  const [showGlobalBanner, setShowGlobalBanner] = useState(false);
 
   // Refs
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -602,11 +601,28 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedPlayerForMove]);
 
-  // 監聽選中狀態，同步顯示橫幅
+  // --- 點選移動模式點擊外部取消選取 ---
   useEffect(() => {
-    if (selectedPlayerForMove) setShowGlobalBanner(true);
-    else setShowGlobalBanner(false);
+    if (!selectedPlayerForMove) return;
+
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-keep-selection="true"]')) {
+        return;
+      }
+      setSelectedPlayerForMove(null);
+    };
+
+    const timer = setTimeout(() => {
+      document.addEventListener('click', handleGlobalClick);
+    }, 0);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', handleGlobalClick);
+    };
   }, [selectedPlayerForMove]);
+
 
   // --- Toast 提示功能 ---
   const [toastCounter, setToastCounter] = useState(0);
@@ -2687,6 +2703,7 @@ export default function App() {
             return (
               <div
                 key={player.id}
+                data-keep-selection={selectedPlayerForMove === player.id ? "true" : undefined}
                 draggable={canMovePlayer(player.id)}
                 onDragStart={(e) => {
                   if (!canMovePlayer(player.id)) return;
@@ -2703,7 +2720,7 @@ export default function App() {
                     setIsRestAreaOpen(false);
                   }
                 }}
-                className={`flex items-center gap-1.5 pl-1.5 pr-2.5 py-1.5 rounded-full border transition-all select-none
+                className={`relative flex items-center gap-1.5 pl-1.5 pr-2.5 py-1.5 rounded-full border transition-all select-none
                   ${selectedPlayerForMove === player.id
                     ? 'bg-slate-800 border-slate-700 ring-2 ring-inset ring-blue-400 cursor-pointer shadow-lg'
                     : canMovePlayer(player.id)
@@ -2713,6 +2730,18 @@ export default function App() {
                       : 'bg-slate-800/40 border-slate-700/50 cursor-default'
                   }`}
               >
+                <div className={`bubble-container ${selectedPlayerForMove === player.id ? 'active' : ''}`}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deletePlayer(player.id);
+                    }}
+                    className="w-6 h-6 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-lg border border-indigo-400 shadow-indigo-500/40 transition-all"
+                    title="早退"
+                  >
+                    <UserX className="w-3 h-3" />
+                  </button>
+                </div>
                 {isSelf && <span className="border-beam-container"></span>}
                 <PlayerAvatar identifier={player.name} className="w-5 h-5 shrink-0" />
                 <span className={`text-xs whitespace-nowrap ${isSelf ? 'text-white font-semibold' : 'text-slate-300'}`}>
@@ -2772,6 +2801,23 @@ export default function App() {
             offset-distance: 100%;
           }
         }
+        .bubble-container {
+          position: absolute;
+          top: -0.875rem;
+          right: -0.5rem;
+          display: flex;
+          gap: 0.375rem;
+          z-index: 40;
+          pointer-events: none;
+          opacity: 0;
+          transform: scale(0.6) translateY(8px);
+          transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.16s ease-out;
+        }
+        .bubble-container.active {
+          pointer-events: auto;
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
       `}</style>
       {/* Toast Alert */}
       {toastMessage && (
@@ -2782,159 +2828,171 @@ export default function App() {
         </div>
       )}
 
-      {/* Global Header (Normal Mode / Action Mode) */}
-      {showGlobalBanner && selectedPlayerForMove ? (() => {
-        const p = players.find(p => p.id === selectedPlayerForMove);
-        if (!p) return null;
-        return (
-          <header className="h-16 px-4 bg-indigo-950 border-b border-indigo-900/50 flex items-center justify-between z-20 shrink-0 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between w-full flex-1">
-              <div className="flex items-center gap-3">
-                 <PlayerAvatar identifier={p.name} className="w-9 h-9 shrink-0 rounded-full shadow-sm" />
-                 <div className="flex flex-col justify-center gap-1">
-                    <div className="font-bold text-white text-sm leading-tight">已選取 {p.name}</div>
-                    <div className="text-[11px] text-indigo-200/70 leading-tight">請點擊 ”移動至此“ 的空位放置</div>
-                 </div>
+      {/* Global Header (Normal Mode) */}
+      <header className="h-16 px-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between z-20 shrink-0">
+          <div className="flex items-center justify-between w-full flex-1">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-2 rounded-lg shadow-lg shadow-indigo-500/20 shrink-0">
+                <Trophy className="w-5 h-5 text-white" />
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                 <button onClick={() => deletePlayer(p.id)} className="bg-slate-850 hover:bg-red-500/20 text-slate-300 hover:text-red-400 text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors border border-slate-700"><LogOut className="w-3.5 h-3.5"/>早退</button>
-                 <button onClick={() => setSelectedPlayerForMove(null)} className="bg-slate-700 hover:bg-slate-600 text-white text-xs px-4 py-1.5 rounded-lg transition-colors font-semibold">取消</button>
+              <div className="min-w-0 flex flex-col justify-center">
+                <h1 className="text-base font-bold text-white truncate leading-tight">
+                  {spaceMetadata?.name}
+                </h1>
+                <span className="text-[10px] text-slate-500 font-mono truncate leading-tight">ID: {spaceId}</span>
               </div>
             </div>
-          </header>
-        );
-      })() : (
-        <header className="h-16 px-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between z-20 shrink-0">
-            <div className="flex items-center justify-between w-full flex-1">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-2 rounded-lg shadow-lg shadow-indigo-500/20 shrink-0">
-                  <Trophy className="w-5 h-5 text-white" />
-                </div>
-                <div className="min-w-0 flex flex-col justify-center">
-                  <h1 className="text-base font-bold text-white truncate leading-tight">
-                    {spaceMetadata?.name}
-                  </h1>
-                  <span className="text-[10px] text-slate-500 font-mono truncate leading-tight">ID: {spaceId}</span>
-                </div>
-              </div>
 
-              {/* Header Action Controls */}
-              <div className="flex items-center gap-2 shrink-0">
-                
-                {/* 複製連結 */}
+            {/* Header Action Controls */}
+            <div className="flex items-center gap-2 shrink-0">
+              
+              {/* 複製連結 */}
+              <button
+                onClick={handleCopyLink}
+                className="p-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 rounded-lg transition-colors shrink-0 flex items-center gap-1 text-xs"
+                title="分享此羽球場網址"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">分享網址</span>
+              </button>
+
+              {/* 個人選單 */}
+              <div className="relative" ref={profileMenuRef}>
                 <button
-                  onClick={handleCopyLink}
-                  className="p-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 rounded-lg transition-colors shrink-0 flex items-center gap-1 text-xs"
-                  title="分享此羽球場網址"
+                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded-lg transition-colors"
+                  title="個人身分與管理選單"
                 >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">分享網址</span>
+                  <div className="flex items-center justify-center w-4 h-4">
+                    {currentUser?.role === 'admin' ? (
+                      <span className="text-sm">🏸</span>
+                    ) : (
+                      <UserCheck className="w-3.5 h-3.5 text-indigo-400" />
+                    )}
+                  </div>
+                  <span className="text-xs text-slate-300 font-medium whitespace-nowrap hidden min-[375px]:inline-block">
+                    {currentUser?.role === 'admin' ? '團主' : members.find(m => m.id === currentUser?.memberId)?.name || '球員'}
+                  </span>
+                  <ChevronDown className="w-3 h-3 text-slate-500" />
                 </button>
 
-                {/* 個人選單 */}
-                <div className="relative" ref={profileMenuRef}>
-                  <button
-                    onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded-lg transition-colors"
-                    title="個人身分與管理選單"
-                  >
-                    <div className="flex items-center justify-center w-4 h-4">
-                      {currentUser?.role === 'admin' ? (
-                        <span className="text-sm">🏸</span>
-                      ) : (
-                        <UserCheck className="w-3.5 h-3.5 text-indigo-400" />
+                {isProfileMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-52 bg-slate-900 border border-slate-800 rounded-xl shadow-xl py-1 z-50 animate-in fade-in slide-in-from-top-2">
+                    <div className="px-3 py-2 border-b border-slate-800/60 flex items-baseline gap-1.5 bg-slate-950/20">
+                      <p className="text-[10px] text-slate-500 font-medium shrink-0">
+                        {!currentUser ? '未登入' : (currentUser.role === 'admin' ? '團主' : '球員')}
+                      </p>
+                      {currentUser && (
+                        <p className="text-xs font-bold text-slate-300 truncate flex-1">
+                          {currentUser.role === 'admin' ? '管理員' : members.find(m => m.id === currentUser.memberId)?.name || ''}
+                        </p>
                       )}
                     </div>
-                    <span className="text-xs text-slate-300 font-medium whitespace-nowrap hidden min-[375px]:inline-block">
-                      {currentUser?.role === 'admin' ? '團主' : members.find(m => m.id === currentUser?.memberId)?.name || '球員'}
-                    </span>
-                    <ChevronDown className="w-3 h-3 text-slate-500" />
-                  </button>
-
-                  {isProfileMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-52 bg-slate-900 border border-slate-800 rounded-xl shadow-xl py-1 z-50 animate-in fade-in slide-in-from-top-2">
-                      <div className="px-3 py-2 border-b border-slate-800/60 flex items-baseline gap-1.5 bg-slate-950/20">
-                        <p className="text-[10px] text-slate-500 font-medium shrink-0">
-                          {!currentUser ? '未登入' : (currentUser.role === 'admin' ? '團主' : '球員')}
-                        </p>
-                        {currentUser && (
-                          <p className="text-xs font-bold text-slate-300 truncate flex-1">
-                            {currentUser.role === 'admin' ? '管理員' : members.find(m => m.id === currentUser.memberId)?.name || ''}
-                          </p>
-                        )}
-                      </div>
-                      
-                      {currentUser?.role === 'admin' && (
-                        <div className="py-1">
-                          <button
-                            onClick={() => {
-                              setIsSpaceSettingsOpen(true);
-                              setIsProfileMenuOpen(false);
-                            }}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
-                          >
-                            <Settings className="w-4 h-4 text-slate-500" />
-                            球團空間設定
-                          </button>
-                          <button
-                            onClick={() => {
-                              resetSession();
-                              setIsProfileMenuOpen(false);
-                            }}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-xs text-red-400/90 hover:text-red-400 hover:bg-red-500/10 transition-colors group"
-                          >
-                            <Power className="w-4 h-4 text-red-500/70 group-hover:text-red-400 transition-colors" />
-                            結束本日打球
-                          </button>
-                          <div className="h-px bg-slate-800/60 my-1 mx-2" />
-                        </div>
-                      )}
-                      
+                    
+                    {currentUser?.role === 'admin' && (
                       <div className="py-1">
                         <button
                           onClick={() => {
-                            // 切換身分時，清除當前球團的管理員驗證狀態，確保下次切回團主時需要重輸密碼
-                            if (spaceId) {
-                              const updatedVerified = { ...verifiedAdmins };
-                              delete updatedVerified[spaceId];
-                              setVerifiedAdmins(updatedVerified);
-                              localStorage.setItem('badminton_verified_admins', JSON.stringify(updatedVerified));
-                              
-                              // 同時清除本地儲存的登入狀態，確保不會在 useEffect 中被自動還原
-                              localStorage.removeItem(`badminton_current_user_${spaceId}`);
-                            }
-                            setCurrentUser(null);
-                            setIsLoggingInAsPlayer(false); // 重置為選擇身分（我是團主/一般球員）畫面
-                            setLoginSearchTerm('');        // 清除搜尋字詞
-                            setSelectedPlayerForMove(null);
+                            setIsSpaceSettingsOpen(true);
                             setIsProfileMenuOpen(false);
                           }}
                           className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
                         >
-                          <LogOut className="w-4 h-4 text-slate-500" />
-                          切換身分
+                          <Settings className="w-4 h-4 text-slate-500" />
+                          球團空間設定
                         </button>
-
                         <button
                           onClick={() => {
-                            window.location.hash = '';
+                            resetSession();
+                            setIsProfileMenuOpen(false);
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-red-400/90 hover:text-red-400 hover:bg-red-500/10 transition-colors group"
+                        >
+                          <Power className="w-4 h-4 text-red-500/70 group-hover:text-red-400 transition-colors" />
+                          結束本日打球
+                        </button>
+                        <div className="h-px bg-slate-800/60 my-1 mx-2" />
+                      </div>
+                    )}
+                    
+                    <div className="py-1">
+                      {currentUser?.role === 'player' && players.some(p => p.name === currentMemberName) && (
+                        <button
+                          onClick={async () => {
+                            const activePlayer = players.find(p => p.name === currentMemberName);
+                            if (activePlayer) {
+                              if (await showConfirm('確定要早退嗎？')) {
+                                const playerId = activePlayer.id;
+                                const newSlots = queueSlots.map(id => id === playerId ? null : id);
+                                while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
+                                
+                                const updatedPlayers = players.filter(p => p.id !== playerId);
+                                const updatedCourts = courts.map(c => ({
+                                  ...c,
+                                  playerIds: c.playerIds.filter(id => id !== playerId)
+                                }));
+                                await updateCloudSession({ queueSlots: newSlots, players: updatedPlayers, courts: updatedCourts });
+
+                                if (spaceId) {
+                                  localStorage.removeItem(`badminton_current_user_${spaceId}`);
+                                }
+                                setCurrentUser(null);
+                                setIsLoggingInAsPlayer(false);
+                                setLoginSearchTerm('');
+                                setSelectedPlayerForMove(null);
+                                setIsProfileMenuOpen(false);
+                              }
+                            }
                           }}
                           className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
                         >
-                          <ArrowLeft className="w-4 h-4 text-slate-500" />
-                          返回大廳
+                          <UserX className="w-4 h-4 text-slate-500" />
+                          早退
                         </button>
-                      </div>
+                      )}
+                      <button
+                        onClick={() => {
+                          // 切換身分時，清除當前球團的管理員驗證狀態，確保下次切回團主時需要重輸密碼
+                          if (spaceId) {
+                            const updatedVerified = { ...verifiedAdmins };
+                            delete updatedVerified[spaceId];
+                            setVerifiedAdmins(updatedVerified);
+                            localStorage.setItem('badminton_verified_admins', JSON.stringify(updatedVerified));
+                            
+                            // 同時清除本地儲存的登入狀態，確保不會在 useEffect 中被自動還原
+                            localStorage.removeItem(`badminton_current_user_${spaceId}`);
+                          }
+                          setCurrentUser(null);
+                          setIsLoggingInAsPlayer(false); // 重置為選擇身分（我是團主/一般球員）畫面
+                          setLoginSearchTerm('');        // 清除搜尋字詞
+                          setSelectedPlayerForMove(null);
+                          setIsProfileMenuOpen(false);
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4 text-slate-500" />
+                        切換身分
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          window.location.hash = '';
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                      >
+                        <ArrowLeft className="w-4 h-4 text-slate-500" />
+                        返回大廳
+                      </button>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
-        </header>
-      )}
+          </div>
+      </header>
 
       {/* Mobile Global Tabs */}
-      <div className="lg:hidden border-b border-slate-800 bg-slate-950 z-10 shrink-0 px-2">
+      <div data-keep-selection="true" className="lg:hidden border-b border-slate-800 bg-slate-950 z-10 shrink-0 px-2">
         <div className="flex relative">
           {currentUser?.role !== 'player' && (
             <button
@@ -2990,7 +3048,7 @@ export default function App() {
           `}
         >
           {/* Desktop Tabs */}
-          <div className="hidden lg:flex border-b border-slate-800 px-2 shrink-0">
+          <div data-keep-selection="true" className="hidden lg:flex border-b border-slate-800 px-2 shrink-0">
             <div className="flex flex-1 relative">
               {currentUser?.role !== 'player' && (
                 <button
@@ -3084,13 +3142,14 @@ export default function App() {
                         return (
                           <React.Fragment key={chunkIdx}>
                             <div className="relative flex items-center py-2">
-                              <div className="flex-1 flex items-center gap-3 min-w-0 overflow-hidden">
+                              <div className="flex-1 flex items-center gap-3 min-w-0">
                                 <span className="font-mono text-xs text-slate-500 w-4 text-center shrink-0">{chunkIdx + 1}</span>
                                 <div className="grid grid-cols-2 gap-3 min-w-0 flex-1">
                                   {chunk.map((item, idx) => (
                                     <React.Fragment key={idx}>
                                       {item.type === 'player' ? (
                                       <div
+                                          data-keep-selection={selectedPlayerForMove === item.data.id ? "true" : undefined}
                                           draggable={canMovePlayer(item.data.id)}
                                           onDragStart={(e) => {
                                             if (!canMovePlayer(item.data.id)) return;
@@ -3123,6 +3182,28 @@ export default function App() {
                                             }
                                           }}
                                         >
+                                          <div className={`bubble-container ${selectedPlayerForMove === item.data.id ? 'active' : ''}`}>
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                removeFromQueue(item.data.id);
+                                              }}
+                                              className="w-6 h-6 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-lg border border-indigo-400 shadow-indigo-500/40 transition-all"
+                                              title="下場休息"
+                                            >
+                                              <Coffee className="w-3 h-3" />
+                                            </button>
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                deletePlayer(item.data.id);
+                                              }}
+                                              className="w-6 h-6 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-lg border border-indigo-400 shadow-indigo-500/40 transition-all"
+                                              title="早退"
+                                            >
+                                              <UserX className="w-3 h-3" />
+                                            </button>
+                                          </div>
                                           <div
                                             title="排隊成員"
                                             className={`w-full h-full flex items-center justify-between px-2.5 py-1.5 rounded-[10px] transition-colors text-left min-w-0 border ${
@@ -3135,22 +3216,12 @@ export default function App() {
                                               <PlayerAvatar identifier={item.data.name} className="w-2.5 h-2.5 shrink-0" />
                                               <span className="truncate">{item.data.name}</span>
                                             </span>
-                                            {canMovePlayer(item.data.id) && (
-                                              <button
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  removeFromQueue(item.data.id);
-                                                }}
-                                                className="p-1 text-slate-500 hover:text-amber-400 transition-colors -mr-1"
-                                                title="讓球員休息 (移出佇列)"
-                                              >
-                                                <Coffee className="w-3.5 h-3.5" />
-                                              </button>
-                                            )}
+
                                           </div>
                                         </div>
                                       ) : (
                                         <div
+                                          data-keep-selection={selectedPlayerForMove !== null ? "true" : undefined}
                                           className={`h-10 flex items-center justify-center rounded-lg border border-dashed transition-all cursor-pointer ${
                                             dragOverSlotKey === `${chunkIdx}-${idx}`
                                               ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400'
@@ -3518,6 +3589,7 @@ export default function App() {
                   onRenameCourt={currentUser?.role === 'admin' ? renameCourt : undefined}
                   onAnnounce={announceCourtPlayers}
                   onRestPlayer={restPlayerFromCourt}
+                  onEarlyLeavePlayer={deletePlayer}
                   isAutoAnnounce={currentUser?.role === 'admin' ? isAutoAnnounce : allowPlayerAnnounce}
                   canStartMatch={isQueueReady}
                   onDropPlayer={dropPlayerToCourt}
