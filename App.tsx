@@ -3151,9 +3151,9 @@ export default function App() {
                             setIsSpaceSettingsOpen(true);
                             setIsProfileMenuOpen(false);
                           }}
-                          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-indigo-400/90 hover:text-indigo-300/75 hover:bg-indigo-500/10 transition-colors group/settings"
                         >
-                          <Settings className="w-4 h-4 text-slate-500" />
+                          <Settings className="w-4 h-4 text-indigo-500/70 group-hover/settings:text-indigo-300/75 transition-colors" />
                           球團空間設定
                         </button>
                         <button
