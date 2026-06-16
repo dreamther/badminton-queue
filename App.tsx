@@ -1993,7 +1993,10 @@ export default function App() {
   };
 
   // 刪除最近造訪的球團紀錄
-  const handleDeleteRecentSpace = (id: string) => {
+  const handleDeleteRecentSpace = async (id: string) => {
+    const confirmed = await showConfirm("確定要移除此造訪紀錄嗎？");
+    if (!confirmed) return;
+
     setRecentSpaces(prev => {
       const updated = prev.filter(s => s.id !== id);
       localStorage.setItem('badminton_recent_spaces', JSON.stringify(updated));
@@ -2186,7 +2189,7 @@ export default function App() {
           <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-8 my-auto">
             
             {/* 左側：進入/加入空間 */}
-            <div className="bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl p-8 rounded-3xl shadow-2xl flex flex-col justify-between min-h-[460px] md:h-[55vh] md:min-h-[500px] md:max-h-[580px]">
+            <div className="bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl p-8 rounded-3xl shadow-2xl flex flex-col justify-between min-h-[460px]">
               <div className="flex-1 flex flex-col min-h-0">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-xl">
@@ -2228,16 +2231,16 @@ export default function App() {
                       目前此瀏覽器尚無造訪紀錄
                     </div>
                   ) : (
-                    <div className="space-y-2 max-h-[180px] md:max-h-none overflow-y-auto pr-1.5 flex-1 min-h-0 scroll-smooth [scrollbar-width:thin] [scrollbar-color:theme(colors.slate.800)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-800 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+                    <div className="space-y-3 max-h-[230px] overflow-y-auto pr-1.5 flex-1 min-h-0 scroll-smooth [scrollbar-width:thin] [scrollbar-color:theme(colors.slate.800)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-800 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
                       {recentSpaces.map(space => (
                         <div
                           key={space.id}
-                          className="w-full flex items-center justify-between p-3.5 bg-slate-950/40 hover:bg-slate-800/60 border border-slate-800 rounded-xl transition-all text-left group relative"
+                          onClick={() => window.location.hash = `#/space/${space.id}`}
+                          className="w-full flex items-center justify-between py-3.5 px-3.5 bg-slate-950/40 hover:bg-slate-800/60 border border-slate-800 rounded-xl transition-all text-left group relative cursor-pointer"
                         >
-                          {/* 點擊進入空間區域 */}
+                          {/* 內容展示區域 */}
                           <div 
-                            onClick={() => window.location.hash = `#/space/${space.id}`}
-                            className="flex-1 flex items-center justify-between cursor-pointer min-w-0 pr-2"
+                            className="flex-1 flex items-center justify-between min-w-0 pr-2"
                           >
                             <div className="flex items-center gap-3 min-w-0">
                               {/* <span className="text-xl">🏸</span> */}
@@ -2282,7 +2285,7 @@ export default function App() {
             </div>
 
             {/* 右側：建立全新空間 */}
-            <div className="bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl p-8 rounded-3xl shadow-2xl flex flex-col justify-between min-h-[460px] md:h-[55vh] md:min-h-[500px] md:max-h-[580px]">
+            <div className="bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl p-8 rounded-3xl shadow-2xl flex flex-col justify-between min-h-[460px]">
               <div>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 bg-purple-500/10 text-purple-400 rounded-xl">
@@ -2578,12 +2581,17 @@ export default function App() {
           </div>
         )}
 
-        {/* 自訂對話框 (Alert) - 確保大廳頁面中觸發的 showAlert 也能正常顯示 */}
+        {/* 自訂對話框 (Alert / Confirm) - 確保大廳頁面中觸發的 showAlert/showConfirm 也能正常顯示 */}
         {customDialog.isOpen && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]">
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl max-w-sm w-full shadow-2xl relative flex flex-col text-center">
+              {/* 圖標 (Icon) */}
               <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 bg-indigo-500/10 text-indigo-400">
-                <AlertTriangle className="w-6 h-6 text-indigo-400" />
+                {customDialog.type === 'confirm' ? (
+                  <Info className="w-6 h-6 text-indigo-400" />
+                ) : (
+                  <AlertTriangle className="w-6 h-6 text-indigo-400" />
+                )}
               </div>
               {customDialog.title && (
                 <h3 className="text-base font-bold text-white mb-2">{customDialog.title}</h3>
@@ -2592,6 +2600,17 @@ export default function App() {
                 {customDialog.message}
               </p>
               <div className="flex gap-3 justify-center">
+                {customDialog.type === 'confirm' && (
+                  <button
+                    onClick={() => {
+                      if (customDialog.resolve) customDialog.resolve(false);
+                      setCustomDialog(prev => ({ ...prev, isOpen: false }));
+                    }}
+                    className="flex-1 px-4 py-2 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 text-sm font-semibold rounded-xl transition-colors min-w-[5.5rem]"
+                  >
+                    取消
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     if (customDialog.resolve) customDialog.resolve(true);
