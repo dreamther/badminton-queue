@@ -2708,11 +2708,12 @@ export default function App() {
                     ? 'bg-slate-800 border-slate-700 ring-2 ring-inset ring-blue-400 cursor-pointer shadow-lg'
                     : canMovePlayer(player.id)
                       ? (isSelf
-                          ? 'bg-slate-100/15 border-slate-300/40 hover:bg-slate-100/20 shadow-[0_0_8px_rgba(255,255,255,0.05)] cursor-grab active:cursor-grabbing font-bold animate-[pulse_3s_infinite]'
+                          ? 'self-player-glow cursor-grab active:cursor-grabbing font-bold'
                           : 'bg-slate-800/60 border-slate-700 hover:bg-slate-700 cursor-grab active:cursor-grabbing')
                       : 'bg-slate-800/40 border-slate-700/50 cursor-default'
                   }`}
               >
+                {isSelf && <span className="border-beam-container"></span>}
                 <PlayerAvatar identifier={player.name} className="w-5 h-5 shrink-0" />
                 <span className={`text-xs whitespace-nowrap ${isSelf ? 'text-white font-semibold' : 'text-slate-300'}`}>
                   {player.name}
@@ -2733,6 +2734,45 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-[100dvh] w-screen bg-slate-900 text-slate-100 overflow-hidden relative">
+      <style>{`
+        .self-player-glow {
+          position: relative;
+          background: rgba(255, 255, 255, 0.15) !important;
+          border-color: rgba(255, 255, 255, 0.15) !important;
+          color: #ffffff !important;
+          transition: all 0.2s ease;
+        }
+        .self-player-glow:hover {
+          background: rgba(255, 255, 255, 0.22) !important;
+          border-color: rgba(255, 255, 255, 0.25) !important;
+        }
+        .border-beam-container {
+          position: absolute;
+          inset: -1px;
+          border-radius: 9999px;
+          pointer-events: none;
+          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+          padding: 1px;
+          z-index: 10;
+        }
+        .border-beam-container::after {
+          content: '';
+          position: absolute;
+          aspect-ratio: 1;
+          width: 45px;
+          background: linear-gradient(to left, #ffffff, rgba(255, 255, 255, 0));
+          offset-anchor: 90% 50%;
+          offset-path: rect(0 auto auto 0 round 9999px);
+          animation: border-beam 4.5s linear infinite;
+        }
+        @keyframes border-beam {
+          100% {
+            offset-distance: 100%;
+          }
+        }
+      `}</style>
       {/* Toast Alert */}
       {toastMessage && (
         <div key={toastCounter} className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-[100] animate-[fadeIn_0.2s_ease-out] pointer-events-none w-full px-4 flex justify-center">
