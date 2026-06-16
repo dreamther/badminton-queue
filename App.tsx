@@ -214,7 +214,6 @@ export default function App() {
 
   // 點選移動模式 State
   const [selectedPlayerForMove, setSelectedPlayerForMove] = useState<string | null>(null);
-  const [showGlobalBanner, setShowGlobalBanner] = useState(false);
 
   // Refs
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -602,11 +601,28 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedPlayerForMove]);
 
-  // 監聽選中狀態，同步顯示橫幅
+  // --- 點選移動模式點擊外部取消選取 ---
   useEffect(() => {
-    if (selectedPlayerForMove) setShowGlobalBanner(true);
-    else setShowGlobalBanner(false);
+    if (!selectedPlayerForMove) return;
+
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-keep-selection="true"]')) {
+        return;
+      }
+      setSelectedPlayerForMove(null);
+    };
+
+    const timer = setTimeout(() => {
+      document.addEventListener('click', handleGlobalClick);
+    }, 0);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', handleGlobalClick);
+    };
   }, [selectedPlayerForMove]);
+
 
   // --- Toast 提示功能 ---
   const [toastCounter, setToastCounter] = useState(0);
@@ -927,14 +943,14 @@ export default function App() {
     const idleCount = players.filter(p => p.status === 'idle').length;
     if (idleCount === 0) return;
 
-    if (await showConfirm(`確定要讓休息區的 ${idleCount} 人全部離開球場嗎？\n他們將回到會員列表。`)) {
+    if (await showConfirm(`確定要讓休息區的 ${idleCount} 人全部離開球場嗎？\n他們將回到未報到狀態。`)) {
       const updatedPlayers = players.filter(p => p.status !== 'idle');
       updateCloudSession({ players: updatedPlayers });
     }
   }, [players, updateCloudSession, showConfirm]);
 
   const resetSession = useCallback(async () => {
-    if (await showConfirm('確定要結束所有比賽嗎？\n所有場上和排隊的球員將會回到會員列表。')) {
+    if (await showConfirm('確定要結束今日打球嗎？\n所有球員將會回到未報到狀態。')) {
       setSelectedPlayerForMove(null);
       const clearedCourts = courts.map(c => ({ ...c, playerIds: [], startTime: null }));
       updateCloudSession({
@@ -1438,6 +1454,24 @@ export default function App() {
       await updateMember(spaceId, targetMember.id, { level: newLevel });
     }
   }, [spaceId, players, members, updateCloudSession]);
+
+  const selectPlayerAndNavigate = useCallback((playerId: string) => {
+    setSelectedPlayerForMove(playerId);
+    
+    if (window.innerWidth >= 1024) {
+      setActiveTab('queue');
+    } else {
+      const hasEmptySlot = courts.some(
+        c => c.playerIds.length < MAX_PLAYERS_PER_COURT || c.playerIds.some(id => id === null)
+      );
+      if (!isWarmupDone && hasEmptySlot) {
+        setActiveTab('courts');
+      } else {
+        setActiveTab('queue');
+      }
+    }
+  }, [courts, isWarmupDone, setActiveTab, setSelectedPlayerForMove]);
+
   const [checkInSuccessName, setCheckInSuccessName] = useState<string | null>(null);
   const [checkInCounter, setCheckInCounter] = useState(0);
   const checkInTimeoutRef = useRef<any>(null);
@@ -1506,7 +1540,7 @@ export default function App() {
           console.log(`[Auto Check-In] 球員 ${currentMemberName} 尚未報到，執行自動報到...`);
           const pId = checkInMember(member);
           if (pId) {
-            setSelectedPlayerForMove(pId);
+            selectPlayerAndNavigate(pId);
             hasAutoSelectedRef.current = true;
           }
           hasCheckedInOnMountRef.current = true;
@@ -1526,7 +1560,7 @@ export default function App() {
           // 如果尚未進行過自動選取，且球員在休息區 (idle)，則自動選取
           if (matchedPlayer.status === 'idle') {
             console.log(`[Auto Select] 自動選取休息區中的球員 ${currentMemberName}`);
-            setSelectedPlayerForMove(matchedPlayer.id);
+            selectPlayerAndNavigate(matchedPlayer.id);
           }
           hasAutoSelectedRef.current = true;
         }
@@ -1541,12 +1575,13 @@ export default function App() {
     currentUser,
     members,
     players,
-    checkInMember
+    checkInMember,
+    selectPlayerAndNavigate
   ]);
 
   const removeMember = useCallback(async (memberId: string) => {
     if (!spaceId) return;
-    if (await showConfirm('確定要刪除此會員嗎？（這不會影響目前場上的球員）')) {
+    if (await showConfirm('確定要刪除此會員嗎？')) {
       try {
         await deleteMember(spaceId, memberId);
       } catch (e) {
@@ -1567,7 +1602,7 @@ export default function App() {
       setCurrentUser(user);
       localStorage.setItem(`badminton_current_user_${spaceId}`, JSON.stringify(user));
       setIsAutoAnnounce(false); // 團主登入預設關閉播報，需主動點擊解鎖
-      setActiveTab('members');
+      setActiveTab(window.innerWidth >= 1024 ? 'queue' : 'courts');
       showToast("✨ 已成功切換為團主模式");
       return;
     }
@@ -1578,7 +1613,7 @@ export default function App() {
       setCurrentUser(user);
       localStorage.setItem(`badminton_current_user_${spaceId}`, JSON.stringify(user));
       setIsAutoAnnounce(false); // 團主登入預設關閉播報，需主動點擊解鎖
-      setActiveTab('members');
+      setActiveTab(window.innerWidth >= 1024 ? 'queue' : 'courts');
       return;
     }
 
@@ -1608,7 +1643,7 @@ export default function App() {
       setPasscodePromptOpen(false);
       setFailedAttempts(0);
       setIsShaking(false);
-      setActiveTab('members');
+      setActiveTab(window.innerWidth >= 1024 ? 'queue' : 'courts');
       showToast("🔑 密碼驗證成功！進入管理模式。");
     } else {
       const nextAttempts = failedAttempts + 1;
@@ -2528,10 +2563,13 @@ export default function App() {
                         const user: CurrentUser = { role: 'player', memberId: member.id };
                         setCurrentUser(user);
                         setIsAutoAnnounce(false); // 球員端不播音
-                        setActiveTab('queue');
                         
                         const pId = checkInMember(member);
-                        if (pId) setSelectedPlayerForMove(pId);
+                        if (pId) {
+                          selectPlayerAndNavigate(pId);
+                        } else {
+                          setActiveTab('queue');
+                        }
                       }}
                       className="w-full flex items-center gap-3 p-3 bg-slate-950/50 hover:bg-slate-800 border border-slate-800 rounded-lg transition-colors text-left group"
                     >
@@ -2665,6 +2703,7 @@ export default function App() {
             return (
               <div
                 key={player.id}
+                data-keep-selection={selectedPlayerForMove === player.id ? "true" : undefined}
                 draggable={canMovePlayer(player.id)}
                 onDragStart={(e) => {
                   if (!canMovePlayer(player.id)) return;
@@ -2677,20 +2716,33 @@ export default function App() {
                   if (selectedPlayerForMove === player.id) {
                     setSelectedPlayerForMove(null);
                   } else {
-                    setSelectedPlayerForMove(player.id);
+                    selectPlayerAndNavigate(player.id);
                     setIsRestAreaOpen(false);
                   }
                 }}
-                className={`flex items-center gap-1.5 pl-1.5 pr-2.5 py-1.5 rounded-full border transition-all select-none
+                className={`relative flex items-center gap-1.5 pl-1.5 pr-2.5 py-1.5 rounded-full border transition-all select-none
                   ${selectedPlayerForMove === player.id
                     ? 'bg-slate-800 border-slate-700 ring-2 ring-inset ring-blue-400 cursor-pointer shadow-lg'
                     : canMovePlayer(player.id)
                       ? (isSelf
-                          ? 'bg-slate-100/15 border-slate-300/40 hover:bg-slate-100/20 shadow-[0_0_8px_rgba(255,255,255,0.05)] cursor-grab active:cursor-grabbing font-bold animate-[pulse_3s_infinite]'
+                          ? 'self-player-glow cursor-grab active:cursor-grabbing font-bold'
                           : 'bg-slate-800/60 border-slate-700 hover:bg-slate-700 cursor-grab active:cursor-grabbing')
                       : 'bg-slate-800/40 border-slate-700/50 cursor-default'
                   }`}
               >
+                <div className={`bubble-container ${selectedPlayerForMove === player.id ? 'active' : ''}`}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deletePlayer(player.id);
+                    }}
+                    className="w-6 h-6 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-lg border border-indigo-400 shadow-indigo-500/40 transition-all"
+                    title="早退"
+                  >
+                    <UserX className="w-3 h-3" />
+                  </button>
+                </div>
+                {isSelf && <span className="border-beam-container"></span>}
                 <PlayerAvatar identifier={player.name} className="w-5 h-5 shrink-0" />
                 <span className={`text-xs whitespace-nowrap ${isSelf ? 'text-white font-semibold' : 'text-slate-300'}`}>
                   {player.name}
@@ -2711,6 +2763,62 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-[100dvh] w-screen bg-slate-900 text-slate-100 overflow-hidden relative">
+      <style>{`
+        .self-player-glow {
+          position: relative;
+          background: rgba(255, 255, 255, 0.15) !important;
+          border-color: rgba(255, 255, 255, 0.15) !important;
+          color: #ffffff !important;
+          transition: all 0.2s ease;
+        }
+        .self-player-glow:hover {
+          background: rgba(255, 255, 255, 0.22) !important;
+          border-color: rgba(255, 255, 255, 0.25) !important;
+        }
+        .border-beam-container {
+          position: absolute;
+          inset: -1px;
+          border-radius: 9999px;
+          pointer-events: none;
+          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+          padding: 1px;
+          z-index: 10;
+        }
+        .border-beam-container::after {
+          content: '';
+          position: absolute;
+          aspect-ratio: 1;
+          width: 45px;
+          background: linear-gradient(to left, #ffffff, rgba(255, 255, 255, 0));
+          offset-anchor: 90% 50%;
+          offset-path: rect(0 auto auto 0 round 9999px);
+          animation: border-beam 4.5s linear infinite;
+        }
+        @keyframes border-beam {
+          100% {
+            offset-distance: 100%;
+          }
+        }
+        .bubble-container {
+          position: absolute;
+          top: -0.875rem;
+          right: -0.5rem;
+          display: flex;
+          gap: 0.375rem;
+          z-index: 40;
+          pointer-events: none;
+          opacity: 0;
+          transform: scale(0.6) translateY(8px);
+          transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.16s ease-out;
+        }
+        .bubble-container.active {
+          pointer-events: auto;
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      `}</style>
       {/* Toast Alert */}
       {toastMessage && (
         <div key={toastCounter} className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-[100] animate-[fadeIn_0.2s_ease-out] pointer-events-none w-full px-4 flex justify-center">
@@ -2720,159 +2828,171 @@ export default function App() {
         </div>
       )}
 
-      {/* Global Header (Normal Mode / Action Mode) */}
-      {showGlobalBanner && selectedPlayerForMove ? (() => {
-        const p = players.find(p => p.id === selectedPlayerForMove);
-        if (!p) return null;
-        return (
-          <header className="h-16 px-4 bg-indigo-950 border-b border-indigo-900/50 flex items-center justify-between z-20 shrink-0 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between w-full flex-1">
-              <div className="flex items-center gap-3">
-                 <PlayerAvatar identifier={p.name} className="w-9 h-9 shrink-0 rounded-full shadow-sm" />
-                 <div className="flex flex-col justify-center gap-1">
-                    <div className="font-bold text-white text-sm leading-tight">已選取 {p.name}</div>
-                    <div className="text-[11px] text-indigo-200/70 leading-tight">請點擊 ”移動至此“ 的空位放置</div>
-                 </div>
+      {/* Global Header (Normal Mode) */}
+      <header className="h-16 px-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between z-20 shrink-0">
+          <div className="flex items-center justify-between w-full flex-1">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-2 rounded-lg shadow-lg shadow-indigo-500/20 shrink-0">
+                <Trophy className="w-5 h-5 text-white" />
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                 <button onClick={() => deletePlayer(p.id)} className="bg-slate-850 hover:bg-red-500/20 text-slate-300 hover:text-red-400 text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors border border-slate-700"><LogOut className="w-3.5 h-3.5"/>早退</button>
-                 <button onClick={() => setSelectedPlayerForMove(null)} className="bg-slate-700 hover:bg-slate-600 text-white text-xs px-4 py-1.5 rounded-lg transition-colors font-semibold">取消</button>
+              <div className="min-w-0 flex flex-col justify-center">
+                <h1 className="text-base font-bold text-white truncate leading-tight">
+                  {spaceMetadata?.name}
+                </h1>
+                <span className="text-[10px] text-slate-500 font-mono truncate leading-tight">ID: {spaceId}</span>
               </div>
             </div>
-          </header>
-        );
-      })() : (
-        <header className="h-16 px-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between z-20 shrink-0">
-            <div className="flex items-center justify-between w-full flex-1">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-2 rounded-lg shadow-lg shadow-indigo-500/20 shrink-0">
-                  <Trophy className="w-5 h-5 text-white" />
-                </div>
-                <div className="min-w-0 flex flex-col justify-center">
-                  <h1 className="text-base font-bold text-white truncate leading-tight">
-                    {spaceMetadata?.name}
-                  </h1>
-                  <span className="text-[10px] text-slate-500 font-mono truncate leading-tight">ID: {spaceId}</span>
-                </div>
-              </div>
 
-              {/* Header Action Controls */}
-              <div className="flex items-center gap-2 shrink-0">
-                
-                {/* 複製連結 */}
+            {/* Header Action Controls */}
+            <div className="flex items-center gap-2 shrink-0">
+              
+              {/* 複製連結 */}
+              <button
+                onClick={handleCopyLink}
+                className="p-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 rounded-lg transition-colors shrink-0 flex items-center gap-1 text-xs"
+                title="分享此羽球場網址"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">分享網址</span>
+              </button>
+
+              {/* 個人選單 */}
+              <div className="relative" ref={profileMenuRef}>
                 <button
-                  onClick={handleCopyLink}
-                  className="p-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 rounded-lg transition-colors shrink-0 flex items-center gap-1 text-xs"
-                  title="分享此羽球場網址"
+                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded-lg transition-colors"
+                  title="個人身分與管理選單"
                 >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">分享網址</span>
+                  <div className="flex items-center justify-center w-4 h-4">
+                    {currentUser?.role === 'admin' ? (
+                      <span className="text-sm">🏸</span>
+                    ) : (
+                      <UserCheck className="w-3.5 h-3.5 text-indigo-400" />
+                    )}
+                  </div>
+                  <span className="text-xs text-slate-300 font-medium whitespace-nowrap hidden min-[375px]:inline-block">
+                    {currentUser?.role === 'admin' ? '團主' : members.find(m => m.id === currentUser?.memberId)?.name || '球員'}
+                  </span>
+                  <ChevronDown className="w-3 h-3 text-slate-500" />
                 </button>
 
-                {/* 個人選單 */}
-                <div className="relative" ref={profileMenuRef}>
-                  <button
-                    onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded-lg transition-colors"
-                    title="個人身分與管理選單"
-                  >
-                    <div className="flex items-center justify-center w-4 h-4">
-                      {currentUser?.role === 'admin' ? (
-                        <span className="text-sm">🏸</span>
-                      ) : (
-                        <UserCheck className="w-3.5 h-3.5 text-indigo-400" />
+                {isProfileMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-52 bg-slate-900 border border-slate-800 rounded-xl shadow-xl py-1 z-50 animate-in fade-in slide-in-from-top-2">
+                    <div className="px-3 py-2 border-b border-slate-800/60 flex items-baseline gap-1.5 bg-slate-950/20">
+                      <p className="text-[10px] text-slate-500 font-medium shrink-0">
+                        {!currentUser ? '未登入' : (currentUser.role === 'admin' ? '團主' : '球員')}
+                      </p>
+                      {currentUser && (
+                        <p className="text-xs font-bold text-slate-300 truncate flex-1">
+                          {currentUser.role === 'admin' ? '管理員' : members.find(m => m.id === currentUser.memberId)?.name || ''}
+                        </p>
                       )}
                     </div>
-                    <span className="text-xs text-slate-300 font-medium whitespace-nowrap hidden min-[375px]:inline-block">
-                      {currentUser?.role === 'admin' ? '團主' : members.find(m => m.id === currentUser?.memberId)?.name || '球員'}
-                    </span>
-                    <ChevronDown className="w-3 h-3 text-slate-500" />
-                  </button>
-
-                  {isProfileMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-52 bg-slate-900 border border-slate-800 rounded-xl shadow-xl py-1 z-50 animate-in fade-in slide-in-from-top-2">
-                      <div className="px-3 py-2 border-b border-slate-800/60 flex items-baseline gap-1.5 bg-slate-950/20">
-                        <p className="text-[10px] text-slate-500 font-medium shrink-0">
-                          {!currentUser ? '未登入' : (currentUser.role === 'admin' ? '團主' : '球員')}
-                        </p>
-                        {currentUser && (
-                          <p className="text-xs font-bold text-slate-300 truncate flex-1">
-                            {currentUser.role === 'admin' ? '管理員' : members.find(m => m.id === currentUser.memberId)?.name || ''}
-                          </p>
-                        )}
-                      </div>
-                      
-                      {currentUser?.role === 'admin' && (
-                        <div className="py-1">
-                          <button
-                            onClick={() => {
-                              setIsSpaceSettingsOpen(true);
-                              setIsProfileMenuOpen(false);
-                            }}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
-                          >
-                            <Settings className="w-4 h-4 text-slate-500" />
-                            球團空間設定
-                          </button>
-                          <button
-                            onClick={() => {
-                              resetSession();
-                              setIsProfileMenuOpen(false);
-                            }}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-xs text-red-400/90 hover:text-red-400 hover:bg-red-500/10 transition-colors group"
-                          >
-                            <Power className="w-4 h-4 text-red-500/70 group-hover:text-red-400 transition-colors" />
-                            結束本日打球
-                          </button>
-                          <div className="h-px bg-slate-800/60 my-1 mx-2" />
-                        </div>
-                      )}
-                      
+                    
+                    {currentUser?.role === 'admin' && (
                       <div className="py-1">
                         <button
                           onClick={() => {
-                            // 切換身分時，清除當前球團的管理員驗證狀態，確保下次切回團主時需要重輸密碼
-                            if (spaceId) {
-                              const updatedVerified = { ...verifiedAdmins };
-                              delete updatedVerified[spaceId];
-                              setVerifiedAdmins(updatedVerified);
-                              localStorage.setItem('badminton_verified_admins', JSON.stringify(updatedVerified));
-                              
-                              // 同時清除本地儲存的登入狀態，確保不會在 useEffect 中被自動還原
-                              localStorage.removeItem(`badminton_current_user_${spaceId}`);
-                            }
-                            setCurrentUser(null);
-                            setIsLoggingInAsPlayer(false); // 重置為選擇身分（我是團主/一般球員）畫面
-                            setLoginSearchTerm('');        // 清除搜尋字詞
-                            setSelectedPlayerForMove(null);
+                            setIsSpaceSettingsOpen(true);
                             setIsProfileMenuOpen(false);
                           }}
                           className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
                         >
-                          <LogOut className="w-4 h-4 text-slate-500" />
-                          切換身分
+                          <Settings className="w-4 h-4 text-slate-500" />
+                          球團空間設定
                         </button>
-
                         <button
                           onClick={() => {
-                            window.location.hash = '';
+                            resetSession();
+                            setIsProfileMenuOpen(false);
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-red-400/90 hover:text-red-400 hover:bg-red-500/10 transition-colors group"
+                        >
+                          <Power className="w-4 h-4 text-red-500/70 group-hover:text-red-400 transition-colors" />
+                          結束本日打球
+                        </button>
+                        <div className="h-px bg-slate-800/60 my-1 mx-2" />
+                      </div>
+                    )}
+                    
+                    <div className="py-1">
+                      {currentUser?.role === 'player' && players.some(p => p.name === currentMemberName) && (
+                        <button
+                          onClick={async () => {
+                            const activePlayer = players.find(p => p.name === currentMemberName);
+                            if (activePlayer) {
+                              if (await showConfirm('確定要早退嗎？')) {
+                                const playerId = activePlayer.id;
+                                const newSlots = queueSlots.map(id => id === playerId ? null : id);
+                                while (newSlots.length > 0 && newSlots[newSlots.length - 1] === null) newSlots.pop();
+                                
+                                const updatedPlayers = players.filter(p => p.id !== playerId);
+                                const updatedCourts = courts.map(c => ({
+                                  ...c,
+                                  playerIds: c.playerIds.filter(id => id !== playerId)
+                                }));
+                                await updateCloudSession({ queueSlots: newSlots, players: updatedPlayers, courts: updatedCourts });
+
+                                if (spaceId) {
+                                  localStorage.removeItem(`badminton_current_user_${spaceId}`);
+                                }
+                                setCurrentUser(null);
+                                setIsLoggingInAsPlayer(false);
+                                setLoginSearchTerm('');
+                                setSelectedPlayerForMove(null);
+                                setIsProfileMenuOpen(false);
+                              }
+                            }
                           }}
                           className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
                         >
-                          <ArrowLeft className="w-4 h-4 text-slate-500" />
-                          返回大廳
+                          <UserX className="w-4 h-4 text-slate-500" />
+                          早退
                         </button>
-                      </div>
+                      )}
+                      <button
+                        onClick={() => {
+                          // 切換身分時，清除當前球團的管理員驗證狀態，確保下次切回團主時需要重輸密碼
+                          if (spaceId) {
+                            const updatedVerified = { ...verifiedAdmins };
+                            delete updatedVerified[spaceId];
+                            setVerifiedAdmins(updatedVerified);
+                            localStorage.setItem('badminton_verified_admins', JSON.stringify(updatedVerified));
+                            
+                            // 同時清除本地儲存的登入狀態，確保不會在 useEffect 中被自動還原
+                            localStorage.removeItem(`badminton_current_user_${spaceId}`);
+                          }
+                          setCurrentUser(null);
+                          setIsLoggingInAsPlayer(false); // 重置為選擇身分（我是團主/一般球員）畫面
+                          setLoginSearchTerm('');        // 清除搜尋字詞
+                          setSelectedPlayerForMove(null);
+                          setIsProfileMenuOpen(false);
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4 text-slate-500" />
+                        切換身分
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          window.location.hash = '';
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                      >
+                        <ArrowLeft className="w-4 h-4 text-slate-500" />
+                        返回大廳
+                      </button>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
-        </header>
-      )}
+          </div>
+      </header>
 
       {/* Mobile Global Tabs */}
-      <div className="lg:hidden border-b border-slate-800 bg-slate-950 z-10 shrink-0 px-2">
+      <div data-keep-selection="true" className="lg:hidden border-b border-slate-800 bg-slate-950 z-10 shrink-0 px-2">
         <div className="flex relative">
           {currentUser?.role !== 'player' && (
             <button
@@ -2928,7 +3048,7 @@ export default function App() {
           `}
         >
           {/* Desktop Tabs */}
-          <div className="hidden lg:flex border-b border-slate-800 px-2 shrink-0">
+          <div data-keep-selection="true" className="hidden lg:flex border-b border-slate-800 px-2 shrink-0">
             <div className="flex flex-1 relative">
               {currentUser?.role !== 'player' && (
                 <button
@@ -3004,7 +3124,7 @@ export default function App() {
                     {currentUser?.role === 'admin' && queue.length > 0 && (
                       <button
                         onClick={restAllQueue}
-                        className="text-xs text-red-400 hover:text-red-300 bg-red-500/10 border border-red-500/20 px-2 py-1 rounded-md transition-colors font-medium"
+                        className="text-xs text-indigo-400 hover:text-white hover:bg-indigo-600 hover:border-indigo-600 bg-indigo-500/10 border border-indigo-500/20 px-2 py-1 rounded-md transition-all font-medium"
                       >
                         清空
                       </button>
@@ -3022,13 +3142,14 @@ export default function App() {
                         return (
                           <React.Fragment key={chunkIdx}>
                             <div className="relative flex items-center py-2">
-                              <div className="flex-1 flex items-center gap-3 min-w-0 overflow-hidden">
+                              <div className="flex-1 flex items-center gap-3 min-w-0">
                                 <span className="font-mono text-xs text-slate-500 w-4 text-center shrink-0">{chunkIdx + 1}</span>
                                 <div className="grid grid-cols-2 gap-3 min-w-0 flex-1">
                                   {chunk.map((item, idx) => (
                                     <React.Fragment key={idx}>
                                       {item.type === 'player' ? (
                                       <div
+                                          data-keep-selection={selectedPlayerForMove === item.data.id ? "true" : undefined}
                                           draggable={canMovePlayer(item.data.id)}
                                           onDragStart={(e) => {
                                             if (!canMovePlayer(item.data.id)) return;
@@ -3061,6 +3182,28 @@ export default function App() {
                                             }
                                           }}
                                         >
+                                          <div className={`bubble-container ${selectedPlayerForMove === item.data.id ? 'active' : ''}`}>
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                removeFromQueue(item.data.id);
+                                              }}
+                                              className="w-6 h-6 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-lg border border-indigo-400 shadow-indigo-500/40 transition-all"
+                                              title="下場休息"
+                                            >
+                                              <Coffee className="w-3 h-3" />
+                                            </button>
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                deletePlayer(item.data.id);
+                                              }}
+                                              className="w-6 h-6 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-lg border border-indigo-400 shadow-indigo-500/40 transition-all"
+                                              title="早退"
+                                            >
+                                              <UserX className="w-3 h-3" />
+                                            </button>
+                                          </div>
                                           <div
                                             title="排隊成員"
                                             className={`w-full h-full flex items-center justify-between px-2.5 py-1.5 rounded-[10px] transition-colors text-left min-w-0 border ${
@@ -3073,22 +3216,12 @@ export default function App() {
                                               <PlayerAvatar identifier={item.data.name} className="w-2.5 h-2.5 shrink-0" />
                                               <span className="truncate">{item.data.name}</span>
                                             </span>
-                                            {canMovePlayer(item.data.id) && (
-                                              <button
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  removeFromQueue(item.data.id);
-                                                }}
-                                                className="p-1 text-slate-500 hover:text-amber-400 transition-colors -mr-1"
-                                                title="讓球員休息 (移出佇列)"
-                                              >
-                                                <Coffee className="w-3.5 h-3.5" />
-                                              </button>
-                                            )}
+
                                           </div>
                                         </div>
                                       ) : (
                                         <div
+                                          data-keep-selection={selectedPlayerForMove !== null ? "true" : undefined}
                                           className={`h-10 flex items-center justify-center rounded-lg border border-dashed transition-all cursor-pointer ${
                                             dragOverSlotKey === `${chunkIdx}-${idx}`
                                               ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400'
@@ -3456,6 +3589,7 @@ export default function App() {
                   onRenameCourt={currentUser?.role === 'admin' ? renameCourt : undefined}
                   onAnnounce={announceCourtPlayers}
                   onRestPlayer={restPlayerFromCourt}
+                  onEarlyLeavePlayer={deletePlayer}
                   isAutoAnnounce={currentUser?.role === 'admin' ? isAutoAnnounce : allowPlayerAnnounce}
                   canStartMatch={isQueueReady}
                   onDropPlayer={dropPlayerToCourt}
