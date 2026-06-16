@@ -2561,6 +2561,34 @@ export default function App() {
             </div>
           </div>
         )}
+
+        {/* 自訂對話框 (Alert) - 確保大廳頁面中觸發的 showAlert 也能正常顯示 */}
+        {customDialog.isOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]">
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl max-w-sm w-full shadow-2xl relative flex flex-col text-center">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 bg-indigo-500/10 text-indigo-400">
+                <AlertTriangle className="w-6 h-6 text-indigo-400" />
+              </div>
+              {customDialog.title && (
+                <h3 className="text-base font-bold text-white mb-2">{customDialog.title}</h3>
+              )}
+              <p className="text-sm text-slate-300 break-words leading-relaxed mb-6 whitespace-pre-line">
+                {customDialog.message}
+              </p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => {
+                    if (customDialog.resolve) customDialog.resolve(true);
+                    setCustomDialog(prev => ({ ...prev, isOpen: false }));
+                  }}
+                  className="flex-1 px-4 py-2 text-sm font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 transition-colors min-w-[5.5rem]"
+                >
+                  確定
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
