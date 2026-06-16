@@ -2194,7 +2194,7 @@ export default function App() {
                   </div>
                   <h2 className="text-xl font-bold text-white">進入已建立球團</h2>
                 </div>
-                <p className="text-sm text-slate-400 mb-6">輸入現有球團 ID，或是從下方「最近造訪」紀錄一鍵秒速返回。</p>
+                <p className="text-sm text-slate-400 mb-6">輸入現有球團 ID，或是從下方「最近造訪」進入球團。</p>
 
                 <form onSubmit={(e) => {
                   e.preventDefault();
@@ -2240,7 +2240,7 @@ export default function App() {
                             className="flex-1 flex items-center justify-between cursor-pointer min-w-0 pr-2"
                           >
                             <div className="flex items-center gap-3 min-w-0">
-                              <span className="text-xl">🏸</span>
+                              {/* <span className="text-xl">🏸</span> */}
                               <div className="min-w-0">
                                 <div className="text-sm font-semibold text-slate-200 group-hover:text-white truncate">{space.name}</div>
                                 <div className="text-[10px] text-slate-500 font-mono truncate">ID: {space.id}</div>
@@ -2250,13 +2250,13 @@ export default function App() {
                               {space.spacePasscode && (
                                 <span className="flex items-center gap-1 bg-rose-500/10 border border-rose-500/25 text-[10px] font-medium px-2 py-0.5 rounded-full text-rose-400 shrink-0">
                                   <Lock className="w-3 h-3 animate-pulse" />
-                                  私密
+                                  <span className="hidden lg:inline">私密</span>
                                 </span>
                               )}
                               {space.adminPasscode && (
                                 <span className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/25 text-[10px] font-medium px-2 py-0.5 rounded-full text-amber-400 shrink-0">
                                   <Key className="w-3 h-3" />
-                                  管理
+                                  <span className="hidden lg:inline">管理</span>
                                 </span>
                               )}
                             </div>
@@ -2279,10 +2279,6 @@ export default function App() {
                   )}
                 </div>
               </div>
-
-              <div className="text-xs text-slate-600 pt-6 border-t border-slate-900/60">
-                💡 多裝置同步提示：其他打球球員可使用手機掃描團主專屬網址，即可隨時查閱即時隊伍、自動排隊，完全零時差。
-              </div>
             </div>
 
             {/* 右側：建立全新空間 */}
@@ -2294,12 +2290,12 @@ export default function App() {
                   </div>
                   <h2 className="text-xl font-bold text-white">建立全新球團空間</h2>
                 </div>
-                <p className="text-sm text-slate-400 mb-6">為您的球團建立獨立且免費的雲端排隊空間，設定完即可立即使用。</p>
+                <p className="text-sm text-slate-400 mb-6">為球團建立專屬的「即時排隊看板」，分享網址讓球員一同加入，享受方便的打球時光！</p>
 
                 <form onSubmit={handleCreateSpace} className="space-y-4">
                   {/* 球團名稱 */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 mb-1.5">球團/群組名稱</label>
+                    <label className="block text-xs font-semibold text-slate-400 mb-1.5">球團名稱</label>
                     <input
                       type="text"
                       placeholder="例如：快樂週三羽球團"
@@ -2342,10 +2338,14 @@ export default function App() {
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {confirmedHasPasscode && (
-                          <span className="flex items-center bg-amber-500/10 text-amber-400 text-[9px] font-bold px-2 py-0.5 rounded-full border border-amber-500/20">🔑 管理</span>
+                          <span className="flex items-center bg-amber-500/10 text-amber-400 text-[9px] font-bold px-2 py-0.5 rounded-full border border-amber-500/20">
+                            🔑<span className="hidden lg:inline ml-0.5">管理</span>
+                          </span>
                         )}
                         {confirmedHasSpacePasscode && (
-                          <span className="flex items-center bg-rose-500/10 text-rose-400 text-[9px] font-bold px-2 py-0.5 rounded-full border border-rose-500/20">🔒 私密</span>
+                          <span className="flex items-center bg-rose-500/10 text-rose-400 text-[9px] font-bold px-2 py-0.5 rounded-full border border-rose-500/20">
+                            🔒<span className="hidden lg:inline ml-0.5">私密</span>
+                          </span>
                         )}
                         <ChevronRight className="w-3.5 h-3.5 text-slate-500 group-hover:translate-x-0.5 transition-all" />
                       </div>
