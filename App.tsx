@@ -3124,7 +3124,7 @@ export default function App() {
                     {currentUser?.role === 'admin' && queue.length > 0 && (
                       <button
                         onClick={restAllQueue}
-                        className="text-xs text-red-400 hover:text-red-300 bg-red-500/10 border border-red-500/20 px-2 py-1 rounded-md transition-colors font-medium"
+                        className="text-xs text-indigo-400 hover:text-white hover:bg-indigo-600 hover:border-indigo-600 bg-indigo-500/10 border border-indigo-500/20 px-2 py-1 rounded-md transition-all font-medium"
                       >
                         清空
                       </button>
