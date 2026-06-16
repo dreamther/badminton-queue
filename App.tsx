@@ -1586,7 +1586,7 @@ export default function App() {
       setCurrentUser(user);
       localStorage.setItem(`badminton_current_user_${spaceId}`, JSON.stringify(user));
       setIsAutoAnnounce(false); // 團主登入預設關閉播報，需主動點擊解鎖
-      setActiveTab('members');
+      setActiveTab(window.innerWidth >= 1024 ? 'queue' : 'courts');
       showToast("✨ 已成功切換為團主模式");
       return;
     }
@@ -1597,7 +1597,7 @@ export default function App() {
       setCurrentUser(user);
       localStorage.setItem(`badminton_current_user_${spaceId}`, JSON.stringify(user));
       setIsAutoAnnounce(false); // 團主登入預設關閉播報，需主動點擊解鎖
-      setActiveTab('members');
+      setActiveTab(window.innerWidth >= 1024 ? 'queue' : 'courts');
       return;
     }
 
@@ -1627,7 +1627,7 @@ export default function App() {
       setPasscodePromptOpen(false);
       setFailedAttempts(0);
       setIsShaking(false);
-      setActiveTab('members');
+      setActiveTab(window.innerWidth >= 1024 ? 'queue' : 'courts');
       showToast("🔑 密碼驗證成功！進入管理模式。");
     } else {
       const nextAttempts = failedAttempts + 1;
