@@ -73,8 +73,12 @@ export default function App() {
   const [newSpaceName, setNewSpaceName] = useState('');
   const [newSpacePasscode, setNewSpacePasscode] = useState('');
   const [hasPasscode, setHasPasscode] = useState(false);
+  const [confirmedHasPasscode, setConfirmedHasPasscode] = useState(false); // 確認完成後才顯示 badge
+  const [confirmedPasscode, setConfirmedPasscode] = useState(''); // 上次確認的密碼快照（X 還原用）
   const [newSpaceAccessPasscode, setNewSpaceAccessPasscode] = useState('');
   const [hasSpacePasscode, setHasSpacePasscode] = useState(false);
+  const [confirmedHasSpacePasscode, setConfirmedHasSpacePasscode] = useState(false); // 確認完成後才顯示 badge
+  const [confirmedAccessPasscode, setConfirmedAccessPasscode] = useState(''); // 上次確認的存取密碼快照（X 還原用）
   const [isSecuritySettingsOpen, setIsSecuritySettingsOpen] = useState(false); // 安全設定彈窗
   const [joinSpaceIdInput, setJoinSpaceIdInput] = useState('');
   
@@ -2337,10 +2341,10 @@ export default function App() {
                         <span className="text-xs font-semibold text-slate-300">安全與私密防護設定</span>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        {hasPasscode && (
+                        {confirmedHasPasscode && (
                           <span className="flex items-center bg-amber-500/10 text-amber-400 text-[9px] font-bold px-2 py-0.5 rounded-full border border-amber-500/20">🔑 管理</span>
                         )}
-                        {hasSpacePasscode && (
+                        {confirmedHasSpacePasscode && (
                           <span className="flex items-center bg-rose-500/10 text-rose-400 text-[9px] font-bold px-2 py-0.5 rounded-full border border-rose-500/20">🔒 私密</span>
                         )}
                         <ChevronRight className="w-3.5 h-3.5 text-slate-500 group-hover:translate-x-0.5 transition-all" />
@@ -2373,7 +2377,14 @@ export default function App() {
             <div className="bg-slate-900 border border-slate-800 p-4 xs:p-5 sm:p-6 rounded-3xl max-w-sm w-full shadow-2xl relative overflow-hidden">
               <button
                 type="button"
-                onClick={() => setIsSecuritySettingsOpen(false)}
+                onClick={() => {
+                  // X 關閉 = 取消，完整還原到上次「確認完成」的狀態
+                  setHasPasscode(confirmedHasPasscode);
+                  setNewSpacePasscode(confirmedPasscode);
+                  setHasSpacePasscode(confirmedHasSpacePasscode);
+                  setNewSpaceAccessPasscode(confirmedAccessPasscode);
+                  setIsSecuritySettingsOpen(false);
+                }}
                 className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-all"
               >
                 <X className="w-4 h-4" />
@@ -2551,6 +2562,11 @@ export default function App() {
                       await showAlert("空間專屬存取密碼長度必須在 4 到 10 位數之間！");
                       return;
                     }
+                    // 驗證通過，更新已確認 badge 狀態與密碼快照
+                    setConfirmedHasPasscode(hasPasscode);
+                    setConfirmedPasscode(hasPasscode ? newSpacePasscode : '');
+                    setConfirmedHasSpacePasscode(hasSpacePasscode);
+                    setConfirmedAccessPasscode(hasSpacePasscode ? newSpaceAccessPasscode : '');
                     setIsSecuritySettingsOpen(false);
                   }}
                   className="w-full h-11 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-all shadow-lg"
