@@ -943,14 +943,14 @@ export default function App() {
     const idleCount = players.filter(p => p.status === 'idle').length;
     if (idleCount === 0) return;
 
-    if (await showConfirm(`確定要讓休息區的 ${idleCount} 人全部離開球場嗎？\n他們將回到會員列表。`)) {
+    if (await showConfirm(`確定要讓休息區的 ${idleCount} 人全部離開球場嗎？\n他們將回到未報到狀態。`)) {
       const updatedPlayers = players.filter(p => p.status !== 'idle');
       updateCloudSession({ players: updatedPlayers });
     }
   }, [players, updateCloudSession, showConfirm]);
 
   const resetSession = useCallback(async () => {
-    if (await showConfirm('確定要結束所有比賽嗎？\n所有場上和排隊的球員將會回到會員列表。')) {
+    if (await showConfirm('確定要結束今日打球嗎？\n所有球員將會回到未報到狀態。')) {
       setSelectedPlayerForMove(null);
       const clearedCourts = courts.map(c => ({ ...c, playerIds: [], startTime: null }));
       updateCloudSession({
@@ -1581,7 +1581,7 @@ export default function App() {
 
   const removeMember = useCallback(async (memberId: string) => {
     if (!spaceId) return;
-    if (await showConfirm('確定要刪除此會員嗎？（這不會影響目前場上的球員）')) {
+    if (await showConfirm('確定要刪除此會員嗎？')) {
       try {
         await deleteMember(spaceId, memberId);
       } catch (e) {
