@@ -66,6 +66,8 @@ export default function App() {
   const [isSessionLoaded, setIsSessionLoaded] = useState(false);
   const [isMembersLoaded, setIsMembersLoaded] = useState(false);
   const [spaceError, setSpaceError] = useState<string | null>(null);
+  const [goodbyePlayerName, setGoodbyePlayerName] = useState<string | null>(null);
+  const [goodbyeCountdown, setGoodbyeCountdown] = useState(5);
 
   // --- 大廳 (Landing Page) 輸入 State ---
   const [newSpaceId, setNewSpaceId] = useState('');
@@ -231,6 +233,24 @@ export default function App() {
   const lastSpokenTimestampRef = useRef<number>(0);
   const isFirstSessionLoadRef = useRef<boolean>(true);
 
+  // --- 早退掰掰畫面倒數計時 ---
+  useEffect(() => {
+    if (goodbyePlayerName) {
+      setGoodbyeCountdown(5);
+      const timer = setInterval(() => {
+        setGoodbyeCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            setGoodbyePlayerName(null);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [goodbyePlayerName]);
+
   // --- 監聽 Hash 路由變化 ---
   useEffect(() => {
     const handleHashChange = () => {
@@ -238,6 +258,7 @@ export default function App() {
       if (hash.startsWith('#/space/')) {
         const id = hash.substring(8).trim().toLowerCase();
         setSpaceId(id);
+        setGoodbyePlayerName(null); // 進入空間時，清除掰掰畫面
       } else {
         setSpaceId(null);
         setSpaceMetadata(null);
@@ -1545,10 +1566,11 @@ export default function App() {
           }
           hasCheckedInOnMountRef.current = true;
         } else {
-          // 之前已經報到過，但現在不見了，說明已被移出賽局（早退），此時自動登出返回身分選擇頁
+          // 之前已經報到過，但現在不見了，說明已被移出賽局（早退），此時自動登出並顯示掰掰畫面，最後返回大廳
           console.log(`[Auto Logout] 球員 ${currentMemberName} 已早退/被移出，自動清除登入狀態。`);
           localStorage.removeItem(`badminton_current_user_${spaceId}`);
-          setCurrentUser(null);
+          setGoodbyePlayerName(currentMemberName);
+          window.location.hash = ''; // 將會觸發 handleHashChange 清除 currentUser 等狀態，直接返回大廳
           setIsLoggingInAsPlayer(false);
           setLoginSearchTerm('');
           setSelectedPlayerForMove(null);
@@ -1955,6 +1977,162 @@ export default function App() {
     });
     showToast("🗑️ 已移除該造訪紀錄");
   };
+
+  // ==========================================
+  // 渲染早退掰掰畫面 (Goodbye Screen)
+  // ==========================================
+  if (goodbyePlayerName) {
+    return (
+      <div className="h-[100dvh] w-screen bg-slate-950 text-slate-100 overflow-y-auto">
+        <div className="min-h-full w-full flex flex-col items-center justify-center p-4 relative">
+          {/* 背景發光光暈容器 */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+            <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/10 rounded-full blur-[120px]" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-600/10 rounded-full blur-[120px]" />
+          </div>
+
+          {/* 玻璃擬態卡片 */}
+          <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800/50 rounded-2xl p-6 xs:p-7 sm:p-8 max-w-sm w-full mx-auto text-center shadow-2xl shadow-indigo-950/20 z-10 animate-in fade-in zoom-in-95 duration-500 relative overflow-hidden">
+            
+            {/* 線條小雞 SVG 動畫 */}
+            <div className="mb-6 flex justify-center">
+              <svg 
+                viewBox="0 0 200 200" 
+                className="w-44 h-44 text-indigo-400/90 drop-shadow-[0_0_12px_rgba(129,140,248,0.25)]"
+              >
+                <style>{`
+                  @keyframes chick-bob {
+                    0%, 100% { transform: translateY(0) rotate(0deg); }
+                    50% { transform: translateY(-5px) rotate(-2deg); }
+                  }
+                  @keyframes chick-left-leg {
+                    0%, 100% { transform: rotate(0deg); }
+                    50% { transform: rotate(-25deg); }
+                  }
+                  @keyframes chick-right-leg {
+                    0%, 100% { transform: rotate(0deg); }
+                    50% { transform: rotate(25deg); }
+                  }
+                  @keyframes chick-tail {
+                    0%, 100% { transform: rotate(0deg); }
+                    50% { transform: rotate(12deg); }
+                  }
+                  @keyframes chick-wing {
+                    0%, 100% { transform: rotate(0deg); }
+                    50% { transform: rotate(-8deg); }
+                  }
+                  .chick-body-group {
+                    animation: chick-bob 0.8s ease-in-out infinite;
+                    transform-origin: 100px 150px;
+                  }
+                  .chick-left-leg-group {
+                    animation: chick-left-leg 0.8s ease-in-out infinite;
+                    transform-origin: 75px 142px;
+                  }
+                  .chick-right-leg-group {
+                    animation: chick-right-leg 0.8s ease-in-out infinite;
+                    transform-origin: 110px 152px;
+                  }
+                  .chick-tail-group {
+                    animation: chick-tail 0.8s ease-in-out infinite;
+                    transform-origin: 129px 130px;
+                  }
+                  .chick-wing-group {
+                    animation: chick-wing 0.8s ease-in-out infinite;
+                    transform-origin: 82px 112px;
+                  }
+                  @keyframes shrink-progress {
+                    from { width: 100%; }
+                    to { width: 0%; }
+                  }
+                  .progress-bar-fill {
+                    animation: shrink-progress 5s linear forwards;
+                  }
+                `}</style>
+                
+                {/* 地面陰影 */}
+                <ellipse cx="105" cy="180" rx="35" ry="5" fill="rgba(30, 41, 59, 0.4)" />
+
+                {/* 左腳 (踢向後方) */}
+                <g className="chick-left-leg-group">
+                  <path d="M 75,142 L 56,145" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                  <path d="M 56,145 L 56,135" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" fill="none" />
+                  <path d="M 56,145 L 46,145" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" fill="none" />
+                  <path d="M 56,145 L 50,154" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" fill="none" />
+                </g>
+
+                {/* 右腳 (踩向前方) */}
+                <g className="chick-right-leg-group">
+                  <path d="M 110,152 L 122,172" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                  <path d="M 122,172 L 132,176" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" fill="none" />
+                  <path d="M 122,172 L 125,182" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" fill="none" />
+                  <path d="M 122,172 L 114,178" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" fill="none" />
+                </g>
+
+                {/* 尾巴 (擺動) */}
+                <g className="chick-tail-group">
+                  <path d="M 129,130 C 137,130 146,134 146,138 C 146,142 137,144 129,136 Z" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                  <path d="M 129,133 L 142,138" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+                </g>
+
+                {/* 身體與頭部組合 */}
+                <g className="chick-body-group">
+                  {/* 呆毛 */}
+                  <path d="M 112,45 C 114,35 120,32 124,34" stroke="currentColor" strokeWidth="3" strokeLinecap="round" fill="none" />
+                  <path d="M 116,46 C 118,36 126,34 130,37" stroke="currentColor" strokeWidth="3" strokeLinecap="round" fill="none" />
+
+                  {/* 身體輪廓 */}
+                  <path d="M 82,90 C 72,85 70,68 78,58 C 86,48 102,42 118,46 C 134,50 142,66 138,80 C 136,90 128,95 124,98 C 128,110 124,101 129,122 C 131,138 124,150 110,152 C 95,154 80,148 75,135 C 70,122 72,102 82,90 Z" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+
+                  {/* 滿足的幸福雙眼 (^^) */}
+                  <path d="M 76,60 Q 80,64 84,61" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" fill="none" />
+                  <path d="M 96,62 Q 100,66 104,63" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" fill="none" />
+
+                  {/* 嘴巴 */}
+                  <path d="M 68,72 C 60,72 58,80 66,82 L 82,78 C 90,76 88,68 80,68 Z" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+
+                  {/* 前翅膀 */}
+                  <g className="chick-wing-group">
+                    <path d="M 82,112 C 78,110 74,102 78,98 C 82,94 86,100 84,106 C 82,112 86,120 92,118 C 96,116 94,110 90,110" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                  </g>
+
+                  {/* 後翅膀 */}
+                  <path d="M 116,118 C 122,120 128,118 128,112 C 128,106 122,104 118,108" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                </g>
+              </svg>
+            </div>
+
+            <h2 className="text-2xl font-bold text-slate-100 mb-2">再見，{goodbyePlayerName}！</h2>
+            <p className="text-slate-400 text-sm leading-relaxed mb-6">
+              辛苦了！感謝你今天的參與，<br />
+              期待下次再一起開心打球 🏸
+            </p>
+
+            {/* 倒數進度條 */}
+            <div className="space-y-2">
+              <div className="w-full bg-slate-800/50 h-1.5 rounded-full overflow-hidden">
+                <div 
+                  className="progress-bar-fill bg-gradient-to-r from-indigo-500 to-purple-600 h-full rounded-full shadow-[0_0_8px_rgba(99,102,241,0.5)]"
+                />
+              </div>
+              <p className="text-[10px] text-slate-500 font-medium">
+                將在 {goodbyeCountdown} 秒後自動返回大廳
+              </p>
+            </div>
+
+            {/* 返回大廳按鈕 */}
+            <button
+              onClick={() => setGoodbyePlayerName(null)}
+              className="mt-6 w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-xs font-semibold text-white shadow-lg shadow-indigo-600/25 transition-all duration-200 flex items-center justify-center gap-1.5"
+            >
+              直接返回大廳
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ==========================================
   // 渲染大廳 (Landing Page)
@@ -2931,12 +3109,16 @@ export default function App() {
                                   ...c,
                                   playerIds: c.playerIds.filter(id => id !== playerId)
                                 }));
-                                await updateCloudSession({ queueSlots: newSlots, players: updatedPlayers, courts: updatedCourts });
+                                
+                                // 非同步更新雲端資料，避免阻礙頁面切換
+                                updateCloudSession({ queueSlots: newSlots, players: updatedPlayers, courts: updatedCourts });
 
+                                const currentName = currentMemberName || '';
                                 if (spaceId) {
                                   localStorage.removeItem(`badminton_current_user_${spaceId}`);
                                 }
-                                setCurrentUser(null);
+                                setGoodbyePlayerName(currentName);
+                                window.location.hash = ''; // 將會觸發 handleHashChange 清除 currentUser 等狀態，直接返回大廳
                                 setIsLoggingInAsPlayer(false);
                                 setLoginSearchTerm('');
                                 setSelectedPlayerForMove(null);

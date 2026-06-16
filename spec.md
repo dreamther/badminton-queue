@@ -272,7 +272,8 @@ interface CurrentUser {
 | 報到成功提示    | 報到後自動顯示 2 秒成功 Modal                             | `checkInSuccessName`            | —     |
 | 鍵盤快捷鍵      | Escape 取消選中的球員                                     | `useEffect` (keydown)           | —     |
 | 即時時鐘        | 每秒更新（用於場地計時）                                  | `useEffect` (setInterval)       | —     |
-| 登入 / 登出     | 身分選擇與切換，球員選單新增與切換身分同色的「早退」按鈕   | `currentUser`, profile dropdown | 全部  |
+| 登入 / 登出     | 身分選擇與切換，球員選單與下拉選單提供登出與早退按鈕       | `currentUser`, profile dropdown | 全部  |
+| 早退掰掰畫面    | 球員早退後展示 5s 動態小雞掰掰畫面，倒數結束自動無閃爍返大廳| `goodbyePlayerName`, `goodbyeCountdown` | 全部 |
 
 ### 6.5 RBAC（角色權限控管）
 
@@ -476,6 +477,11 @@ npm run dev     # 啟動 dev server (port 3000)
 - **Toast 提示規範**：調用 `showToast(msg)`，移除寫死的 Check 打勾圖示，改為純文字並於訊息開頭前置相對應、符合情境的 Emoji（例如 `🔑`、`❌`、`🔊`、`🗑️`、`✨`、`🔗`），以求簡潔且避免語意衝突。
 - **刪除確認對話框 (GitHub 風格)**：為避免誤觸永久刪除球團，要求手動輸入 `spaceId` 解鎖按鈕。該 Modal 包含紅色的 Icon（`bg-red-500/10 text-red-400`）、紅色底框的警告標語橫幅以及亮紅色的確認刪除按鈕，作為破壞性操作的強烈警示；其餘如視窗邊框與輸入 Focus 框仍保持與全站一致的深色及靛藍色。
 - **刪除跳轉退訂防護**：執行球團刪除時，需先切換路由回到大廳並等待 100ms 讓實時監聽器完成退訂，最後才呼叫 `deleteSpace` API，以防範 Firestore「文檔不存在」的報錯事件短暫閃現。
+- **早退掰掰畫面 (Goodbye Screen)**：球員點擊早退或被移出時，會切換至獨立的早退卡片畫面。
+  - **動態線條小雞 (SVG Animation)**：以 pure CSS keyframes 實現微動畫。包含身體起伏 (`chick-bob`)、雙腳交替擺動 (`chick-left-leg` / `chick-right-leg`)、尾巴擺動 (`chick-tail`) 與翅膀晃動，呈現向左踏步離開的動態，且小雞雙眼呈滿足幸福狀態 `( ︶ ︶ )`。整體僅使用線條 (`stroke="currentColor"`)，無色彩填充。
+  - **倒數與進度條**：設定 5 秒倒數，倒數條使用 CSS 動畫 (`shrink-progress`) 從 100% 平滑縮減至 0%，避免 React 掛載時的過渡動畫 bug，同時提供手動跳過按鈕。
+  - **RWD 結構對齊**：卡片寬度與內邊距 (`p-6 xs:p-7 sm:p-8 rounded-2xl max-w-sm w-full mx-auto`) 完全對齊「身份選擇」卡片，並且在外層加入響應式安全間距與 `overflow-y-auto` 防護，確保在小尺寸行動裝置上維持舒適邊距。
+  - **無閃爍跳轉**：將清除 `currentUser`、`spaceId` 與 `spaceMetadata` 等狀態全部集中至路由 Hash 監聽器，避免在跳轉中短暫出現「身份選擇」或「空團主畫面」殘影。
 
 ### 11.3 語音播報規範與架構
 
