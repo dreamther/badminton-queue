@@ -1,6 +1,6 @@
 # 羽球排隊助手 — 專案規格書 (spec.md)
 
-> **最後更新**：2026-06-12
+> **最後更新**：2026-06-16
 > 本文件記錄專案的架構、流程與功能，供後續開發者快速理解並確保一致性。
 
 ---
@@ -268,11 +268,11 @@ interface CurrentUser {
 | 打球結束        | 一鍵清空所有活動球員（回會員列表）                        | `resetSession()`                | admin |
 | 行動裝置 Tab    | 行動裝置使用底部 Tab 切換畫面（報到/排隊/場地）           | `activeTab`                     | 全部  |
 | 休息區面板      | 使用懸浮按鈕 (FAB) 開啟底部抽屜 (Bottom Sheet) 顯示休息區 | `isRestAreaOpen`                | 全部  |
-| 行動模式 Header | 點選球員移動時，頂部替換為操作提示及早退/取消按鈕         | `showGlobalBanner`              | 全部  |
+| 懸浮動作氣泡    | 點選球員移動時，在該球員右上角顯示操作按鈕（休息/早退）   | `selectedPlayerForMove`         | 全部  |
 | 報到成功提示    | 報到後自動顯示 2 秒成功 Modal                             | `checkInSuccessName`            | —     |
 | 鍵盤快捷鍵      | Escape 取消選中的球員                                     | `useEffect` (keydown)           | —     |
 | 即時時鐘        | 每秒更新（用於場地計時）                                  | `useEffect` (setInterval)       | —     |
-| 登入 / 登出     | 身分選擇與切換                                            | `currentUser`, profile dropdown | 全部  |
+| 登入 / 登出     | 身分選擇與切換，球員選單新增與切換身分同色的「早退」按鈕   | `currentUser`, profile dropdown | 全部  |
 
 ### 6.5 RBAC（角色權限控管）
 
@@ -326,7 +326,7 @@ interface CurrentUser {
 | `LevelSelector`    | `App.tsx` 內                  | 技能等級切換按鈕（行內元件）                                  |
 | 登入畫面           | `App.tsx` 內                  | 角色選擇（團主 / 球員）與球員身分選擇搜尋                     |
 | Profile Dropdown   | `App.tsx` 內                  | 顯示當前登入身分，提供登出/切換功能，click-outside 自動關閉   |
-| Action Mode Header | `App.tsx` 內                  | 點選球員移動時，取代原有 Header，提供放置提示、早退與取消操作 |
+| 懸浮動作氣泡       | `App.tsx` / `CourtCard.tsx`   | 點選球員移動時，在球員卡片/欄位右上角懸浮顯示（休息/早退）    |
 | 休息區 (Rest Area) | `App.tsx` 內                  | 以懸浮按鈕 (FAB) 及 Bottom Sheet 實作，支援快速搜尋與點選拖拉 |
 
 ### 7.3 CourtCard 狀態視覺
@@ -365,7 +365,6 @@ interface CurrentUser {
 | `isRestAreaOpen`        | `boolean`                          | 休息區底部抽屜 (Bottom Sheet) 開關狀態      | ❌              |
 | `isAutoAnnounce`        | `boolean`                          | 是否自動語音播報                            | ❌              |
 | `selectedPlayerForMove` | `string \| null`                   | 點選移動模式中被選中的球員                  | ❌              |
-| `showGlobalBanner`      | `boolean`                          | 是否顯示 Action Mode Header                 | ❌              |
 | `isProfileMenuOpen`     | `boolean`                          | Profile Dropdown 開關                       | ❌              |
 
 ### 8.2 衍生資料（useMemo）
@@ -464,8 +463,13 @@ npm run dev     # 啟動 dev server (port 3000)
 - **響應式設計**：
   - 行動版：使用底部 Tab 切換主要視圖；休息區改用懸浮按鈕 (FAB) 觸發 Bottom Sheet。
   - 桌面版：左側 Sidebar 固定顯示報到/排隊，右側為場地 grid (`sm:grid-cols-2 2xl:grid-cols-3`)。
-- **Profile Dropdown**：使用 `useRef` + `mousedown` 的 click-outside 機制關閉，不使用 `onBlur`。
-- **Action Mode**：點選球員準備移動時，頂部 Header 會切換為醒目的提示列，方便進行放置、早退或取消。
+- **Profile Dropdown**：使用 `useRef` + `mousedown` 的 click-outside 機制關閉，不使用 `onBlur`。球員身分選單新增「早退」按鈕，其文字與 hover 配色完全對齊「切換身分」樣式 (`text-slate-300 hover:text-white hover:bg-slate-800`，搭配 `text-slate-500` 的 `UserX` 圖示)。
+- **Action Bubble**：移除頂部選取資訊橫幅，改在被點選球員卡片/欄位右上角呈現懸浮動作泡泡（`bubble-container`）。
+  - 排隊區/場地區選取時顯示：休息 (`Coffee`) 與 早退 (`UserX`)；休息區僅顯示早退 (`UserX`)。
+  - 泡泡配色統一為深藍紫色系（靛藍色 `bg-indigo-600 hover:bg-indigo-500 border-indigo-400` 與 `shadow-indigo-500/40`）。
+  - 具有雙向淡入淡出及彈跳動效（使用常態渲染及 CSS 轉場控制）。
+  - 點擊卡片外部或點選其他未選取球員即可取消選取（切換分頁 Tabs 時除外）。
+- **排隊區清空按鈕**：清空按鈕採用與全站主色系相符的靛藍色（`text-indigo-400 bg-indigo-500/10 border-indigo-500/20`），且 hover 時以背景色填滿（`hover:text-white hover:bg-indigo-600 hover:border-indigo-600`）搭配 `transition-all`。
 - **自訂對話框 (Dialogs)**：全站所有的對話框與警示框（除刪除球團外）均採用統一的 `indigo` 靛藍色系風格，包括自訂 Promise-based Alert / Confirm、進階安全設定、私密空間密碼驗證等，以維持整體視覺的和諧一致。
 - **Switch 開關設計**：全站所有 iOS 風格的 Switch 開關啟用狀態統一為 `bg-indigo-600` 靛藍色。
 - **設定表單極簡化**：空間設定彈窗標題採用純文字，移了旋轉 settings icon 及副標題，以最大程度節省行動端畫面的垂直空間。
