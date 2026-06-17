@@ -430,6 +430,14 @@ export default function App() {
         if (!exists) {
           setSpaceError(`球團空間「${spaceId}」不存在。請確認網址或返回大廳建立全新空間。`);
           setIsSpaceLoading(false);
+          
+          // 自動從「最近造訪」中清除該不存在的球團
+          setRecentSpaces(prev => {
+            const updated = prev.filter(s => s.id !== spaceId);
+            localStorage.setItem('badminton_recent_spaces', JSON.stringify(updated));
+            return updated;
+          });
+          
           return;
         }
 
@@ -2033,20 +2041,26 @@ export default function App() {
       await deleteSpace(spaceId);
 
       // 清理管理員與空間存取授權憑證
-      const updatedVerifiedAdmins = { ...verifiedAdmins };
-      delete updatedVerifiedAdmins[spaceId];
-      setVerifiedAdmins(updatedVerifiedAdmins);
-      localStorage.setItem('badminton_verified_admins', JSON.stringify(updatedVerifiedAdmins));
+      setVerifiedAdmins(prev => {
+        const updated = { ...prev };
+        delete updated[spaceId];
+        localStorage.setItem('badminton_verified_admins', JSON.stringify(updated));
+        return updated;
+      });
 
-      const updatedVerifiedSpaces = { ...verifiedSpaces };
-      delete updatedVerifiedSpaces[spaceId];
-      setVerifiedSpaces(updatedVerifiedSpaces);
-      localStorage.setItem('badminton_verified_spaces', JSON.stringify(updatedVerifiedSpaces));
+      setVerifiedSpaces(prev => {
+        const updated = { ...prev };
+        delete updated[spaceId];
+        localStorage.setItem('badminton_verified_spaces', JSON.stringify(updated));
+        return updated;
+      });
 
       // 清理「最近造訪」紀錄
-      const updatedRecent = recentSpaces.filter(s => s.id !== spaceId);
-      setRecentSpaces(updatedRecent);
-      localStorage.setItem('badminton_recent_spaces', JSON.stringify(updatedRecent));
+      setRecentSpaces(prev => {
+        const updated = prev.filter(s => s.id !== spaceId);
+        localStorage.setItem('badminton_recent_spaces', JSON.stringify(updated));
+        return updated;
+      });
 
       setIsDeleteConfirmOpen(false);
       setIsSpaceSettingsOpen(false);
