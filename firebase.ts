@@ -463,7 +463,7 @@ export async function addMembersBatch(spaceId: string, newMembers: Member[]): Pr
 }
 
 /**
- * 更新會員等級
+ * 更新會員身份
  */
 export async function updateMember(spaceId: string, memberId: string, updates: Partial<Member>): Promise<void> {
   const cleanId = spaceId.trim().toLowerCase();

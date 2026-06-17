@@ -91,14 +91,15 @@ badminton-queue/
 
 ```typescript
 type PlayerStatus = "idle" | "queued" | "playing";
-type SkillLevel = "beginner" | "intermediate";
+type MemberIdentity = "beginner" | "intermediate";
 type UserRole = "admin" | "player";
 
 interface Player {
   id: string; // UUID
   name: string; // 球員姓名
   status: PlayerStatus;
-  level: SkillLevel;
+  identity: MemberIdentity; // 球員身份 (社員/零打)
+  level?: MemberIdentity; // 向後相容舊欄位
   joinedAt: number; // timestamp
 }
 
@@ -112,7 +113,8 @@ interface Court {
 interface Member {
   id: string; // UUID
   name: string;
-  level: SkillLevel; // 季打 / 零打
+  identity: MemberIdentity; // 會員身份 (社員/零打)
+  level?: MemberIdentity; // 向後相容舊欄位
   createdAt: number;
 }
 
@@ -129,11 +131,11 @@ interface CurrentUser {
 | `MAX_PLAYERS_PER_COURT` | 4   | 每場最多人數（雙打） |
 | `INITIAL_COURT_COUNT`   | 6   | 預設場地數量         |
 
-### 4.3 技能等級
+### 4.3 會員身份
 
 | Key            | 標籤 | 顏色系          |
 | -------------- | ---- | --------------- |
-| `beginner`     | 季打 | emerald（綠色） |
+| `beginner`     | 社員 | emerald（綠色） |
 | `intermediate` | 零打 | blue（藍色）    |
 
 ---
@@ -219,7 +221,7 @@ interface CurrentUser {
 
 | 功能         | 說明                          | 所在函式                                     | 權限         |
 | ------------ | ----------------------------- | -------------------------------------------- | ------------ |
-| 新增會員     | 輸入姓名、選擇等級後新增      | `createMember()`                             | admin        |
+| 新增會員     | 輸入姓名並新增（預設身份為零打） | `createMember()`                             | admin        |
 | CSV 批次匯入 | 上傳 .csv 檔案批量新增會員    | `parseCsvAndImport()`, `handleBatchImport()` | admin        |
 | 搜尋會員     | 關鍵字即時篩選                | `filteredMembers` (useMemo)                  | 全部         |
 | 報到         | 將會員加入今日球員（休息區）  | `checkInMember()`                            | admin / 本人 |
@@ -238,7 +240,6 @@ interface CurrentUser {
 | 上移/下移    | 在隊列中上下調整               | `moveQueueItemUp()`, `moveQueueItemDown()` | admin / 本人 |
 | 回休息區     | 從排隊移回休息區               | `removeFromQueue()`                        | admin / 本人 |
 | 全部回休息   | 批量清空排隊區                 | `restAllQueue()`                           | admin        |
-| 清空休息區   | 批量讓休息區球員離場           | `clearBench()`                             | admin        |
 | 早退         | 球員直接離場（回會員列表）     | `deletePlayer()`                           | admin / 本人 |
 | 自己優先顯示 | 登入球員名字自動排在休息區最前 | `filteredIdlePlayers` (useMemo)            | —            |
 
@@ -321,7 +322,7 @@ interface CurrentUser {
 | `App`              | `App.tsx`                     | 主元件，管理所有狀態與業務邏輯                                |
 | `CourtCard`        | `components/CourtCard.tsx`    | 單一場地卡片：顯示球員、計時、開賽/結束按鈕、拖放互動         |
 | `PlayerAvatar`     | `components/PlayerAvatar.tsx` | 球員頭像：根據名字 hash 分配固定顏色的圓點圖示                |
-| `LevelSelector`    | `App.tsx` 內                  | 技能等級切換按鈕（行內元件）                                  |
+| `MemberIdentity Badge` | 行內樣式                      | 顯示會員/球員的身份標籤（社員/零打）                          |
 | 登入畫面           | `App.tsx` 內                  | 角色選擇（團主 / 球員）與球員身分選擇搜尋                     |
 | Profile Dropdown   | `App.tsx` 內                  | 顯示當前登入身分，提供登出/切換功能，click-outside 自動關閉   |
 | 懸浮動作氣泡       | `App.tsx` / `CourtCard.tsx`   | 點選球員移動時，在球員卡片/欄位右上角懸浮顯示（休息/早退）    |
@@ -418,7 +419,7 @@ const getNextMatchBatch = (slots, players) => {
 | `badminton_courts`       | `Court[]` JSON     | courts 變更時      |
 | `badminton_members`      | `Member[]` JSON    | members 變更時     |
 
-> **Migration 機制**：從 localStorage 載入時，自動補上缺少的 `level` 欄位（預設 `'intermediate'`），確保向後相容。
+> **Migration 機制**：從 localStorage 或 Firestore 載入時，將 `level` 欄位映射至 `identity`（若皆無則預設 `'beginner'`），寫入時同時寫入 `identity` 與 `level` 欄位以確保向後相容。
 
 ---
 
@@ -446,7 +447,7 @@ npm run dev     # 啟動 dev server (port 3000)
 
 1. **型別優先**：新增資料欄位先更新 `types.ts`，確保型別安全
 2. **Migration**：若修改既有資料結構，須在 `useState` 初始化時加入 migration 邏輯
-3. **雙向同步**：修改球員等級時需同步 `players` 與 `members` 兩份狀態
+3. **雙向同步**：修改球員身份時需同步 `players` 與 `members` 兩份狀態
 4. **Slot 管理**：操作 `queueSlots` 後記得修剪 trailing nulls
 5. **確認對話**：破壞性操作（刪除、清空、結束比賽）務必調用 `showConfirm()` 或 `showAlert()`，以顯示全站統一的自訂 Promise-based 的 Dialog 模態對話框（統一為靛藍色系，移除了多餘的 redundant 標題文字）。針對刪除球團空間，須使用專屬的刪除確認 Modal (`isDeleteConfirmOpen`)，採用 GitHub 風格的防呆機制，要求輸入 `spaceId` 比對完全一致後方可解鎖刪除按鈕。
 6. **權限守衛**：新增任何可操作按鈕前，確認是否需要加 `currentUser?.role === 'admin'` 或 `canMovePlayer()` 判斷
@@ -523,23 +524,28 @@ npm run dev     # 啟動 dev server (port 3000)
   - **關閉狀態**：球員端卡片的大聲公按鈕會顯示為 `disabled` 禁用狀態（標示「語音播報已關閉」）。此時球員端的操作不會觸發任何語音，亦不會將語音訊號寫入雲端。
   - **狀態變更提示**：當團主切換此選項時，球員端會即時彈出對應的 Toast 提醒（如 `🔇 團主已關閉球員遠端播報功能` 或 `🔊 團主已啟用球員遠端播報功能`）。
 
-### 11.4 CSV 匯入格式
+### 11.4 批次匯入格式
+
+#### 11.4.1 從檔案匯入 (CSV)
+CSV 檔案必須包含 `Name` 與 `Identity` 兩個欄位（大小寫不限）：
 
 ```csv
-姓名,等級
-王小明,季打
+Name,Identity
+王小明,社員
 李大華,零打
 ```
 
-支援的欄位名稱：
+- **Identity** 欄位值僅能為 `社員` 或 `零打`（若留空或為其他值，預設為 `社員`）。
 
-- 姓名：`姓名` / `name` / `名稱`
-- 等級：`等級` / `狀態` / `level` / `技能`
+#### 11.4.2 從貼上文字匯入
+每行格式為 `姓名 身份`（用空格區分）：
 
-支援的等級值：
+```text
+Alfred 社員
+Mars 零打
+```
 
-- 零打 (intermediate)：`intermediate` / `一般` / `零打` / `中階` / `中级`
-- 季打 (beginner)：`beginner` / `初階` / `初级` / `季打`
+- **身份** 欄位值僅能為 `社員` 或 `零打`（若留空或為其他值，預設為 `社員`）。
 
 ---
 

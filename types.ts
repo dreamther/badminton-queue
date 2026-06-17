@@ -1,10 +1,9 @@
-
 export type PlayerStatus = 'idle' | 'queued' | 'playing';
 
-export type SkillLevel = 'beginner' | 'intermediate';
+export type MemberIdentity = 'beginner' | 'intermediate';
 
-export const SKILL_LEVELS: Record<SkillLevel, { label: string; color: string; bg: string; border: string }> = {
-  beginner: { label: '季打', color: 'text-emerald-400', bg: 'bg-transparent', border: 'border-emerald-500/20' },
+export const IDENTITIES: Record<MemberIdentity, { label: string; color: string; bg: string; border: string }> = {
+  beginner: { label: '社員', color: 'text-emerald-400', bg: 'bg-transparent', border: 'border-emerald-500/20' },
   intermediate: { label: '零打', color: 'text-blue-400', bg: 'bg-transparent', border: 'border-blue-500/20' },
 };
 
@@ -12,7 +11,8 @@ export interface Player {
   id: string;
   name: string;
   status: PlayerStatus;
-  level: SkillLevel; // Added level
+  identity: MemberIdentity; // Renamed from level
+  level?: MemberIdentity; // Keep level for backward compatibility
   joinedAt: number;
 }
 
@@ -33,7 +33,8 @@ export interface Court {
 export interface Member {
   id: string;
   name: string;
-  level: SkillLevel; // Added level
+  identity: MemberIdentity; // Renamed from level
+  level?: MemberIdentity; // Keep level for backward compatibility
   createdAt: number;
 }
 

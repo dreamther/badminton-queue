@@ -3,13 +3,13 @@ import {
   Users, Coffee, ArrowRight, Trash2, Trophy, Plus, Minus, 
   Volume2, VolumeX, X, Swords, UserCheck, Search, CheckCircle2, ChevronDown, 
   ChevronRight, Unlink, LogOut, UserX, Flame, 
-  Lock, UserPlus, Upload, Settings, MoreVertical, Power, Share2, 
+  Lock, UserPlus, Upload, Import as ImportIcon, Settings, MoreVertical, Power, Share2, 
   ArrowLeft, ExternalLink, Key, EyeOff, Shield, AlertTriangle, Info,
   Megaphone
 } from 'lucide-react';
 import { 
   Player, Court, Member, MAX_PLAYERS_PER_COURT, 
-  SkillLevel, SKILL_LEVELS, CurrentUser 
+  MemberIdentity, IDENTITIES, CurrentUser 
 } from './types';
 import { CourtCard } from './components/CourtCard';
 import { PlayerAvatar } from './components/PlayerAvatar';
@@ -86,6 +86,8 @@ export default function App() {
   const [isSpaceSettingsOpen, setIsSpaceSettingsOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false); // 刪除確認彈窗
   const [deleteInputId, setDeleteInputId] = useState(''); // 刪除確認輸入的值
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false); // 批次匯入彈窗
+  const [importText, setImportText] = useState(''); // 批次匯入貼上內容
 
   // --- 自訂對話框 (Alert / Confirm) State ---
   const [customDialog, setCustomDialog] = useState<{
@@ -210,7 +212,7 @@ export default function App() {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [memberSearchTerm, setMemberSearchTerm] = useState('');
   const [newMemberName, setNewMemberName] = useState('');
-  const [newMemberLevel, setNewMemberLevel] = useState<SkillLevel>('intermediate');
+  const [newMemberIdentity, setNewMemberIdentity] = useState<MemberIdentity>('intermediate');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [restAreaSearchTerm, setRestAreaSearchTerm] = useState('');
   const [isRestAreaSearchExpanded, setIsRestAreaSearchExpanded] = useState(false);
@@ -414,7 +416,13 @@ export default function App() {
             if (unsubSession) unsubSession();
             return;
           }
-          setPlayers(session.players || []);
+          // Map level to identity for backward compatibility
+          const mappedPlayers = (session.players || []).map((p: any) => ({
+            ...p,
+            identity: p.identity || p.level || 'beginner',
+            level: p.identity || p.level || 'beginner'
+          }));
+          setPlayers(mappedPlayers);
           setCourts(session.courts || []);
           setQueueSlots(session.queueSlots || []);
           setIsWarmupDone(session.isWarmupDone ?? false);
@@ -465,7 +473,13 @@ export default function App() {
             if (unsubMembers) unsubMembers();
             return;
           }
-          setMembers(list);
+          // Map level to identity for backward compatibility
+          const mappedMembers = list.map((m: any) => ({
+            ...m,
+            identity: m.identity || m.level || 'beginner',
+            level: m.identity || m.level || 'beginner'
+          }));
+          setMembers(mappedMembers);
           setIsMembersLoaded(true);
         });
 
@@ -992,15 +1006,6 @@ export default function App() {
     }
   }, [players, updateCloudSession, showConfirm]);
 
-  const clearBench = useCallback(async () => {
-    const idleCount = players.filter(p => p.status === 'idle').length;
-    if (idleCount === 0) return;
-
-    if (await showConfirm(`確定要讓休息區的 ${idleCount} 人全部離開球場嗎？\n他們將回到未報到狀態。`)) {
-      const updatedPlayers = players.filter(p => p.status !== 'idle');
-      updateCloudSession({ players: updatedPlayers });
-    }
-  }, [players, updateCloudSession, showConfirm]);
 
   const resetSession = useCallback(async () => {
     if (await showConfirm('確定要結束今日打球嗎？\n所有球員將會回到未報到狀態。')) {
@@ -1366,18 +1371,19 @@ export default function App() {
     const newMember: Member = {
       id: generateUUID(),
       name: name,
-      level: newMemberLevel,
+      identity: newMemberIdentity,
+      level: newMemberIdentity, // Keep level for backward compatibility
       createdAt: Date.now()
     };
 
     try {
       await addMember(spaceId, newMember);
       setNewMemberName('');
-      setNewMemberLevel('intermediate'); 
+      setNewMemberIdentity('intermediate'); 
     } catch (e) {
       await showAlert("新增會員失敗");
     }
-  }, [spaceId, members, newMemberLevel, showAlert]);
+  }, [spaceId, members, newMemberIdentity, showAlert]);
 
   const parseCsvAndImport = useCallback(async (csvText: string) => {
     if (!spaceId) return;
@@ -1388,14 +1394,19 @@ export default function App() {
         return;
       }
 
-      const headers = lines[0].split(',').map(h => h.trim());
-      const nameIndex = headers.findIndex(h => h === '姓名' || h === 'name' || h === '名稱');
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const nameIndex = headers.findIndex(h => h === 'name');
+      const identityIndex = headers.findIndex(h => h === 'identity');
+
       if (nameIndex === -1) {
-        await showAlert('CSV 格式錯誤：缺少「姓名」欄位');
+        await showAlert('CSV 格式錯誤：缺少「Name」欄位');
         return;
       }
 
-      const levelIndex = headers.findIndex(h => h === '等級' || h === '狀態' || h === 'level' || h === '技能');
+      if (identityIndex === -1) {
+        await showAlert('CSV 格式錯誤：缺少「Identity」欄位');
+        return;
+      }
 
       const newMembers: Member[] = [];
       const skippedNames: string[] = [];
@@ -1413,20 +1424,17 @@ export default function App() {
           continue;
         }
 
-        let level: SkillLevel = 'intermediate';
-        if (levelIndex !== -1 && values[levelIndex]) {
-          const levelValue = values[levelIndex].trim().toLowerCase();
-          if (['intermediate', '一般', '零打', '中階', '中级'].includes(levelValue)) {
-            level = 'intermediate';
-          } else if (['beginner', '初階', '初级', '季打'].includes(levelValue)) {
-            level = 'beginner';
-          }
+        let identity: MemberIdentity = 'beginner'; // 預設為社員 (beginner)
+        const identityValue = values[identityIndex];
+        if (identityValue && identityValue.trim() === '零打') {
+          identity = 'intermediate';
         }
 
         newMembers.push({
           id: generateUUID(),
           name,
-          level,
+          identity,
+          level: identity, // Keep level for backward compatibility
           createdAt: Date.now()
         });
       }
@@ -1440,8 +1448,58 @@ export default function App() {
         message += `\n跳過 ${skippedNames.length} 位重複會員：${skippedNames.join(', ')}`;
       }
       await showAlert(message);
+      setIsImportModalOpen(false); // 關閉對話框
     } catch (error) {
       await showAlert('CSV 檔案解析失敗，請確認檔案格式正確');
+    }
+  }, [spaceId, members, showAlert]);
+
+  const handleTextareaImport = useCallback(async (inputText: string) => {
+    if (!spaceId) return;
+    try {
+      const lines = inputText.split('\n').map(l => l.trim());
+      const newMembers: Member[] = [];
+      const skippedNames: string[] = [];
+
+      for (const line of lines) {
+        if (!line) continue;
+        const parts = line.split(/\s+/);
+        const name = parts[0];
+        if (!name) continue;
+
+        if (members.some(m => m.name === name) || newMembers.some(m => m.name === name)) {
+          skippedNames.push(name);
+          continue;
+        }
+
+        let identity: MemberIdentity = 'beginner'; // 預設為社員 (beginner)
+        const identityValue = parts[1];
+        if (identityValue && identityValue.trim() === '零打') {
+          identity = 'intermediate';
+        }
+
+        newMembers.push({
+          id: generateUUID(),
+          name,
+          identity,
+          level: identity, // Keep level for backward compatibility
+          createdAt: Date.now()
+        });
+      }
+
+      if (newMembers.length > 0) {
+        await addMembersBatch(spaceId, newMembers);
+      }
+
+      let message = `成功匯入 ${newMembers.length} 位會員`;
+      if (skippedNames.length > 0) {
+        message += `\n跳過 ${skippedNames.length} 位重複會員：${skippedNames.join(', ')}`;
+      }
+      await showAlert(message);
+      setImportText('');
+      setIsImportModalOpen(false);
+    } catch (error) {
+      await showAlert('批次匯入失敗，請檢查輸入格式');
     }
   }, [spaceId, members, showAlert]);
 
@@ -1518,7 +1576,8 @@ export default function App() {
       id: newId,
       name: member.name,
       status: 'idle',
-      level: member.level,
+      identity: member.identity,
+      level: member.identity, // Keep level for backward compatibility
       joinedAt: Date.now(),
     };
     
@@ -2841,7 +2900,7 @@ export default function App() {
                       <PlayerAvatar identifier={member.name} className="w-8 h-8 shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-semibold text-slate-200 group-hover:text-white truncate">{member.name}</div>
-                        <div className="text-xs text-slate-500">{SKILL_LEVELS[member.level].label}</div>
+                        <div className="text-xs text-slate-500">{IDENTITIES[member.identity].label}</div>
                       </div>
                     </button>
                   ))
@@ -3014,8 +3073,8 @@ export default function App() {
                   {player.name}
                 </span>
                 <span 
-                  title={SKILL_LEVELS[player.level].label} 
-                  className={`w-2 h-2 rounded-full shrink-0 ${SKILL_LEVELS[player.level].bg}`}
+                  title={IDENTITIES[player.identity].label} 
+                  className={`w-2 h-2 rounded-full shrink-0 ${IDENTITIES[player.identity].bg}`}
                 />
               </div>
             );
@@ -3600,6 +3659,18 @@ export default function App() {
                       會員列表 ({notCheckedInMembers.length})
                     </h2>
                     <div className="flex items-center gap-1 -mr-1.5">
+                      {currentUser?.role === 'admin' && (
+                        <button
+                          onClick={() => {
+                            setIsImportModalOpen(true);
+                          }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                          title="匯入會員名單"
+                        >
+                          <ImportIcon className="w-4 h-4" />
+                        </button>
+                      )}
+
                       <button
                         onClick={() => {
                           setIsSearchExpanded(!isSearchExpanded);
@@ -3613,68 +3684,6 @@ export default function App() {
                       >
                         <Search className="w-4 h-4" />
                       </button>
-
-                      {/* Settings Dropdown */}
-                      {currentUser?.role === 'admin' && (
-                        <div className="relative">
-                          <button
-                            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                            className={`p-1.5 rounded-lg transition-colors ${isSettingsOpen
-                              ? 'bg-slate-700 text-white'
-                              : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                              }`}
-                            title="更多操作與播報設定"
-                          >
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
-
-                          {isSettingsOpen && (
-                            <>
-                              <div className="fixed inset-0 z-40" onClick={() => setIsSettingsOpen(false)} />
-                              <div className="absolute right-0 top-full mt-2 w-60 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden animate-[fadeIn_0.2s_ease-out]">
-                                <div className="p-2">
-                                  
-                                  {/* CSV 匯入 */}
-                                  <button
-                                    onClick={() => {
-                                      fileInputRef.current?.click();
-                                      setIsSettingsOpen(false);
-                                    }}
-                                    className="w-full flex items-start gap-3 p-2 hover:bg-slate-800 rounded-md transition-colors text-left group"
-                                  >
-                                    <div className="p-1.5 bg-emerald-500/10 text-emerald-400 rounded-md group-hover:bg-emerald-500 group-hover:text-white transition-colors mt-0.5">
-                                      <Upload className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                      <div className="text-xs font-semibold text-slate-200 group-hover:text-white transition-colors">匯入名單 (.csv)</div>
-                                      <div className="text-[9px] text-slate-500 mt-0.5 leading-tight">格式: 姓名,等級(季打/零打)</div>
-                                    </div>
-                                  </button>
-
-                                  <div className="h-px bg-slate-800 my-1 mx-2" />
-
-                                  {/* 清空休息區 */}
-                                  <button
-                                    onClick={() => {
-                                      clearBench();
-                                      setIsSettingsOpen(false);
-                                    }}
-                                    className="w-full flex items-center gap-3 p-2 hover:bg-slate-800 rounded-md transition-colors text-left group text-red-400 hover:text-red-300"
-                                  >
-                                    <div className="p-1.5 bg-red-500/10 rounded-md group-hover:bg-red-500 group-hover:text-white transition-colors">
-                                      <UserX className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                      <div className="text-xs font-semibold">清空休息區</div>
-                                      <div className="text-[9px] text-slate-500 mt-0.5 leading-none">讓休息中球員全部早退</div>
-                                    </div>
-                                  </button>
-                                </div>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      )}
                     </div>
                   </div>
 
@@ -3750,8 +3759,8 @@ export default function App() {
                             <PlayerAvatar identifier={member.name} className="w-5.5 h-5.5 shrink-0 rounded-full" />
                             <span className="text-sm text-slate-300 font-medium truncate">{member.name}</span>
                             <div className="scale-90 origin-left">
-                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${SKILL_LEVELS[member.level].bg} ${SKILL_LEVELS[member.level].color} ${SKILL_LEVELS[member.level].border}`}>
-                                {SKILL_LEVELS[member.level].label}
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${IDENTITIES[member.identity].bg} ${IDENTITIES[member.identity].color} ${IDENTITIES[member.identity].border}`}>
+                                {IDENTITIES[member.identity].label}
                               </span>
                             </div>
                           </div>
@@ -4317,6 +4326,92 @@ export default function App() {
                 >
                   我同意，永久刪除
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 批次匯入會員名單彈窗 */}
+      {isImportModalOpen && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]">
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl max-w-md w-full shadow-2xl relative flex flex-col max-h-[90dvh]">
+            {/* 關閉按鈕 */}
+            <button
+              onClick={() => {
+                setIsImportModalOpen(false);
+                setImportText('');
+              }}
+              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-all"
+              title="關閉"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <h3 className="text-base font-bold text-white mb-4">批次匯入會員名單</h3>
+
+            <div className="flex-1 overflow-y-auto space-y-6 pr-1 font-sans">
+              {/* 方法一：從 CSV 檔案匯入 */}
+              <div className="space-y-2.5">
+                <h4 className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  方法一：上傳 CSV 檔案
+                </h4>
+                <div className="bg-slate-950/50 border border-slate-800/80 rounded-xl p-3.5 space-y-3">
+                  <div className="text-[11px] text-slate-400 space-y-1.5 leading-relaxed">
+                    <p className="font-semibold text-slate-350">檔案格式說明：</p>
+                    <p>1. CSV 檔案必須包含 <code className="text-emerald-400 font-mono">Name</code> 與 <code className="text-emerald-400 font-mono">Identity</code> 兩個欄位（大小寫皆可）。</p>
+                    <p>2. <code className="text-emerald-400 font-mono">Identity</code> 欄位值僅能填寫 <code className="text-slate-200">社員</code> 或 <code className="text-slate-200">零打</code>（若留空或填寫其他值，系統將自動預設為 <code className="text-slate-200">社員</code>）。</p>
+                    <p className="text-[10px] text-slate-500 border-t border-slate-900/60 pt-1.5 mt-1 flex items-start gap-1">
+                      <span>💡</span>
+                      <span>Excel 檔可於 Excel 點選「另存新檔」➔ 選擇格式為「CSV」即可匯入。</span>
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      fileInputRef.current?.click();
+                    }}
+                    className="w-full h-9 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <ImportIcon className="w-3.5 h-3.5" />
+                    選擇 CSV 檔案匯入
+                  </button>
+                </div>
+              </div>
+
+              {/* 方法二：複製貼上文字匯入 */}
+              <div className="space-y-2.5">
+                <h4 className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                  方法二：直接貼上名單
+                </h4>
+                <div className="space-y-2.5">
+                  <div className="text-[11px] text-slate-400 leading-relaxed">
+                    每行輸入一筆資料，格式為「<span className="text-indigo-400 font-semibold">姓名 身份</span>」（用空格分隔，身份可為「社員」或「零打」，空白或其他值將預設為「社員」）。
+                  </div>
+                  <div className="p-0.5">
+                    <div className="bg-slate-950 border border-slate-800 rounded-xl transition-all p-1 pb-1 focus-within:border-transparent focus-within:ring-2 focus-within:ring-indigo-500">
+                      <textarea
+                        placeholder="範例：&#10;Alfred 社員&#10;Mars 零打"
+                        value={importText}
+                        onChange={(e) => setImportText(e.target.value)}
+                        className="w-full h-28 bg-transparent border-0 outline-none resize-none text-xs text-slate-200 font-mono px-2 pt-2 pb-1 scrollbar-track-transparent"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (importText.trim()) {
+                        handleTextareaImport(importText);
+                      }
+                    }}
+                    disabled={!importText.trim()}
+                    className={`w-full h-9 text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5
+                      ${importText.trim() ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : 'bg-indigo-600/30 text-white/30 cursor-not-allowed'}`}
+                  >
+                    確定貼上匯入
+                  </button>
+                </div>
               </div>
             </div>
           </div>
