@@ -4,7 +4,7 @@ import {
   Volume2, VolumeX, X, Swords, UserCheck, Search, CheckCircle2, ChevronDown, 
   ChevronRight, Unlink, LogOut, UserX, Flame, 
   Lock, UserPlus, Upload, FileInput, Settings, MoreVertical, Power, Share2, 
-  ArrowLeft, ExternalLink, Key, EyeOff, Shield, AlertTriangle, Info,
+  ArrowLeft, ExternalLink, Key, EyeOff, Shield, AlertTriangle, Info, XCircle,
   Megaphone
 } from 'lucide-react';
 import { 
@@ -32,6 +32,96 @@ import {
   type SpaceMetadata,
   type SessionState
 } from './firebase';
+
+interface AddMemberBarProps {
+  onCreateMember: (name: string, identity: MemberIdentity) => Promise<void>;
+}
+
+const AddMemberBar: React.FC<AddMemberBarProps> = ({ onCreateMember }) => {
+  const [name, setName] = useState('');
+  const [identity, setIdentity] = useState<MemberIdentity>('beginner');
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleAdd = async () => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    await onCreateMember(trimmed, identity);
+    setName('');
+    setIdentity('beginner');
+  };
+
+  return (
+    <div className="flex items-center gap-2 h-10">
+      <div className="relative flex-1">
+        <input
+          type="text"
+          placeholder="新球員名稱"
+          maxLength={10}
+          className="w-full h-10 pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-slate-200 placeholder-slate-500"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleAdd();
+          }}
+        />
+        <UserPlus className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+      </div>
+
+      {/* 自訂下拉選單 */}
+      <div className="relative shrink-0" ref={dropdownRef}>
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className={`h-10 pl-3 pr-8 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-semibold flex items-center justify-between w-[88px] cursor-pointer hover:bg-slate-850/80 transition-colors relative
+            ${!name.trim() ? 'text-slate-500' : 'text-slate-200'}`}
+        >
+          <span>{IDENTITIES[identity].label}</span>
+          <ChevronDown className={`w-3.5 h-3.5 absolute right-2 pointer-events-none transition-colors ${!name.trim() ? 'text-slate-500' : 'text-slate-400'}`} />
+        </button>
+
+        {isOpen && (
+          <div className="absolute right-0 mt-1.5 w-28 bg-slate-900 border border-slate-800/80 rounded-lg shadow-xl py-1 z-20 animate-[fadeIn_0.15s_ease-out]">
+            {(['admin', 'beginner', 'intermediate'] as MemberIdentity[]).map((id) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  setIdentity(id);
+                  setIsOpen(false);
+                }}
+                className={`w-full text-left px-3 py-1.5 text-xs font-semibold hover:bg-slate-800 transition-colors flex items-center gap-1.5
+                  ${identity === id ? 'text-indigo-400 bg-slate-800/40' : 'text-slate-300'}`}
+              >
+                {IDENTITIES[id].label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <button
+        onClick={handleAdd}
+        disabled={!name.trim()}
+        className={`h-10 px-3 bg-indigo-600 text-white text-xs font-semibold rounded-lg transition-all shrink-0 flex items-center justify-center
+          ${!name.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-500'}`}
+      >
+        新增
+      </button>
+    </div>
+  );
+};
 
 type Tab = 'courts' | 'queue' | 'members';
 
@@ -93,6 +183,7 @@ export default function App() {
   const [customDialog, setCustomDialog] = useState<{
     isOpen: boolean;
     type: 'alert' | 'confirm';
+    variant?: 'success' | 'warning' | 'info' | 'error';
     message: string;
     title?: string;
     resolve?: (value: boolean) => void;
@@ -114,11 +205,12 @@ export default function App() {
     });
   }, []);
 
-  const showAlert = useCallback((message: string, title?: string): Promise<boolean> => {
+  const showAlert = useCallback((message: string, title?: string, variant: 'success' | 'warning' | 'info' | 'error' = 'warning'): Promise<boolean> => {
     return new Promise((resolve) => {
       setCustomDialog({
         isOpen: true,
         type: 'alert',
+        variant,
         message,
         title,
         resolve
@@ -211,8 +303,6 @@ export default function App() {
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [memberSearchTerm, setMemberSearchTerm] = useState('');
-  const [newMemberName, setNewMemberName] = useState('');
-  const [newMemberIdentity, setNewMemberIdentity] = useState<MemberIdentity>('intermediate');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [restAreaSearchTerm, setRestAreaSearchTerm] = useState('');
   const [isRestAreaSearchExpanded, setIsRestAreaSearchExpanded] = useState(false);
@@ -419,8 +509,7 @@ export default function App() {
           // Map level to identity for backward compatibility
           const mappedPlayers = (session.players || []).map((p: any) => ({
             ...p,
-            identity: p.identity || p.level || 'beginner',
-            level: p.identity || p.level || 'beginner'
+            identity: p.identity || p.level || 'beginner'
           }));
           setPlayers(mappedPlayers);
           setCourts(session.courts || []);
@@ -467,7 +556,7 @@ export default function App() {
           setSpaceError("加載賽局狀態失敗，請稍後重試。");
         });
 
-        // 2. 訂閱會員名冊
+        // 2. 訂閱球員名冊
         unsubMembers = subscribeToMembers(spaceId!, (list) => {
           if (isCancelled) {
             if (unsubMembers) unsubMembers();
@@ -476,8 +565,7 @@ export default function App() {
           // Map level to identity for backward compatibility
           const mappedMembers = list.map((m: any) => ({
             ...m,
-            identity: m.identity || m.level || 'beginner',
-            level: m.identity || m.level || 'beginner'
+            identity: m.identity || m.level || 'beginner'
           }));
           setMembers(mappedMembers);
           setIsMembersLoaded(true);
@@ -1355,35 +1443,32 @@ export default function App() {
   }, [courts, queueSlots, players, updateCloudSession]);
 
   // ==========================================
-  // 會員管理與報到 Action (寫入 Firestore / Mock)
+  // 球員管理與報到 Action (寫入 Firestore / Mock)
   // ==========================================
 
-  const createMember = useCallback(async (nameToAdd: string) => {
+  const createMember = useCallback(async (nameToAdd: string, identitySelected: MemberIdentity) => {
     if (!spaceId) return;
     const name = nameToAdd.trim();
     if (!name) return;
 
     if (members.some(m => m.name === name)) {
-      await showAlert('此會員已存在');
+      await showAlert('此球員已存在');
       return;
     }
 
     const newMember: Member = {
       id: generateUUID(),
       name: name,
-      identity: newMemberIdentity,
-      level: newMemberIdentity, // Keep level for backward compatibility
+      identity: identitySelected,
       createdAt: Date.now()
     };
 
     try {
       await addMember(spaceId, newMember);
-      setNewMemberName('');
-      setNewMemberIdentity('intermediate'); 
     } catch (e) {
-      await showAlert("新增會員失敗");
+      await showAlert("新增球員失敗");
     }
-  }, [spaceId, members, newMemberIdentity, showAlert]);
+  }, [spaceId, members, showAlert]);
 
   const parseCsvAndImport = useCallback(async (csvText: string) => {
     if (!spaceId) return;
@@ -1436,7 +1521,6 @@ export default function App() {
           id: generateUUID(),
           name,
           identity,
-          level: identity, // Keep level for backward compatibility
           createdAt: Date.now()
         });
       }
@@ -1445,11 +1529,11 @@ export default function App() {
         await addMembersBatch(spaceId, newMembers);
       }
 
-      let message = `成功匯入 ${newMembers.length} 位會員`;
+      let message = `成功匯入 ${newMembers.length} 位球員`;
       if (skippedNames.length > 0) {
-        message += `\n跳過 ${skippedNames.length} 位重複會員：${skippedNames.join(', ')}`;
+        message += `\n跳過 ${skippedNames.length} 位重複球員：${skippedNames.join(', ')}`;
       }
-      await showAlert(message);
+      await showAlert(message, undefined, 'success');
       setIsImportModalOpen(false); // 關閉對話框
     } catch (error) {
       await showAlert('CSV 檔案解析失敗，請確認檔案格式正確');
@@ -1486,7 +1570,6 @@ export default function App() {
           id: generateUUID(),
           name,
           identity,
-          level: identity, // Keep level for backward compatibility
           createdAt: Date.now()
         });
       }
@@ -1495,11 +1578,11 @@ export default function App() {
         await addMembersBatch(spaceId, newMembers);
       }
 
-      let message = `成功匯入 ${newMembers.length} 位會員`;
+      let message = `成功匯入 ${newMembers.length} 位球員`;
       if (skippedNames.length > 0) {
-        message += `\n跳過 ${skippedNames.length} 位重複會員：${skippedNames.join(', ')}`;
+        message += `\n跳過 ${skippedNames.length} 位重複球員：${skippedNames.join(', ')}`;
       }
-      await showAlert(message);
+      await showAlert(message, undefined, 'success');
       setImportText('');
       setIsImportModalOpen(false);
     } catch (error) {
@@ -1581,7 +1664,6 @@ export default function App() {
       name: member.name,
       status: 'idle',
       identity: member.identity,
-      level: member.identity, // Keep level for backward compatibility
       joinedAt: Date.now(),
     };
     
@@ -1680,11 +1762,11 @@ export default function App() {
 
   const removeMember = useCallback(async (memberId: string) => {
     if (!spaceId) return;
-    if (await showConfirm('確定要刪除此會員嗎？')) {
+    if (await showConfirm('確定要刪除此球員嗎？')) {
       try {
         await deleteMember(spaceId, memberId);
       } catch (e) {
-        await showAlert("刪除會員失敗");
+        await showAlert("刪除球員失敗");
       }
     }
   }, [spaceId, showConfirm, showAlert]);
@@ -2650,11 +2732,22 @@ export default function App() {
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl max-w-sm w-full shadow-2xl relative flex flex-col text-center">
               {/* 圖標 (Icon) */}
               <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 bg-indigo-500/10 text-indigo-400">
-                {customDialog.type === 'confirm' ? (
-                  <Info className="w-6 h-6 text-indigo-400" />
-                ) : (
-                  <AlertTriangle className="w-6 h-6 text-indigo-400" />
-                )}
+                {(() => {
+                  if (customDialog.type === 'confirm') {
+                    return <Info className="w-6 h-6" />;
+                  }
+                  const variant = customDialog.variant || 'warning';
+                  if (variant === 'success') {
+                    return <CheckCircle2 className="w-6 h-6" />;
+                  }
+                  if (variant === 'error') {
+                    return <XCircle className="w-6 h-6" />;
+                  }
+                  if (variant === 'info') {
+                    return <Info className="w-6 h-6" />;
+                  }
+                  return <AlertTriangle className="w-6 h-6" />;
+                })()}
               </div>
               {customDialog.title && (
                 <h3 className="text-base font-bold text-white mb-2">{customDialog.title}</h3>
@@ -2880,7 +2973,7 @@ export default function App() {
               <div className="max-h-60 overflow-y-auto scrollbar-gutter-stable space-y-2 pr-1">
                 {loginFilteredMembers.length === 0 ? (
                   <div className="text-center py-4 text-slate-500 text-sm">
-                    {loginSearchTerm ? '找不到符合的成員' : '目前尚無會員，請聯絡管理員新增'}
+                    {loginSearchTerm ? '找不到符合的球員' : '目前尚無球員，請聯絡管理員新增'}
                   </div>
                 ) : (
                   loginFilteredMembers.map(member => (
@@ -3496,7 +3589,7 @@ export default function App() {
                     {queueDisplayItems.length === 0 ? (
                       <div className="py-8 text-center border-2 border-dashed border-slate-800 rounded-xl text-slate-500 text-sm bg-slate-900/50">
                         目前沒有人在排隊
-                        <div className="text-xs mt-1 opacity-70">點擊下方「休息區」成員即可加入等待</div>
+                        <div className="text-xs mt-1 opacity-70">點擊下方「休息區」球員即可加入等待</div>
                       </div>
                     ) : (
                       chunkedQueueItems.map((chunk, chunkIdx) => {
@@ -3566,7 +3659,7 @@ export default function App() {
                                             </button>
                                           </div>
                                           <div
-                                            title="排隊成員"
+                                            title="排隊球員"
                                             className={`w-full h-full flex items-center justify-between px-2.5 py-1.5 rounded-[10px] transition-colors text-left min-w-0 border ${
                                               item.data.name === currentMemberName 
                                                 ? 'bg-slate-100/10 hover:bg-slate-100/20 border-slate-300/30 shadow-[0_0_10px_rgba(255,255,255,0.05)]' 
@@ -3590,7 +3683,7 @@ export default function App() {
                                                 ? 'border-emerald-500 bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/50'
                                                 : 'border-slate-800/50 text-slate-500'
                                           }`}
-                                          title={selectedPlayerForMove ? '點擊移動成員到此' : '空位'}
+                                          title={selectedPlayerForMove ? '點擊移動球員到此' : '空位'}
                                           onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; }}
                                           onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverSlotKey(`${chunkIdx}-${idx}`); }}
                                           onDragLeave={(e) => { e.stopPropagation(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverSlotKey(null); }}
@@ -3656,7 +3749,7 @@ export default function App() {
                 <div className="px-6 pt-4 pb-3 sticky top-0 bg-slate-950/95 backdrop-blur z-10 space-y-2">
                   <div className="flex items-center justify-between min-h-[32px]">
                     <h2 className="text-sm font-semibold text-slate-400">
-                      會員列表 ({notCheckedInMembers.length})
+                      球員列表 ({notCheckedInMembers.length})
                     </h2>
                     <div className="flex items-center gap-1 -mr-1.5">
                       {currentUser?.role === 'admin' && (
@@ -3665,7 +3758,7 @@ export default function App() {
                             setIsImportModalOpen(true);
                           }}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                          title="匯入會員名單"
+                          title="匯入球員名單"
                         >
                           <FileInput className="w-4 h-4" />
                         </button>
@@ -3680,7 +3773,7 @@ export default function App() {
                           ? 'bg-slate-700 text-white'
                           : 'text-slate-400 hover:text-white hover:bg-slate-800'
                           }`}
-                        title="搜尋會員"
+                        title="搜尋球員"
                       >
                         <Search className="w-4 h-4" />
                       </button>
@@ -3692,7 +3785,7 @@ export default function App() {
                       <div className="relative flex-1">
                         <input
                           type="text"
-                          placeholder="搜尋會員..."
+                          placeholder="搜尋球員..."
                           className="w-full h-10 pl-9 pr-10 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-slate-200"
                           value={memberSearchTerm}
                           onChange={e => setMemberSearchTerm(e.target.value)}
@@ -3711,30 +3804,7 @@ export default function App() {
                   )}
 
                   {currentUser?.role === 'admin' && (
-                    <div className="flex items-center gap-2 h-10">
-                      <div className="relative flex-1">
-                        <input
-                          type="text"
-                          placeholder="新會員姓名"
-                          maxLength={10}
-                          className="w-full h-10 pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-slate-200"
-                          value={newMemberName}
-                          onChange={e => setNewMemberName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && newMemberName) createMember(newMemberName);
-                          }}
-                        />
-                        <UserPlus className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                      </div>
-                      <button
-                        onClick={() => createMember(newMemberName)}
-                        disabled={!newMemberName.trim()}
-                        className={`h-10 px-3 bg-indigo-600 text-white text-xs font-semibold rounded-lg transition-all shrink-0 flex items-center justify-center
-                          ${!newMemberName.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-500'}`}
-                      >
-                        新增會員
-                      </button>
-                    </div>
+                    <AddMemberBar onCreateMember={createMember} />
                   )}
                 </div>
                 
@@ -3749,7 +3819,7 @@ export default function App() {
                 <div className="flex-1 px-6 py-2 space-y-2 bg-slate-950 overflow-y-auto">
                   {notCheckedInMembers.length === 0 ? (
                     <div className="text-center py-8 text-slate-600 text-sm">
-                      {memberSearchTerm ? '找不到符合的會員' : '尚未新增會員名單'}
+                      {memberSearchTerm ? '找不到符合的球員' : '尚未新增球員名單'}
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 gap-2">
@@ -3776,7 +3846,7 @@ export default function App() {
                               <button
                                 onClick={() => removeMember(member.id)}
                                 className="h-9 w-9 flex items-center justify-center text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                title="刪除此會員"
+                                title="刪除此球員"
                               >
                                 <X className="w-4 h-4" />
                               </button>
@@ -3945,11 +4015,22 @@ export default function App() {
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl max-w-sm w-full shadow-2xl relative flex flex-col text-center">
             {/* 圖標 (Icon) */}
             <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 bg-indigo-500/10 text-indigo-400">
-              {customDialog.type === 'confirm' ? (
-                <Info className="w-6 h-6 text-indigo-400" />
-              ) : (
-                <AlertTriangle className="w-6 h-6 text-indigo-400" />
-              )}
+              {(() => {
+                if (customDialog.type === 'confirm') {
+                  return <Info className="w-6 h-6" />;
+                }
+                const variant = customDialog.variant || 'warning';
+                if (variant === 'success') {
+                  return <CheckCircle2 className="w-6 h-6" />;
+                }
+                if (variant === 'error') {
+                  return <XCircle className="w-6 h-6" />;
+                }
+                if (variant === 'info') {
+                  return <Info className="w-6 h-6" />;
+                }
+                return <AlertTriangle className="w-6 h-6" />;
+              })()}
             </div>
 
             {customDialog.title && (
@@ -4286,7 +4367,7 @@ export default function App() {
             
             <p className="text-xs text-slate-300 bg-red-500/5 border border-red-500/15 p-3 rounded-xl text-left leading-relaxed mb-4">
               <span className="text-red-400 font-bold">⚠️ 警告：此操作無法復原！</span><br />
-              這將永久移除球團「{spaceMetadata?.name}」及其所有場地配置、排隊記錄與會員名冊。
+              這將永久移除球團「{spaceMetadata?.name}」及其所有場地配置、排隊記錄與球員名冊。
             </p>
 
             <div className="space-y-4 text-left">
@@ -4330,7 +4411,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 批次匯入會員名單彈窗 */}
+      {/* 批次匯入球員名單彈窗 */}
       {isImportModalOpen && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]">
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl max-w-md w-full shadow-2xl relative flex flex-col max-h-[90dvh]">
@@ -4346,7 +4427,7 @@ export default function App() {
               <X className="w-4 h-4" />
             </button>
 
-            <h3 className="text-base font-bold text-white mb-4">批次匯入會員名單</h3>
+            <h3 className="text-base font-bold text-white mb-4">批次匯入球員名單</h3>
 
             <div className="flex-1 overflow-y-auto space-y-6 pr-1 font-sans">
               {/* 方法一：從 CSV 檔案匯入 */}

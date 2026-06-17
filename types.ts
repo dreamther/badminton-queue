@@ -13,7 +13,6 @@ export interface Player {
   name: string;
   status: PlayerStatus;
   identity: MemberIdentity; // Renamed from level
-  level?: MemberIdentity; // Keep level for backward compatibility
   joinedAt: number;
 }
 
@@ -35,7 +34,6 @@ export interface Member {
   id: string;
   name: string;
   identity: MemberIdentity; // Renamed from level
-  level?: MemberIdentity; // Keep level for backward compatibility
   createdAt: number;
 }
 

@@ -23,24 +23,24 @@
 
 ## 1. 專案概述
 
-**羽球排隊助手 (BadmintonQueue)** 是一套專為羽球場設計的排隊管理系統，用於管理多面球場的球員輪替。系統支援會員管理、報到、排隊、自動語音唱名、熱身階段控制、以及角色權限控管（RBAC）等功能，適合社團或場館日常使用。
+**羽球排隊助手 (BadmintonQueue)** 是一套專為羽球場設計的排隊管理系統，用於管理多面球場的球員輪替。系統支援球員管理、報到、排隊、自動語音唱名、熱身階段控制、以及角色權限控管（RBAC）等功能，適合社團或場館日常使用。
 
 ### 核心價值
 
 - 公平排隊：按先後順序排隊，4 人一組自動配場
 - 即時管理：拖拉 / 點選操作，快速調整隊伍
 - 語音唱名：開賽時自動語音播報球員與場地
-- 會員持久化：透過 localStorage 保留會員與場地狀態
+- 球員持久化：透過 localStorage 保留球員與場地狀態
 - 角色區分：團主（admin）可全權管理；球員（player）只能操作自己
 
 ### 雲端多裝置同步與多租戶隔離機制
 
 本系統具備多人協作的即時雲端數據同步架構，支援多個裝置（如團主的筆電與多位球員的手機）同時在線上檢視與操作：
 
-- **Firebase Firestore 即時資料流**：利用 Firestore 的 WebSocket 長連線（`onSnapshot`）即時同步賽局狀態、會員名冊及空間元資料。當團主在後台開賽時，所有打球球員的手機皆能瞬間接收到更新，甚至同步啟動語音唱名。
+- **Firebase Firestore 即時資料流**：利用 Firestore 的 WebSocket 長連線（`onSnapshot`）即時同步賽局狀態、球員名冊及空間元資料。當團主在後台開賽時，所有打球球員的手機皆能瞬間接收到更新，甚至同步啟動語音唱名。
 - **多租戶隔離設計 (Namespace Partitioning)**：
   - 系統採用動態的「多租戶租用模式」。以瀏覽器網址的 Hash `#/space/{spaceId}` 作為租戶 Namespace 的區隔。
-  - 不同的球團在 Firestore 中擁有完全獨立且隔離的文檔路徑（主路徑為 `spaces/{spaceId}/`，賽局狀態為 `spaces/{spaceId}/state/session`，會員子集合為 `spaces/{spaceId}/members/`）。各自的成員、場地和排隊狀態完全互不干涉。
+  - 不同的球團在 Firestore 中擁有完全獨立且隔離的文檔路徑（主路徑為 `spaces/{spaceId}/`，賽局狀態為 `spaces/{spaceId}/state/session`，球員子集合為 `spaces/{spaceId}/members/`）。各自的球員、場地和排隊狀態完全互不干涉。
 - **降級備用機制 (Offline Fallback)**：當偵測到環境中未配置 Firebase 或連線失敗時，系統會自動無縫切換為本地「LocalStorage Mock 模式」，該模式依舊支援同台裝置跨頁面的即時同步，確保在離線或無雲端資源時系統仍可順暢運作。
 - **安全防護機制**：
   - 為了保障多租戶環境下的安全性，專案不將任何 Firebase 的敏感管理金鑰或憑證寫入本規格文檔。
@@ -99,7 +99,6 @@ interface Player {
   name: string; // 球員姓名
   status: PlayerStatus;
   identity: MemberIdentity; // 球員身份 (社員/零打)
-  level?: MemberIdentity; // 向後相容舊欄位
   joinedAt: number; // timestamp
 }
 
@@ -113,8 +112,7 @@ interface Court {
 interface Member {
   id: string; // UUID
   name: string;
-  identity: MemberIdentity; // 會員身份 (社員/零打)
-  level?: MemberIdentity; // 向後相容舊欄位
+  identity: MemberIdentity; // 球員身份 (社員/零打)
   createdAt: number;
 }
 
@@ -131,7 +129,7 @@ interface CurrentUser {
 | `MAX_PLAYERS_PER_COURT` | 4   | 每場最多人數（雙打） |
 | `INITIAL_COURT_COUNT`   | 6   | 預設場地數量         |
 
-### 4.3 會員身份
+### 4.3 球員身份
 
 | Key            | 標籤   | 顏色系          | 說明                     |
 | -------------- | ------ | --------------- | ------------------------ |
@@ -146,7 +144,7 @@ interface CurrentUser {
 ### 5.1 球員生命週期
 
 ```
-會員列表 (Member)
+球員列表 (Member)
    │
    │ [報到 checkIn] ── 團主可直接報到；球員只能報到自己
    ▼
@@ -206,7 +204,7 @@ interface CurrentUser {
    │
    ├─ [我是團主] ──→ role = 'admin'，直接進入系統（無需身分驗證）
    │
-   └─ [我是球員] ──→ 顯示會員列表（可搜尋）
+   └─ [我是球員] ──→ 顯示球員列表（可搜尋）
                       │
                       └─ 選擇自己名字 ──→ role = 'player'，memberId = 對應 Member.id
                                           自動觸發 checkInMember()
@@ -218,16 +216,16 @@ interface CurrentUser {
 
 ## 6. 功能清單
 
-### 6.1 會員管理（報到區 Tab）
+### 6.1 球員管理（報到區 Tab）
 
 | 功能         | 說明                          | 所在函式                                     | 權限         |
 | ------------ | ----------------------------- | -------------------------------------------- | ------------ |
-| 新增會員     | 輸入姓名並新增（預設身份為零打） | `createMember()`                             | admin        |
-| CSV 批次匯入 | 上傳 .csv 檔案批量新增會員    | `parseCsvAndImport()`, `handleBatchImport()` | admin        |
-| 搜尋會員     | 關鍵字即時篩選                | `filteredMembers` (useMemo)                  | 全部         |
-| 報到         | 將會員加入今日球員（休息區）  | `checkInMember()`                            | admin / 本人 |
-| 刪除會員     | 從會員列表永久移除            | `removeMember()`                             | admin        |
-| 名單重置     | 清空尚未報到的會員            | Settings dropdown                            | admin        |
+| 新增球員     | 輸入姓名、選擇身份後新增      | `createMember()`                             | admin        |
+| CSV 批次匯入 | 上傳 .csv 檔案批量新增球員    | `parseCsvAndImport()`, `handleBatchImport()` | admin        |
+| 搜尋球員     | 關鍵字即時篩選                | `filteredMembers` (useMemo)                  | 全部         |
+| 報到         | 將球員加入今日球員（休息區）  | `checkInMember()`                            | admin / 本人 |
+| 刪除球員     | 從球員列表永久移除            | `removeMember()`                             | admin        |
+| 名單重置     | 清空尚未報到的球員            | Settings dropdown                            | admin        |
 
 > **注意**：球員 role 僅能看到「排隊區」Tab，報到區對球員隱藏。
 
@@ -241,7 +239,7 @@ interface CurrentUser {
 | 上移/下移    | 在隊列中上下調整               | `moveQueueItemUp()`, `moveQueueItemDown()` | admin / 本人 |
 | 回休息區     | 從排隊移回休息區               | `removeFromQueue()`                        | admin / 本人 |
 | 全部回休息   | 批量清空排隊區                 | `restAllQueue()`                           | admin        |
-| 早退         | 球員直接離場（回會員列表）     | `deletePlayer()`                           | admin / 本人 |
+| 早退         | 球員直接離場（回球員列表）     | `deletePlayer()`                           | admin / 本人 |
 | 自己優先顯示 | 登入球員名字自動排在休息區最前 | `filteredIdlePlayers` (useMemo)            | —            |
 
 ### 6.3 場地管理（主區域）
@@ -264,7 +262,7 @@ interface CurrentUser {
 | 功能            | 說明                                                      | 所在函式                        | 權限  |
 | --------------- | --------------------------------------------------------- | ------------------------------- | ----- |
 | 熱身開關        | 控制是否為熱身階段                                        | `handleWarmupToggle()`          | admin |
-| 打球結束        | 一鍵清空所有活動球員（回會員列表）                        | `resetSession()`                | admin |
+| 打球結束        | 一鍵清空所有活動球員（回球員列表）                        | `resetSession()`                | admin |
 | 行動裝置 Tab    | 行動裝置使用底部 Tab 切換畫面（報到/排隊/場地）           | `activeTab`                     | 全部  |
 | 休息區面板      | 使用懸浮按鈕 (FAB) 開啟底部抽屜 (Bottom Sheet) 顯示休息區 | `isRestAreaOpen`                | 全部  |
 | 懸浮動作氣泡    | 點選球員移動時，在該球員右上角顯示操作按鈕（休息/早退）   | `selectedPlayerForMove`         | 全部  |
@@ -323,7 +321,7 @@ interface CurrentUser {
 | `App`              | `App.tsx`                     | 主元件，管理所有狀態與業務邏輯                                |
 | `CourtCard`        | `components/CourtCard.tsx`    | 單一場地卡片：顯示球員、計時、開賽/結束按鈕、拖放互動         |
 | `PlayerAvatar`     | `components/PlayerAvatar.tsx` | 球員頭像：根據名字 hash 分配固定顏色的圓點圖示                |
-| `MemberIdentity Badge` | 行內樣式                      | 顯示會員/球員的身份標籤（社員/零打）                          |
+| `MemberIdentity Badge` | 行內樣式                      | 顯示球員/球員的身份標籤（社員/零打）                          |
 | 登入畫面           | `App.tsx` 內                  | 角色選擇（團主 / 球員）與球員身分選擇搜尋                     |
 | Profile Dropdown   | `App.tsx` 內                  | 顯示當前登入身分，提供登出/切換功能，click-outside 自動關閉   |
 | 懸浮動作氣泡       | `App.tsx` / `CourtCard.tsx`   | 點選球員移動時，在球員卡片/欄位右上角懸浮顯示（休息/早退）    |
@@ -358,7 +356,7 @@ interface CurrentUser {
 | `currentUser`           | `CurrentUser \| null`              | 當前登入者（角色+memberId）                 | ✅ localStorage |
 | `players`               | `Player[]`                         | 今日所有活動球員                            | ✅ localStorage |
 | `courts`                | `Court[]`                          | 所有場地                                    | ✅ localStorage |
-| `members`               | `Member[]`                         | 會員名冊                                    | ✅ localStorage |
+| `members`               | `Member[]`                         | 球員名冊                                    | ✅ localStorage |
 | `queueSlots`            | `(string \| null)[]`               | 排隊順序（slot-based，null=空位）           | ❌              |
 | `isWarmupDone`          | `boolean`                          | 熱身是否結束                                | ❌              |
 | `activeTab`             | `'courts' \| 'queue' \| 'members'` | 主畫面 Tab 切換（支援行動版及桌面版側邊欄） | ❌              |
@@ -377,8 +375,8 @@ interface CurrentUser {
 | `filteredIdlePlayers`                      | 休息區搜尋篩選結果（登入者自動排最前） |
 | `nextMatchPlayers`                         | 下一場球員（第一個完整 4 人組）        |
 | `isQueueReady`                             | 是否已有完整 4 人可開賽                |
-| `filteredMembers`                          | 會員搜尋篩選結果                       |
-| `checkedInMembers` / `notCheckedInMembers` | 已報到 / 未報到會員分組                |
+| `filteredMembers`                          | 球員搜尋篩選結果                       |
+| `checkedInMembers` / `notCheckedInMembers` | 已報到 / 未報到球員分組                |
 | `queueDisplayItems`                        | 排隊區 UI 顯示資料（含空位）           |
 | `chunkedQueueItems`                        | 每 4 人一組的排隊顯示                  |
 | `idleCourtsCount`                          | 空閒場地數                             |
@@ -420,7 +418,7 @@ const getNextMatchBatch = (slots, players) => {
 | `badminton_courts`       | `Court[]` JSON     | courts 變更時      |
 | `badminton_members`      | `Member[]` JSON    | members 變更時     |
 
-> **Migration 機制**：從 localStorage 或 Firestore 載入時，將 `level` 欄位映射至 `identity`（若皆無則預設 `'beginner'`），寫入時同時寫入 `identity` 與 `level` 欄位以確保向後相容。
+> **Migration 機制**：從 localStorage 或 Firestore 載入時，將 `level` 舊欄位映射至 `identity`（若皆無則預設 `'beginner'`）以確保向後相容。寫入時只會寫入 `identity` 新欄位，不再寫入/同步 `level`。
 
 ---
 
@@ -560,7 +558,7 @@ stateDiagram-v2
     LoginScreen --> PlayerSession: 選擇「我是球員」+ 選名字
 
     state AdminSession {
-        [*] --> Member: 新增會員
+        [*] --> Member: 新增球員
         Member --> Idle_Player: 報到 (checkIn)
         Idle_Player --> Queued_Player: 加入排隊 (joinQueue)
         Queued_Player --> Playing_Player: 開賽 (startMatch)

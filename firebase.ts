@@ -365,12 +365,12 @@ export async function updateSession(spaceId: string, updates: Partial<SessionSta
 }
 
 // ==========================================
-// 會員名冊 (Members Collection) 操作
+// 球員名冊 (Members Collection) 操作
 // ==========================================
 
 /**
- * 訂閱會員清單變動 (Real-time Members Sync)
- * 由於會員名單變動頻率低，使用低頻同步或在有變更時通知
+ * 訂閱球員清單變動 (Real-time Members Sync)
+ * 由於球員名單變動頻率低，使用低頻同步或在有變更時通知
  */
 export function subscribeToMembers(
   spaceId: string,
@@ -380,7 +380,7 @@ export function subscribeToMembers(
 
   if (isFirebaseEnabled && db) {
     const membersColRef = collection(db, 'spaces', cleanId, 'members');
-    // 會員按時間降序排列
+    // 球員按時間降序排列
     const q = query(membersColRef, orderBy('createdAt', 'desc'));
     return onSnapshot(q, (snap) => {
       const list: Member[] = [];
@@ -389,7 +389,7 @@ export function subscribeToMembers(
       });
       onUpdate(list);
     }, (err) => {
-      console.error("訂閱會員名冊出錯:", err);
+      console.error("訂閱球員名冊出錯:", err);
     });
   } else {
     // Mock 模式
@@ -421,7 +421,7 @@ export function subscribeToMembers(
 }
 
 /**
- * 新增會員
+ * 新增球員
  */
 export async function addMember(spaceId: string, member: Member): Promise<void> {
   const cleanId = spaceId.trim().toLowerCase();
@@ -439,7 +439,7 @@ export async function addMember(spaceId: string, member: Member): Promise<void> 
 }
 
 /**
- * 批次新增會員 (例如 CSV 匯入)
+ * 批次新增球員 (例如 CSV 匯入)
  */
 export async function addMembersBatch(spaceId: string, newMembers: Member[]): Promise<void> {
   const cleanId = spaceId.trim().toLowerCase();
@@ -463,7 +463,7 @@ export async function addMembersBatch(spaceId: string, newMembers: Member[]): Pr
 }
 
 /**
- * 更新會員身份
+ * 更新球員身份
  */
 export async function updateMember(spaceId: string, memberId: string, updates: Partial<Member>): Promise<void> {
   const cleanId = spaceId.trim().toLowerCase();
@@ -481,7 +481,7 @@ export async function updateMember(spaceId: string, memberId: string, updates: P
 }
 
 /**
- * 刪除會員
+ * 刪除球員
  */
 export async function deleteMember(spaceId: string, memberId: string): Promise<void> {
   const cleanId = spaceId.trim().toLowerCase();
