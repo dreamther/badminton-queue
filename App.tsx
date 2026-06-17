@@ -5,7 +5,7 @@ import {
   ChevronRight, Unlink, LogOut, UserX, Flame, 
   Lock, UserPlus, Upload, FileInput, Settings, MoreVertical, Power, Share2, 
   ArrowLeft, ExternalLink, Key, EyeOff, Shield, AlertTriangle, Info, XCircle,
-  Megaphone, ArrowUpDown, Check
+  Megaphone, ArrowUpDown, Check, ListOrdered
 } from 'lucide-react';
 import { 
   Player, Court, Member, MAX_PLAYERS_PER_COURT, 
@@ -3514,7 +3514,7 @@ export default function App() {
                 : 'text-slate-500 hover:text-slate-300'
                 }`}
             >
-              <Users className="w-4 h-4" />
+              <UserCheck className="w-4 h-4" />
               報到區
             </button>
           )}
@@ -3525,7 +3525,7 @@ export default function App() {
               : 'text-slate-500 hover:text-slate-300'
               }`}
           >
-            <Swords className="w-4 h-4" />
+            <ListOrdered className="w-4 h-4" />
             排隊區
           </button>
           <button
@@ -3535,7 +3535,7 @@ export default function App() {
               : 'text-slate-500 hover:text-slate-300'
               }`}
           >
-            <Trophy className="w-4 h-4" />
+            <Swords className="w-4 h-4" />
             場地區
           </button>
 
@@ -3570,7 +3570,7 @@ export default function App() {
                     : 'text-slate-500 hover:text-slate-300'
                     }`}
                 >
-                  <Users className="w-4 h-4" />
+                  <UserCheck className="w-4 h-4" />
                   報到區
                 </button>
               )}
@@ -3581,7 +3581,7 @@ export default function App() {
                   : 'text-slate-500 hover:text-slate-300'
                   }`}
               >
-                <Swords className="w-4 h-4" />
+                <ListOrdered className="w-4 h-4" />
                 排隊區
               </button>
 
