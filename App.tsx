@@ -3826,7 +3826,7 @@ export default function App() {
                         <div key={member.id} className="group flex items-center justify-between py-2 rounded-lg border border-transparent">
                           <div className="flex items-center gap-2.5 min-w-0 pl-1.5">
                             <PlayerAvatar identifier={member.name} identity={member.identity} className="w-5.5 h-5.5 shrink-0 rounded-full" />
-                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold shrink-0 ${IDENTITIES[member.identity].bg} ${IDENTITIES[member.identity].color}`}>
+                            <span className={`inline-flex items-center justify-center w-[50px] py-0.5 rounded-md text-[10px] font-bold shrink-0 ${IDENTITIES[member.identity].bg} ${IDENTITIES[member.identity].color}`}>
                               {IDENTITIES[member.identity].label}
                             </span>
                             <span className="text-sm text-slate-300 font-medium truncate">{member.name}</span>
