@@ -5,7 +5,7 @@ import {
   ChevronRight, Unlink, LogOut, UserX, Flame, 
   Lock, UserPlus, Upload, FileInput, Settings, MoreVertical, Power, Share2, 
   ArrowLeft, ExternalLink, Key, EyeOff, Shield, AlertTriangle, Info, XCircle,
-  Megaphone
+  Megaphone, ArrowUpDown, Check
 } from 'lucide-react';
 import { 
   Player, Court, Member, MAX_PLAYERS_PER_COURT, 
@@ -302,6 +302,8 @@ export default function App() {
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [memberSearchTerm, setMemberSearchTerm] = useState('');
+  const [memberSortKey, setMemberSortKey] = useState<'newest' | 'oldest' | 'alphabetical' | 'identity'>('newest');
+  const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [restAreaSearchTerm, setRestAreaSearchTerm] = useState('');
   const [isRestAreaSearchExpanded, setIsRestAreaSearchExpanded] = useState(false);
@@ -311,6 +313,7 @@ export default function App() {
 
   // Refs
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const sortMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isSessionLoadedRef = useRef<boolean>(false);
   const isCreatingSpaceRef = useRef<boolean>(false);
@@ -621,6 +624,19 @@ export default function App() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isProfileMenuOpen]);
 
+  // --- Sort Menu Click-Outside ---
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sortMenuRef.current && !sortMenuRef.current.contains(event.target as Node)) {
+        setIsSortMenuOpen(false);
+      }
+    };
+    if (isSortMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isSortMenuOpen]);
+
   // --- 初始化空間設定編輯狀態 ---
   useEffect(() => {
     if (isSpaceSettingsOpen && spaceMetadata) {
@@ -842,11 +858,39 @@ export default function App() {
 
   const filteredMembers = useMemo(() => {
     const term = memberSearchTerm.toLowerCase().trim();
-    if (!term) return members.slice().sort((a, b) => b.createdAt - a.createdAt);
-    return members
-      .filter(m => m.name.toLowerCase().includes(term))
-      .sort((a, b) => b.createdAt - a.createdAt);
-  }, [members, memberSearchTerm]);
+    let result = members.slice();
+    if (term) {
+      result = result.filter(m => m.name.toLowerCase().includes(term));
+    }
+
+    if (memberSortKey === 'newest') {
+      result.sort((a, b) => b.createdAt - a.createdAt);
+    } else if (memberSortKey === 'oldest') {
+      result.sort((a, b) => a.createdAt - b.createdAt);
+    } else if (memberSortKey === 'alphabetical') {
+      result.sort((a, b) => {
+        const isEnglish = (str: string) => /^[A-Za-z]/.test(str);
+        const aIsEng = isEnglish(a.name);
+        const bIsEng = isEnglish(b.name);
+        if (aIsEng && !bIsEng) return -1;
+        if (!aIsEng && bIsEng) return 1;
+        return a.name.localeCompare(b.name, 'zh-hant');
+      });
+    } else if (memberSortKey === 'identity') {
+      const priority: Record<MemberIdentity, number> = {
+        admin: 1,
+        beginner: 2,
+        intermediate: 3
+      };
+      result.sort((a, b) => {
+        const diff = priority[a.identity] - priority[b.identity];
+        if (diff !== 0) return diff;
+        return b.createdAt - a.createdAt;
+      });
+    }
+
+    return result;
+  }, [members, memberSearchTerm, memberSortKey]);
 
   const { notCheckedInMembers } = useMemo(() => {
     const activeNames = new Set(players.map(p => p.name));
@@ -3762,6 +3806,47 @@ export default function App() {
                           <FileInput className="w-4 h-4" />
                         </button>
                       )}
+
+                      {/* 排序選單 */}
+                      <div className="relative" ref={sortMenuRef}>
+                        <button
+                          onClick={() => setIsSortMenuOpen(!isSortMenuOpen)}
+                          className={`p-1.5 rounded-lg transition-colors ${isSortMenuOpen
+                            ? 'bg-slate-800 text-white'
+                            : memberSortKey !== 'newest'
+                              ? 'text-indigo-400 hover:text-indigo-350 hover:bg-slate-800'
+                              : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                            }`}
+                          title="排序球員名單"
+                        >
+                          <ArrowUpDown className="w-4 h-4" />
+                        </button>
+
+                        {isSortMenuOpen && (
+                          <div className="absolute right-0 mt-1.5 w-40 bg-slate-900 border border-slate-800/80 rounded-lg shadow-xl py-1 z-20 animate-[fadeIn_0.15s_ease-out]">
+                            {[
+                              { key: 'newest', label: '最新加入' },
+                              { key: 'oldest', label: '最早加入' },
+                              { key: 'alphabetical', label: 'A-Z 順序' },
+                              { key: 'identity', label: '按身份排序' }
+                            ].map((opt) => (
+                              <button
+                                key={opt.key}
+                                type="button"
+                                onClick={() => {
+                                  setMemberSortKey(opt.key as any);
+                                  setIsSortMenuOpen(false);
+                                }}
+                                className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-800 hover:text-white transition-colors flex items-center justify-between
+                                  ${memberSortKey === opt.key ? 'text-indigo-400 font-medium bg-slate-800/40' : 'text-slate-300'}`}
+                              >
+                                <span>{opt.label}</span>
+                                {memberSortKey === opt.key && <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0 ml-1.5" />}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
 
                       <button
                         onClick={() => {
