@@ -489,7 +489,7 @@ export default function App() {
               // 僅在當前非管理員身分時，才進行自動還原與顯示提示
               setCurrentUser(savedUser);
               setIsAutoAnnounce(false); // 避免聲音通道被鎖定，預設先關閉，由用戶點擊按鈕啟用
-              showToast("📢 已自動還原團主身分，若要播報請點擊語音按鈕");
+              showToast("📢 已還原團主身分，若要播報請點擊語音按鈕");
             }
           } else if (currentUserRef.current?.role !== 'player' || currentUserRef.current?.memberId !== savedUser.memberId) {
             // 僅在當前非對應球員身分時，才自動還原
