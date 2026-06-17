@@ -91,7 +91,7 @@ badminton-queue/
 
 ```typescript
 type PlayerStatus = "idle" | "queued" | "playing";
-type MemberIdentity = "beginner" | "intermediate";
+type MemberIdentity = "admin" | "beginner" | "intermediate";
 type UserRole = "admin" | "player";
 
 interface Player {
@@ -133,10 +133,11 @@ interface CurrentUser {
 
 ### 4.3 會員身份
 
-| Key            | 標籤 | 顏色系          |
-| -------------- | ---- | --------------- |
-| `beginner`     | 社員 | emerald（綠色） |
-| `intermediate` | 零打 | blue（藍色）    |
+| Key            | 標籤   | 顏色系          | 說明                     |
+| -------------- | ------ | --------------- | ------------------------ |
+| `admin`        | 管理員 | rose（玫瑰色）  | 最顯眼                   |
+| `beginner`     | 社員   | blue（藍色）   | 一般色（預設，最多人）   |
+| `intermediate` | 零打   | violet（藍紫色）| 最不顯眼（不常出現）     |
 
 ---
 

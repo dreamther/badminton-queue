@@ -290,7 +290,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
                                 {player ? (
                                     <>
                                         <div className="flex items-center flex-1 min-w-0">
-                                            <PlayerAvatar identifier={player.name} className="w-2.5 h-2.5 mr-1 shrink-0" />
+                                            <PlayerAvatar identifier={player.name} identity={player.identity} className="w-2.5 h-2.5 mr-1 shrink-0" />
                                             <span className={`truncate ${player.name === currentMemberName ? 'text-white font-bold pl-0.5' : 'font-medium'}`}>{player.name}</span>
                                         </div>
                                     </>

@@ -3,7 +3,7 @@ import {
   Users, Coffee, ArrowRight, Trash2, Trophy, Plus, Minus, 
   Volume2, VolumeX, X, Swords, UserCheck, Search, CheckCircle2, ChevronDown, 
   ChevronRight, Unlink, LogOut, UserX, Flame, 
-  Lock, UserPlus, Upload, Import as ImportIcon, Settings, MoreVertical, Power, Share2, 
+  Lock, UserPlus, Upload, FileInput, Settings, MoreVertical, Power, Share2, 
   ArrowLeft, ExternalLink, Key, EyeOff, Shield, AlertTriangle, Info,
   Megaphone
 } from 'lucide-react';
@@ -1425,9 +1425,11 @@ export default function App() {
         }
 
         let identity: MemberIdentity = 'beginner'; // 預設為社員 (beginner)
-        const identityValue = values[identityIndex];
-        if (identityValue && identityValue.trim() === '零打') {
+        const identityValue = values[identityIndex]?.trim();
+        if (identityValue === '零打') {
           identity = 'intermediate';
+        } else if (identityValue === '管理員') {
+          identity = 'admin';
         }
 
         newMembers.push({
@@ -1473,9 +1475,11 @@ export default function App() {
         }
 
         let identity: MemberIdentity = 'beginner'; // 預設為社員 (beginner)
-        const identityValue = parts[1];
-        if (identityValue && identityValue.trim() === '零打') {
+        const identityValue = parts[1]?.trim();
+        if (identityValue === '零打') {
           identity = 'intermediate';
+        } else if (identityValue === '管理員') {
+          identity = 'admin';
         }
 
         newMembers.push({
@@ -2897,10 +2901,10 @@ export default function App() {
                       }}
                       className="w-full flex items-center gap-3 p-3 bg-slate-950/50 hover:bg-slate-800 border border-slate-800 rounded-lg transition-colors text-left group"
                     >
-                      <PlayerAvatar identifier={member.name} className="w-8 h-8 shrink-0" />
+                      <PlayerAvatar identifier={member.name} identity={member.identity} className="w-8 h-8 shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-semibold text-slate-200 group-hover:text-white truncate">{member.name}</div>
-                        <div className="text-xs text-slate-500">{IDENTITIES[member.identity].label}</div>
+                        <div className={`text-xs ${IDENTITIES[member.identity].color}`}>{IDENTITIES[member.identity].label}</div>
                       </div>
                     </button>
                   ))
@@ -3068,14 +3072,10 @@ export default function App() {
                   </button>
                 </div>
                 {isSelf && <span className="border-beam-container"></span>}
-                <PlayerAvatar identifier={player.name} className="w-5 h-5 shrink-0" />
+                <PlayerAvatar identifier={player.name} identity={player.identity} className="w-5 h-5 shrink-0" />
                 <span className={`text-xs whitespace-nowrap ${isSelf ? 'text-white font-semibold' : 'text-slate-300'}`}>
                   {player.name}
                 </span>
-                <span 
-                  title={IDENTITIES[player.identity].label} 
-                  className={`w-2 h-2 rounded-full shrink-0 ${IDENTITIES[player.identity].bg}`}
-                />
               </div>
             );
           })
@@ -3574,7 +3574,7 @@ export default function App() {
                                             }`}
                                           >
                                             <span className={`flex items-center gap-1.5 text-sm min-w-0 ${item.data.name === currentMemberName ? 'text-white font-bold' : 'text-slate-300 font-medium'}`}>
-                                              <PlayerAvatar identifier={item.data.name} className="w-2.5 h-2.5 shrink-0" />
+                                              <PlayerAvatar identifier={item.data.name} identity={item.data.identity} className="w-2.5 h-2.5 shrink-0" />
                                               <span className="truncate">{item.data.name}</span>
                                             </span>
 
@@ -3667,7 +3667,7 @@ export default function App() {
                           className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
                           title="匯入會員名單"
                         >
-                          <ImportIcon className="w-4 h-4" />
+                          <FileInput className="w-4 h-4" />
                         </button>
                       )}
 
@@ -3755,14 +3755,12 @@ export default function App() {
                     <div className="grid grid-cols-1 gap-2">
                       {notCheckedInMembers.map(member => (
                         <div key={member.id} className="group flex items-center justify-between py-2 rounded-lg border border-transparent">
-                          <div className="flex items-center gap-2 min-w-0 pl-1.5">
-                            <PlayerAvatar identifier={member.name} className="w-5.5 h-5.5 shrink-0 rounded-full" />
+                          <div className="flex items-center gap-2.5 min-w-0 pl-1.5">
+                            <PlayerAvatar identifier={member.name} identity={member.identity} className="w-5.5 h-5.5 shrink-0 rounded-full" />
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold shrink-0 ${IDENTITIES[member.identity].bg} ${IDENTITIES[member.identity].color}`}>
+                              {IDENTITIES[member.identity].label}
+                            </span>
                             <span className="text-sm text-slate-300 font-medium truncate">{member.name}</span>
-                            <div className="scale-90 origin-left">
-                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${IDENTITIES[member.identity].bg} ${IDENTITIES[member.identity].color} ${IDENTITIES[member.identity].border}`}>
-                                {IDENTITIES[member.identity].label}
-                              </span>
-                            </div>
                           </div>
                           
                           <div className="flex items-center justify-end gap-1.5 shrink-0">
@@ -4361,7 +4359,7 @@ export default function App() {
                   <div className="text-[11px] text-slate-400 space-y-1.5 leading-relaxed">
                     <p className="font-semibold text-slate-350">檔案格式說明：</p>
                     <p>1. CSV 檔案必須包含 <code className="text-emerald-400 font-mono">Name</code> 與 <code className="text-emerald-400 font-mono">Identity</code> 兩個欄位（大小寫皆可）。</p>
-                    <p>2. <code className="text-emerald-400 font-mono">Identity</code> 欄位值僅能填寫 <code className="text-slate-200">社員</code> 或 <code className="text-slate-200">零打</code>（若留空或填寫其他值，系統將自動預設為 <code className="text-slate-200">社員</code>）。</p>
+                    <p>2. <code className="text-emerald-400 font-mono">Identity</code> 欄位值可為 <code className="text-slate-200">管理員</code>、<code className="text-slate-200">社員</code> 或 <code className="text-slate-200">零打</code>（若留空或填寫其他值，系統將自動預設為 <code className="text-slate-200">社員</code>）。</p>
                     <p className="text-[10px] text-slate-500 border-t border-slate-900/60 pt-1.5 mt-1 flex items-start gap-1">
                       <span>💡</span>
                       <span>Excel 檔可於 Excel 點選「另存新檔」➔ 選擇格式為「CSV」即可匯入。</span>
@@ -4373,7 +4371,7 @@ export default function App() {
                     }}
                     className="w-full h-9 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5"
                   >
-                    <ImportIcon className="w-3.5 h-3.5" />
+                    <FileInput className="w-3.5 h-3.5" />
                     選擇 CSV 檔案匯入
                   </button>
                 </div>
@@ -4387,12 +4385,12 @@ export default function App() {
                 </h4>
                 <div className="space-y-2.5">
                   <div className="text-[11px] text-slate-400 leading-relaxed">
-                    每行輸入一筆資料，格式為「<span className="text-indigo-400 font-semibold">姓名 身份</span>」（用空格分隔，身份可為「社員」或「零打」，空白或其他值將預設為「社員」）。
+                    每行輸入一筆資料，格式為「<span className="text-indigo-400 font-semibold">姓名 身份</span>」（用空格分隔，身份可為「管理員」、「社員」或「零打」，空白或其他值將預設為「社員」）。
                   </div>
                   <div className="p-0.5">
                     <div className="bg-slate-950 border border-slate-800 rounded-xl transition-all p-1 pb-1 focus-within:border-transparent focus-within:ring-2 focus-within:ring-indigo-500">
                       <textarea
-                        placeholder="範例：&#10;Alfred 社員&#10;Mars 零打"
+                        placeholder="範例：&#10;Hank 管理員&#10;Vincent 社員&#10;Alfred 零打"
                         value={importText}
                         onChange={(e) => setImportText(e.target.value)}
                         className="w-full h-28 bg-transparent border-0 outline-none resize-none text-xs text-slate-200 font-mono px-2 pt-2 pb-1 scrollbar-track-transparent"
