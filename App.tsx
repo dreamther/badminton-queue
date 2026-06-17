@@ -3,13 +3,13 @@ import {
   Users, Coffee, ArrowRight, Trash2, Trophy, Plus, Minus, 
   Volume2, VolumeX, X, Swords, UserCheck, Search, CheckCircle2, ChevronDown, 
   ChevronRight, Unlink, LogOut, UserX, Flame, 
-  Lock, UserPlus, Upload, Settings, MoreVertical, Power, Share2, 
-  ArrowLeft, ExternalLink, Key, EyeOff, Shield, AlertTriangle, Info,
-  Megaphone
+  Lock, UserPlus, Upload, FileInput, Settings, MoreVertical, Power, Share2, 
+  ArrowLeft, ExternalLink, Key, EyeOff, Shield, AlertTriangle, Info, XCircle,
+  Megaphone, ArrowUpDown, Check, ListOrdered
 } from 'lucide-react';
 import { 
   Player, Court, Member, MAX_PLAYERS_PER_COURT, 
-  SkillLevel, SKILL_LEVELS, CurrentUser 
+  MemberIdentity, IDENTITIES, CurrentUser 
 } from './types';
 import { CourtCard } from './components/CourtCard';
 import { PlayerAvatar } from './components/PlayerAvatar';
@@ -32,6 +32,96 @@ import {
   type SpaceMetadata,
   type SessionState
 } from './firebase';
+
+interface AddMemberBarProps {
+  onCreateMember: (name: string, identity: MemberIdentity) => Promise<void>;
+}
+
+const AddMemberBar: React.FC<AddMemberBarProps> = ({ onCreateMember }) => {
+  const [name, setName] = useState('');
+  const [identity, setIdentity] = useState<MemberIdentity>('beginner');
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleAdd = async () => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    await onCreateMember(trimmed, identity);
+    setName('');
+  };
+
+  return (
+    <div className="flex items-center gap-2 h-10">
+      <div className="relative flex-1">
+        <input
+          type="text"
+          placeholder="新球員名稱"
+          maxLength={10}
+          className="w-full h-10 pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base lg:text-sm text-slate-200 placeholder-slate-500"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.nativeEvent.isComposing) return;
+            if (e.key === 'Enter') handleAdd();
+          }}
+        />
+        <UserPlus className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+      </div>
+
+      {/* 自訂下拉選單 */}
+      <div className="relative shrink-0" ref={dropdownRef}>
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className={`h-10 pl-3 pr-8 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-semibold flex items-center justify-between w-[88px] cursor-pointer hover:bg-slate-850/80 transition-colors relative
+            ${!name.trim() ? 'text-slate-500' : 'text-slate-200'}`}
+        >
+          <span>{IDENTITIES[identity].label}</span>
+          <ChevronDown className={`w-3.5 h-3.5 absolute right-2 pointer-events-none transition-colors ${!name.trim() ? 'text-slate-500' : 'text-slate-400'}`} />
+        </button>
+
+        {isOpen && (
+          <div className="absolute right-0 mt-1.5 w-28 bg-slate-900 border border-slate-800/80 rounded-lg shadow-xl py-1 z-20 animate-[fadeIn_0.15s_ease-out]">
+            {(['admin', 'beginner', 'intermediate'] as MemberIdentity[]).map((id) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  setIdentity(id);
+                  setIsOpen(false);
+                }}
+                className={`w-full text-left px-3 py-1.5 text-xs font-semibold hover:bg-slate-800 transition-colors flex items-center gap-1.5
+                  ${identity === id ? 'text-indigo-400 bg-slate-800/40' : 'text-slate-300'}`}
+              >
+                {IDENTITIES[id].label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <button
+        onClick={handleAdd}
+        disabled={!name.trim()}
+        className={`h-10 px-3 bg-indigo-600 text-white text-xs font-semibold rounded-lg transition-all shrink-0 flex items-center justify-center
+          ${!name.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-500'}`}
+      >
+        新增
+      </button>
+    </div>
+  );
+};
 
 type Tab = 'courts' | 'queue' | 'members';
 
@@ -86,11 +176,14 @@ export default function App() {
   const [isSpaceSettingsOpen, setIsSpaceSettingsOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false); // 刪除確認彈窗
   const [deleteInputId, setDeleteInputId] = useState(''); // 刪除確認輸入的值
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false); // 批次匯入彈窗
+  const [importText, setImportText] = useState(''); // 批次匯入貼上內容
 
   // --- 自訂對話框 (Alert / Confirm) State ---
   const [customDialog, setCustomDialog] = useState<{
     isOpen: boolean;
     type: 'alert' | 'confirm';
+    variant?: 'success' | 'warning' | 'info' | 'error';
     message: string;
     title?: string;
     resolve?: (value: boolean) => void;
@@ -112,11 +205,12 @@ export default function App() {
     });
   }, []);
 
-  const showAlert = useCallback((message: string, title?: string): Promise<boolean> => {
+  const showAlert = useCallback((message: string, title?: string, variant: 'success' | 'warning' | 'info' | 'error' = 'warning'): Promise<boolean> => {
     return new Promise((resolve) => {
       setCustomDialog({
         isOpen: true,
         type: 'alert',
+        variant,
         message,
         title,
         resolve
@@ -209,8 +303,8 @@ export default function App() {
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [memberSearchTerm, setMemberSearchTerm] = useState('');
-  const [newMemberName, setNewMemberName] = useState('');
-  const [newMemberLevel, setNewMemberLevel] = useState<SkillLevel>('intermediate');
+  const [memberSortKey, setMemberSortKey] = useState<'newest' | 'oldest' | 'alphabetical' | 'identity'>('newest');
+  const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [restAreaSearchTerm, setRestAreaSearchTerm] = useState('');
   const [isRestAreaSearchExpanded, setIsRestAreaSearchExpanded] = useState(false);
@@ -220,6 +314,7 @@ export default function App() {
 
   // Refs
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const sortMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isSessionLoadedRef = useRef<boolean>(false);
   const isCreatingSpaceRef = useRef<boolean>(false);
@@ -336,6 +431,14 @@ export default function App() {
         if (!exists) {
           setSpaceError(`球團空間「${spaceId}」不存在。請確認網址或返回大廳建立全新空間。`);
           setIsSpaceLoading(false);
+          
+          // 自動從「最近造訪」中清除該不存在的球團
+          setRecentSpaces(prev => {
+            const updated = prev.filter(s => s.id !== spaceId);
+            localStorage.setItem('badminton_recent_spaces', JSON.stringify(updated));
+            return updated;
+          });
+          
           return;
         }
 
@@ -395,7 +498,7 @@ export default function App() {
               // 僅在當前非管理員身分時，才進行自動還原與顯示提示
               setCurrentUser(savedUser);
               setIsAutoAnnounce(false); // 避免聲音通道被鎖定，預設先關閉，由用戶點擊按鈕啟用
-              showToast("📢 已自動還原團主身分，若要播報請點擊語音按鈕");
+              showToast("📢 已還原團主身分，若要播報請點擊語音按鈕");
             }
           } else if (currentUserRef.current?.role !== 'player' || currentUserRef.current?.memberId !== savedUser.memberId) {
             // 僅在當前非對應球員身分時，才自動還原
@@ -414,7 +517,12 @@ export default function App() {
             if (unsubSession) unsubSession();
             return;
           }
-          setPlayers(session.players || []);
+          // Map level to identity for backward compatibility
+          const mappedPlayers = (session.players || []).map((p: any) => ({
+            ...p,
+            identity: p.identity || p.level || 'beginner'
+          }));
+          setPlayers(mappedPlayers);
           setCourts(session.courts || []);
           setQueueSlots(session.queueSlots || []);
           setIsWarmupDone(session.isWarmupDone ?? false);
@@ -424,7 +532,15 @@ export default function App() {
             const savedUserStr = localStorage.getItem(savedUserKey);
             if (savedUserStr) {
               const savedUser = JSON.parse(savedUserStr);
-              if (savedUser.role === 'player') {
+              if (savedUser.role === 'admin') {
+                // 團主若在場地與排隊皆無人的情況下登入，預設切換至報到區
+                const sessionCourts = session.courts || [];
+                const isCourtsEmpty = sessionCourts.every((c: any) => !c.playerIds || c.playerIds.every((id: any) => id === null));
+                const isQueueEmpty = !mappedPlayers.some((p: any) => p.status === 'queued');
+                if (isCourtsEmpty && isQueueEmpty) {
+                  setActiveTab('members');
+                }
+              } else if (savedUser.role === 'player') {
                 // 為了避免聲音通道鎖定，自動還原的球員一律預設為關閉播報，由其點擊喇叭開啟
                 setIsAutoAnnounce(false);
               }
@@ -459,13 +575,18 @@ export default function App() {
           setSpaceError("加載賽局狀態失敗，請稍後重試。");
         });
 
-        // 2. 訂閱會員名冊
+        // 2. 訂閱球員名冊
         unsubMembers = subscribeToMembers(spaceId!, (list) => {
           if (isCancelled) {
             if (unsubMembers) unsubMembers();
             return;
           }
-          setMembers(list);
+          // Map level to identity for backward compatibility
+          const mappedMembers = list.map((m: any) => ({
+            ...m,
+            identity: m.identity || m.level || 'beginner'
+          }));
+          setMembers(mappedMembers);
           setIsMembersLoaded(true);
         });
 
@@ -519,6 +640,19 @@ export default function App() {
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isProfileMenuOpen]);
+
+  // --- Sort Menu Click-Outside ---
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sortMenuRef.current && !sortMenuRef.current.contains(event.target as Node)) {
+        setIsSortMenuOpen(false);
+      }
+    };
+    if (isSortMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isSortMenuOpen]);
 
   // --- 初始化空間設定編輯狀態 ---
   useEffect(() => {
@@ -684,12 +818,16 @@ export default function App() {
   }, [currentUser, members, players]);
 
   // --- 衍生計算資料 (Memo) ---
-  const currentMemberName = useMemo(() => {
+  const currentUserMember = useMemo(() => {
     if (currentUser?.role === 'player') {
-      return members.find(m => m.id === currentUser.memberId)?.name;
+      return members.find(m => m.id === currentUser.memberId) || null;
     }
     return null;
   }, [currentUser, members]);
+
+  const currentMemberName = useMemo(() => {
+    return currentUserMember?.name || null;
+  }, [currentUserMember]);
 
   const queue = useMemo(() => {
     const playerMap = new Map(players.map(p => [p.id, p]));
@@ -741,11 +879,39 @@ export default function App() {
 
   const filteredMembers = useMemo(() => {
     const term = memberSearchTerm.toLowerCase().trim();
-    if (!term) return members.slice().sort((a, b) => b.createdAt - a.createdAt);
-    return members
-      .filter(m => m.name.toLowerCase().includes(term))
-      .sort((a, b) => b.createdAt - a.createdAt);
-  }, [members, memberSearchTerm]);
+    let result = members.slice();
+    if (term) {
+      result = result.filter(m => m.name.toLowerCase().includes(term));
+    }
+
+    if (memberSortKey === 'newest') {
+      result.sort((a, b) => b.createdAt - a.createdAt);
+    } else if (memberSortKey === 'oldest') {
+      result.sort((a, b) => a.createdAt - b.createdAt);
+    } else if (memberSortKey === 'alphabetical') {
+      result.sort((a, b) => {
+        const isEnglish = (str: string) => /^[A-Za-z]/.test(str);
+        const aIsEng = isEnglish(a.name);
+        const bIsEng = isEnglish(b.name);
+        if (aIsEng && !bIsEng) return -1;
+        if (!aIsEng && bIsEng) return 1;
+        return a.name.localeCompare(b.name, 'zh-hant');
+      });
+    } else if (memberSortKey === 'identity') {
+      const priority: Record<MemberIdentity, number> = {
+        admin: 1,
+        beginner: 2,
+        intermediate: 3
+      };
+      result.sort((a, b) => {
+        const diff = priority[a.identity] - priority[b.identity];
+        if (diff !== 0) return diff;
+        return b.createdAt - a.createdAt;
+      });
+    }
+
+    return result;
+  }, [members, memberSearchTerm, memberSortKey]);
 
   const { notCheckedInMembers } = useMemo(() => {
     const activeNames = new Set(players.map(p => p.name));
@@ -992,15 +1158,6 @@ export default function App() {
     }
   }, [players, updateCloudSession, showConfirm]);
 
-  const clearBench = useCallback(async () => {
-    const idleCount = players.filter(p => p.status === 'idle').length;
-    if (idleCount === 0) return;
-
-    if (await showConfirm(`確定要讓休息區的 ${idleCount} 人全部離開球場嗎？\n他們將回到未報到狀態。`)) {
-      const updatedPlayers = players.filter(p => p.status !== 'idle');
-      updateCloudSession({ players: updatedPlayers });
-    }
-  }, [players, updateCloudSession, showConfirm]);
 
   const resetSession = useCallback(async () => {
     if (await showConfirm('確定要結束今日打球嗎？\n所有球員將會回到未報到狀態。')) {
@@ -1350,34 +1507,32 @@ export default function App() {
   }, [courts, queueSlots, players, updateCloudSession]);
 
   // ==========================================
-  // 會員管理與報到 Action (寫入 Firestore / Mock)
+  // 球員管理與報到 Action (寫入 Firestore / Mock)
   // ==========================================
 
-  const createMember = useCallback(async (nameToAdd: string) => {
+  const createMember = useCallback(async (nameToAdd: string, identitySelected: MemberIdentity) => {
     if (!spaceId) return;
     const name = nameToAdd.trim();
     if (!name) return;
 
     if (members.some(m => m.name === name)) {
-      await showAlert('此會員已存在');
+      await showAlert('此球員已存在');
       return;
     }
 
     const newMember: Member = {
       id: generateUUID(),
       name: name,
-      level: newMemberLevel,
+      identity: identitySelected,
       createdAt: Date.now()
     };
 
     try {
       await addMember(spaceId, newMember);
-      setNewMemberName('');
-      setNewMemberLevel('intermediate'); 
     } catch (e) {
-      await showAlert("新增會員失敗");
+      await showAlert("新增球員失敗");
     }
-  }, [spaceId, members, newMemberLevel, showAlert]);
+  }, [spaceId, members, showAlert]);
 
   const parseCsvAndImport = useCallback(async (csvText: string) => {
     if (!spaceId) return;
@@ -1388,14 +1543,19 @@ export default function App() {
         return;
       }
 
-      const headers = lines[0].split(',').map(h => h.trim());
-      const nameIndex = headers.findIndex(h => h === '姓名' || h === 'name' || h === '名稱');
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const nameIndex = headers.findIndex(h => h === 'name');
+      const identityIndex = headers.findIndex(h => h === 'identity');
+
       if (nameIndex === -1) {
-        await showAlert('CSV 格式錯誤：缺少「姓名」欄位');
+        await showAlert('CSV 格式錯誤：缺少「Name」欄位');
         return;
       }
 
-      const levelIndex = headers.findIndex(h => h === '等級' || h === '狀態' || h === 'level' || h === '技能');
+      if (identityIndex === -1) {
+        await showAlert('CSV 格式錯誤：缺少「Identity」欄位');
+        return;
+      }
 
       const newMembers: Member[] = [];
       const skippedNames: string[] = [];
@@ -1413,20 +1573,18 @@ export default function App() {
           continue;
         }
 
-        let level: SkillLevel = 'intermediate';
-        if (levelIndex !== -1 && values[levelIndex]) {
-          const levelValue = values[levelIndex].trim().toLowerCase();
-          if (['intermediate', '一般', '零打', '中階', '中级'].includes(levelValue)) {
-            level = 'intermediate';
-          } else if (['beginner', '初階', '初级', '季打'].includes(levelValue)) {
-            level = 'beginner';
-          }
+        let identity: MemberIdentity = 'beginner'; // 預設為社員 (beginner)
+        const identityValue = values[identityIndex]?.trim();
+        if (identityValue === '零打') {
+          identity = 'intermediate';
+        } else if (identityValue === '管理員') {
+          identity = 'admin';
         }
 
         newMembers.push({
           id: generateUUID(),
           name,
-          level,
+          identity,
           createdAt: Date.now()
         });
       }
@@ -1435,13 +1593,64 @@ export default function App() {
         await addMembersBatch(spaceId, newMembers);
       }
 
-      let message = `成功匯入 ${newMembers.length} 位會員`;
+      let message = `成功匯入 ${newMembers.length} 位球員`;
       if (skippedNames.length > 0) {
-        message += `\n跳過 ${skippedNames.length} 位重複會員：${skippedNames.join(', ')}`;
+        message += `\n跳過 ${skippedNames.length} 位重複球員：${skippedNames.join(', ')}`;
       }
-      await showAlert(message);
+      await showAlert(message, undefined, 'success');
+      setIsImportModalOpen(false); // 關閉對話框
     } catch (error) {
       await showAlert('CSV 檔案解析失敗，請確認檔案格式正確');
+    }
+  }, [spaceId, members, showAlert]);
+
+  const handleTextareaImport = useCallback(async (inputText: string) => {
+    if (!spaceId) return;
+    try {
+      const lines = inputText.split('\n').map(l => l.trim());
+      const newMembers: Member[] = [];
+      const skippedNames: string[] = [];
+
+      for (const line of lines) {
+        if (!line) continue;
+        const parts = line.split(/\s+/);
+        const name = parts[0];
+        if (!name) continue;
+
+        if (members.some(m => m.name === name) || newMembers.some(m => m.name === name)) {
+          skippedNames.push(name);
+          continue;
+        }
+
+        let identity: MemberIdentity = 'beginner'; // 預設為社員 (beginner)
+        const identityValue = parts[1]?.trim();
+        if (identityValue === '零打') {
+          identity = 'intermediate';
+        } else if (identityValue === '管理員') {
+          identity = 'admin';
+        }
+
+        newMembers.push({
+          id: generateUUID(),
+          name,
+          identity,
+          createdAt: Date.now()
+        });
+      }
+
+      if (newMembers.length > 0) {
+        await addMembersBatch(spaceId, newMembers);
+      }
+
+      let message = `成功匯入 ${newMembers.length} 位球員`;
+      if (skippedNames.length > 0) {
+        message += `\n跳過 ${skippedNames.length} 位重複球員：${skippedNames.join(', ')}`;
+      }
+      await showAlert(message, undefined, 'success');
+      setImportText('');
+      setIsImportModalOpen(false);
+    } catch (error) {
+      await showAlert('批次匯入失敗，請檢查輸入格式');
     }
   }, [spaceId, members, showAlert]);
 
@@ -1518,7 +1727,7 @@ export default function App() {
       id: newId,
       name: member.name,
       status: 'idle',
-      level: member.level,
+      identity: member.identity,
       joinedAt: Date.now(),
     };
     
@@ -1617,11 +1826,11 @@ export default function App() {
 
   const removeMember = useCallback(async (memberId: string) => {
     if (!spaceId) return;
-    if (await showConfirm('確定要刪除此會員嗎？')) {
+    if (await showConfirm('確定要刪除此球員嗎？')) {
       try {
         await deleteMember(spaceId, memberId);
       } catch (e) {
-        await showAlert("刪除會員失敗");
+        await showAlert("刪除球員失敗");
       }
     }
   }, [spaceId, showConfirm, showAlert]);
@@ -1638,7 +1847,15 @@ export default function App() {
       setCurrentUser(user);
       localStorage.setItem(`badminton_current_user_${spaceId}`, JSON.stringify(user));
       setIsAutoAnnounce(false); // 團主登入預設關閉播報，需主動點擊解鎖
-      setActiveTab(window.innerWidth >= 1024 ? 'queue' : 'courts');
+      
+      const isCourtsEmpty = courts.every(c => !c.playerIds || c.playerIds.every(id => id === null));
+      const isQueueEmpty = !players.some(p => p.status === 'queued');
+      if (isCourtsEmpty && isQueueEmpty) {
+        setActiveTab('members');
+      } else {
+        setActiveTab(window.innerWidth >= 1024 ? 'queue' : 'courts');
+      }
+      
       showToast("✨ 已成功切換為團主模式");
       return;
     }
@@ -1649,7 +1866,14 @@ export default function App() {
       setCurrentUser(user);
       localStorage.setItem(`badminton_current_user_${spaceId}`, JSON.stringify(user));
       setIsAutoAnnounce(false); // 團主登入預設關閉播報，需主動點擊解鎖
-      setActiveTab(window.innerWidth >= 1024 ? 'queue' : 'courts');
+      
+      const isCourtsEmpty = courts.every(c => !c.playerIds || c.playerIds.every(id => id === null));
+      const isQueueEmpty = !players.some(p => p.status === 'queued');
+      if (isCourtsEmpty && isQueueEmpty) {
+        setActiveTab('members');
+      } else {
+        setActiveTab(window.innerWidth >= 1024 ? 'queue' : 'courts');
+      }
       return;
     }
 
@@ -1679,7 +1903,15 @@ export default function App() {
       setPasscodePromptOpen(false);
       setFailedAttempts(0);
       setIsShaking(false);
-      setActiveTab(window.innerWidth >= 1024 ? 'queue' : 'courts');
+      
+      const isCourtsEmpty = courts.every(c => !c.playerIds || c.playerIds.every(id => id === null));
+      const isQueueEmpty = !players.some(p => p.status === 'queued');
+      if (isCourtsEmpty && isQueueEmpty) {
+        setActiveTab('members');
+      } else {
+        setActiveTab(window.innerWidth >= 1024 ? 'queue' : 'courts');
+      }
+      
       showToast("🔑 密碼驗證成功！進入管理模式。");
     } else {
       const nextAttempts = failedAttempts + 1;
@@ -1810,20 +2042,26 @@ export default function App() {
       await deleteSpace(spaceId);
 
       // 清理管理員與空間存取授權憑證
-      const updatedVerifiedAdmins = { ...verifiedAdmins };
-      delete updatedVerifiedAdmins[spaceId];
-      setVerifiedAdmins(updatedVerifiedAdmins);
-      localStorage.setItem('badminton_verified_admins', JSON.stringify(updatedVerifiedAdmins));
+      setVerifiedAdmins(prev => {
+        const updated = { ...prev };
+        delete updated[spaceId];
+        localStorage.setItem('badminton_verified_admins', JSON.stringify(updated));
+        return updated;
+      });
 
-      const updatedVerifiedSpaces = { ...verifiedSpaces };
-      delete updatedVerifiedSpaces[spaceId];
-      setVerifiedSpaces(updatedVerifiedSpaces);
-      localStorage.setItem('badminton_verified_spaces', JSON.stringify(updatedVerifiedSpaces));
+      setVerifiedSpaces(prev => {
+        const updated = { ...prev };
+        delete updated[spaceId];
+        localStorage.setItem('badminton_verified_spaces', JSON.stringify(updated));
+        return updated;
+      });
 
       // 清理「最近造訪」紀錄
-      const updatedRecent = recentSpaces.filter(s => s.id !== spaceId);
-      setRecentSpaces(updatedRecent);
-      localStorage.setItem('badminton_recent_spaces', JSON.stringify(updatedRecent));
+      setRecentSpaces(prev => {
+        const updated = prev.filter(s => s.id !== spaceId);
+        localStorage.setItem('badminton_recent_spaces', JSON.stringify(updated));
+        return updated;
+      });
 
       setIsDeleteConfirmOpen(false);
       setIsSpaceSettingsOpen(false);
@@ -2209,7 +2447,7 @@ export default function App() {
                     <input
                       type="text"
                       placeholder="例如：happy-badminton"
-                      className="w-full h-12 pl-4 pr-12 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-600 text-slate-200 transition-all font-mono"
+                      className="w-full h-12 pl-4 pr-12 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-600 text-slate-200 text-base transition-all font-mono"
                       value={joinSpaceIdInput}
                       onChange={e => setJoinSpaceIdInput(e.target.value)}
                     />
@@ -2302,7 +2540,7 @@ export default function App() {
                     <input
                       type="text"
                       placeholder="例如：快樂週三羽球團"
-                      className="w-full h-11 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-200 text-sm placeholder-slate-700 transition-all"
+                      className="w-full h-11 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-200 text-base lg:text-sm placeholder-slate-700 transition-all"
                       value={newSpaceName}
                       onChange={e => setNewSpaceName(e.target.value)}
                       required
@@ -2315,7 +2553,7 @@ export default function App() {
                     <input
                       type="text"
                       placeholder="例如：happy-badminton"
-                      className="w-full h-11 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-200 text-sm font-mono placeholder-slate-700 transition-all"
+                      className="w-full h-11 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-200 text-base lg:text-sm font-mono placeholder-slate-700 transition-all"
                       value={newSpaceId}
                       onChange={e => handleSpaceIdInputChange(e.target.value)}
                       required
@@ -2436,7 +2674,7 @@ export default function App() {
                       autoComplete="new-password"
                       placeholder={hasPasscode ? "請設定管理密碼 (4-10 位)" : "管理密碼已停用"}
                       disabled={!hasPasscode}
-                      className={`w-full h-10 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
+                      className={`w-full h-10 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-base lg:text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
                         hasPasscode 
                           ? 'border-slate-800 focus:ring-indigo-500 opacity-100' 
                           : 'border-slate-900/50 opacity-30 cursor-not-allowed select-none'
@@ -2512,7 +2750,7 @@ export default function App() {
                       autoComplete="new-password"
                       placeholder={hasSpacePasscode ? "請設定空間存取密碼 (4-10 位)" : "空間密碼已停用"}
                       disabled={!hasSpacePasscode}
-                      className={`w-full h-10 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
+                      className={`w-full h-10 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-base lg:text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
                         hasSpacePasscode 
                           ? 'border-slate-800 focus:ring-indigo-500 opacity-100' 
                           : 'border-slate-900/50 opacity-30 cursor-not-allowed select-none'
@@ -2587,11 +2825,22 @@ export default function App() {
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl max-w-sm w-full shadow-2xl relative flex flex-col text-center">
               {/* 圖標 (Icon) */}
               <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 bg-indigo-500/10 text-indigo-400">
-                {customDialog.type === 'confirm' ? (
-                  <Info className="w-6 h-6 text-indigo-400" />
-                ) : (
-                  <AlertTriangle className="w-6 h-6 text-indigo-400" />
-                )}
+                {(() => {
+                  if (customDialog.type === 'confirm') {
+                    return <Info className="w-6 h-6" />;
+                  }
+                  const variant = customDialog.variant || 'warning';
+                  if (variant === 'success') {
+                    return <CheckCircle2 className="w-6 h-6" />;
+                  }
+                  if (variant === 'error') {
+                    return <XCircle className="w-6 h-6" />;
+                  }
+                  if (variant === 'info') {
+                    return <Info className="w-6 h-6" />;
+                  }
+                  return <AlertTriangle className="w-6 h-6" />;
+                })()}
               </div>
               {customDialog.title && (
                 <h3 className="text-base font-bold text-white mb-2">{customDialog.title}</h3>
@@ -2700,7 +2949,10 @@ export default function App() {
                 className="w-full h-12 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center font-mono text-slate-200 placeholder-slate-700"
                 value={spacePasscodeInput}
                 onChange={e => setSpacePasscodeInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleVerifySpacePasscode()}
+                onKeyDown={e => {
+                  if (e.nativeEvent.isComposing) return;
+                  if (e.key === 'Enter') handleVerifySpacePasscode();
+                }}
                 autoFocus
               />
 
@@ -2807,7 +3059,7 @@ export default function App() {
                 <input
                   type="text"
                   placeholder="搜尋名字..."
-                  className="w-full h-10 pl-9 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-slate-200"
+                  className="w-full h-10 pl-9 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base lg:text-sm text-slate-200"
                   value={loginSearchTerm}
                   onChange={e => setLoginSearchTerm(e.target.value)}
                   autoFocus
@@ -2817,7 +3069,7 @@ export default function App() {
               <div className="max-h-60 overflow-y-auto scrollbar-gutter-stable space-y-2 pr-1">
                 {loginFilteredMembers.length === 0 ? (
                   <div className="text-center py-4 text-slate-500 text-sm">
-                    {loginSearchTerm ? '找不到符合的成員' : '目前尚無會員，請聯絡管理員新增'}
+                    {loginSearchTerm ? '找不到符合的球員' : '目前尚無球員，請聯絡管理員新增'}
                   </div>
                 ) : (
                   loginFilteredMembers.map(member => (
@@ -2838,10 +3090,10 @@ export default function App() {
                       }}
                       className="w-full flex items-center gap-3 p-3 bg-slate-950/50 hover:bg-slate-800 border border-slate-800 rounded-lg transition-colors text-left group"
                     >
-                      <PlayerAvatar identifier={member.name} className="w-8 h-8 shrink-0" />
+                      <PlayerAvatar identifier={member.name} identity={member.identity} className="w-8 h-8 shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-semibold text-slate-200 group-hover:text-white truncate">{member.name}</div>
-                        <div className="text-xs text-slate-500">{SKILL_LEVELS[member.level].label}</div>
+                        <div className={`text-xs ${IDENTITIES[member.identity].color}`}>{IDENTITIES[member.identity].label}</div>
                       </div>
                     </button>
                   ))
@@ -2886,10 +3138,13 @@ export default function App() {
                   type="password"
                   autoComplete="current-password"
                   placeholder="請輸入管理密碼"
-                  className="w-full h-11 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center font-mono text-slate-200 placeholder-slate-700"
+                  className="w-full h-11 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center font-mono text-slate-200 text-base placeholder-slate-700"
                   value={passcodeInput}
                   onChange={e => setPasscodeInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleVerifyPasscode()}
+                  onKeyDown={e => {
+                    if (e.nativeEvent.isComposing) return;
+                    if (e.key === 'Enter') handleVerifyPasscode();
+                  }}
                   autoFocus
                 />
 
@@ -2938,7 +3193,7 @@ export default function App() {
             <input
               type="text"
               placeholder="搜尋休息區..."
-              className="w-full h-10 pl-9 pr-10 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-slate-500 text-sm"
+              className="w-full h-10 pl-9 pr-10 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-slate-500 text-base lg:text-sm"
               value={restAreaSearchTerm}
               onChange={e => setRestAreaSearchTerm(e.target.value)}
               autoFocus
@@ -3009,14 +3264,10 @@ export default function App() {
                   </button>
                 </div>
                 {isSelf && <span className="border-beam-container"></span>}
-                <PlayerAvatar identifier={player.name} className="w-5 h-5 shrink-0" />
+                <PlayerAvatar identifier={player.name} identity={player.identity} className="w-5 h-5 shrink-0" />
                 <span className={`text-xs whitespace-nowrap ${isSelf ? 'text-white font-semibold' : 'text-slate-300'}`}>
                   {player.name}
                 </span>
-                <span 
-                  title={SKILL_LEVELS[player.level].label} 
-                  className={`w-2 h-2 rounded-full shrink-0 ${SKILL_LEVELS[player.level].bg}`}
-                />
               </div>
             );
           })
@@ -3141,11 +3392,11 @@ export default function App() {
                     {currentUser?.role === 'admin' ? (
                       <span className="text-sm">🏸</span>
                     ) : (
-                      <UserCheck className="w-3.5 h-3.5 text-indigo-400" />
+                      <UserCheck className={`w-3.5 h-3.5 ${currentUserMember ? IDENTITIES[currentUserMember.identity].iconColor : 'text-indigo-400'}`} />
                     )}
                   </div>
                   <span className="text-xs text-slate-300 font-medium whitespace-nowrap hidden min-[375px]:inline-block">
-                    {currentUser?.role === 'admin' ? '團主' : members.find(m => m.id === currentUser?.memberId)?.name || '球員'}
+                    {currentUser?.role === 'admin' ? '團主' : currentUserMember?.name || '球員'}
                   </span>
                   <ChevronDown className="w-3 h-3 text-slate-500" />
                 </button>
@@ -3154,42 +3405,35 @@ export default function App() {
                   <div className="absolute right-0 mt-2 w-52 bg-slate-900 border border-slate-800 rounded-xl shadow-xl py-1 z-50 animate-in fade-in slide-in-from-top-2">
                     <div className="px-3 py-2 border-b border-slate-800/60 flex items-baseline gap-1.5 bg-slate-950/20">
                       <p className="text-[10px] text-slate-500 font-medium shrink-0">
-                        {!currentUser ? '未登入' : (currentUser.role === 'admin' ? '團主' : '球員')}
+                        {!currentUser 
+                          ? '未登入' 
+                          : currentUser.role === 'admin' 
+                            ? '團主' 
+                            : currentUserMember 
+                              ? IDENTITIES[currentUserMember.identity].label 
+                              : '球員'}
                       </p>
                       {currentUser && (
                         <p className="text-xs font-bold text-slate-300 truncate flex-1">
-                          {currentUser.role === 'admin' ? '管理員' : members.find(m => m.id === currentUser.memberId)?.name || ''}
+                          {currentUser.role === 'admin' ? '管理員' : currentUserMember?.name || ''}
                         </p>
                       )}
                     </div>
                     
-                    {currentUser?.role === 'admin' && (
-                      <div className="py-1">
+                    <div className="py-1">
+                      {currentUser?.role === 'admin' && (
                         <button
                           onClick={() => {
                             setIsSpaceSettingsOpen(true);
                             setIsProfileMenuOpen(false);
                           }}
-                          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-indigo-400/90 hover:text-indigo-300/75 hover:bg-indigo-500/10 transition-colors group/settings"
+                          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800 transition-colors group/settings"
                         >
-                          <Settings className="w-4 h-4 text-indigo-500/70 group-hover/settings:text-indigo-300/75 transition-colors" />
+                          <Settings className="w-4 h-4 text-slate-500 group-hover/settings:text-slate-300 transition-colors" />
                           球團空間設定
                         </button>
-                        <button
-                          onClick={() => {
-                            resetSession();
-                            setIsProfileMenuOpen(false);
-                          }}
-                          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-red-400/90 hover:text-red-400 hover:bg-red-500/10 transition-colors group"
-                        >
-                          <Power className="w-4 h-4 text-red-500/70 group-hover:text-red-400 transition-colors" />
-                          結束本日打球
-                        </button>
-                        <div className="h-px bg-slate-800/60 my-1 mx-2" />
-                      </div>
-                    )}
-                    
-                    <div className="py-1">
+                      )}
+                      
                       {currentUser?.role === 'player' && players.some(p => p.name === currentMemberName) && (
                         <button
                           onClick={async () => {
@@ -3286,6 +3530,24 @@ export default function App() {
                         返回大廳
                       </button>
                     </div>
+
+                    {currentUser?.role === 'admin' && (
+                      <>
+                        <div className="h-px bg-slate-800/60 my-1 mx-2" />
+                        <div className="py-1">
+                          <button
+                            onClick={() => {
+                              resetSession();
+                              setIsProfileMenuOpen(false);
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-red-400 hover:bg-red-500/10 transition-colors group"
+                          >
+                            <Power className="w-4 h-4 text-slate-500 group-hover:text-red-400 transition-colors" />
+                            結束本日打球
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -3304,7 +3566,7 @@ export default function App() {
                 : 'text-slate-500 hover:text-slate-300'
                 }`}
             >
-              <Users className="w-4 h-4" />
+              <UserCheck className="w-4 h-4" />
               報到區
             </button>
           )}
@@ -3315,7 +3577,7 @@ export default function App() {
               : 'text-slate-500 hover:text-slate-300'
               }`}
           >
-            <Swords className="w-4 h-4" />
+            <ListOrdered className="w-4 h-4" />
             排隊區
           </button>
           <button
@@ -3325,7 +3587,7 @@ export default function App() {
               : 'text-slate-500 hover:text-slate-300'
               }`}
           >
-            <Trophy className="w-4 h-4" />
+            <Swords className="w-4 h-4" />
             場地區
           </button>
 
@@ -3360,7 +3622,7 @@ export default function App() {
                     : 'text-slate-500 hover:text-slate-300'
                     }`}
                 >
-                  <Users className="w-4 h-4" />
+                  <UserCheck className="w-4 h-4" />
                   報到區
                 </button>
               )}
@@ -3371,7 +3633,7 @@ export default function App() {
                   : 'text-slate-500 hover:text-slate-300'
                   }`}
               >
-                <Swords className="w-4 h-4" />
+                <ListOrdered className="w-4 h-4" />
                 排隊區
               </button>
 
@@ -3437,7 +3699,7 @@ export default function App() {
                     {queueDisplayItems.length === 0 ? (
                       <div className="py-8 text-center border-2 border-dashed border-slate-800 rounded-xl text-slate-500 text-sm bg-slate-900/50">
                         目前沒有人在排隊
-                        <div className="text-xs mt-1 opacity-70">點擊下方「休息區」成員即可加入等待</div>
+                        <div className="text-xs mt-1 opacity-70">點擊下方「休息區」球員即可加入等待</div>
                       </div>
                     ) : (
                       chunkedQueueItems.map((chunk, chunkIdx) => {
@@ -3507,7 +3769,7 @@ export default function App() {
                                             </button>
                                           </div>
                                           <div
-                                            title="排隊成員"
+                                            title="排隊球員"
                                             className={`w-full h-full flex items-center justify-between px-2.5 py-1.5 rounded-[10px] transition-colors text-left min-w-0 border ${
                                               item.data.name === currentMemberName 
                                                 ? 'bg-slate-100/10 hover:bg-slate-100/20 border-slate-300/30 shadow-[0_0_10px_rgba(255,255,255,0.05)]' 
@@ -3515,7 +3777,7 @@ export default function App() {
                                             }`}
                                           >
                                             <span className={`flex items-center gap-1.5 text-sm min-w-0 ${item.data.name === currentMemberName ? 'text-white font-bold' : 'text-slate-300 font-medium'}`}>
-                                              <PlayerAvatar identifier={item.data.name} className="w-2.5 h-2.5 shrink-0" />
+                                              <PlayerAvatar identifier={item.data.name} identity={item.data.identity} className="w-2.5 h-2.5 shrink-0" />
                                               <span className="truncate">{item.data.name}</span>
                                             </span>
 
@@ -3531,7 +3793,7 @@ export default function App() {
                                                 ? 'border-emerald-500 bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/50'
                                                 : 'border-slate-800/50 text-slate-500'
                                           }`}
-                                          title={selectedPlayerForMove ? '點擊移動成員到此' : '空位'}
+                                          title={selectedPlayerForMove ? '點擊移動球員到此' : '空位'}
                                           onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; }}
                                           onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverSlotKey(`${chunkIdx}-${idx}`); }}
                                           onDragLeave={(e) => { e.stopPropagation(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverSlotKey(null); }}
@@ -3597,9 +3859,62 @@ export default function App() {
                 <div className="px-6 pt-4 pb-3 sticky top-0 bg-slate-950/95 backdrop-blur z-10 space-y-2">
                   <div className="flex items-center justify-between min-h-[32px]">
                     <h2 className="text-sm font-semibold text-slate-400">
-                      會員列表 ({notCheckedInMembers.length})
+                      球員列表 ({notCheckedInMembers.length})
                     </h2>
                     <div className="flex items-center gap-1 -mr-1.5">
+                      {currentUser?.role === 'admin' && (
+                        <button
+                          onClick={() => {
+                            setIsImportModalOpen(true);
+                          }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                          title="匯入球員名單"
+                        >
+                          <FileInput className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      {/* 排序選單 */}
+                      <div className="relative" ref={sortMenuRef}>
+                        <button
+                          onClick={() => setIsSortMenuOpen(!isSortMenuOpen)}
+                          className={`p-1.5 rounded-lg transition-colors ${isSortMenuOpen
+                            ? 'bg-slate-800 text-white'
+                            : memberSortKey !== 'newest'
+                              ? 'text-indigo-400 hover:text-indigo-350 hover:bg-slate-800'
+                              : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                            }`}
+                          title="排序球員名單"
+                        >
+                          <ArrowUpDown className="w-4 h-4" />
+                        </button>
+
+                        {isSortMenuOpen && (
+                          <div className="absolute right-0 mt-1.5 w-40 bg-slate-900 border border-slate-800/80 rounded-lg shadow-xl py-1 z-20 animate-[fadeIn_0.15s_ease-out]">
+                            {[
+                              { key: 'newest', label: '最新加入' },
+                              { key: 'oldest', label: '最早加入' },
+                              { key: 'alphabetical', label: 'A-Z 順序' },
+                              { key: 'identity', label: '按身份排序' }
+                            ].map((opt) => (
+                              <button
+                                key={opt.key}
+                                type="button"
+                                onClick={() => {
+                                  setMemberSortKey(opt.key as any);
+                                  setIsSortMenuOpen(false);
+                                }}
+                                className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-800 hover:text-white transition-colors flex items-center justify-between
+                                  ${memberSortKey === opt.key ? 'text-indigo-400 font-medium bg-slate-800/40' : 'text-slate-300'}`}
+                              >
+                                <span>{opt.label}</span>
+                                {memberSortKey === opt.key && <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0 ml-1.5" />}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
                       <button
                         onClick={() => {
                           setIsSearchExpanded(!isSearchExpanded);
@@ -3609,72 +3924,10 @@ export default function App() {
                           ? 'bg-slate-700 text-white'
                           : 'text-slate-400 hover:text-white hover:bg-slate-800'
                           }`}
-                        title="搜尋會員"
+                        title="搜尋球員"
                       >
                         <Search className="w-4 h-4" />
                       </button>
-
-                      {/* Settings Dropdown */}
-                      {currentUser?.role === 'admin' && (
-                        <div className="relative">
-                          <button
-                            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                            className={`p-1.5 rounded-lg transition-colors ${isSettingsOpen
-                              ? 'bg-slate-700 text-white'
-                              : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                              }`}
-                            title="更多操作與播報設定"
-                          >
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
-
-                          {isSettingsOpen && (
-                            <>
-                              <div className="fixed inset-0 z-40" onClick={() => setIsSettingsOpen(false)} />
-                              <div className="absolute right-0 top-full mt-2 w-60 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden animate-[fadeIn_0.2s_ease-out]">
-                                <div className="p-2">
-                                  
-                                  {/* CSV 匯入 */}
-                                  <button
-                                    onClick={() => {
-                                      fileInputRef.current?.click();
-                                      setIsSettingsOpen(false);
-                                    }}
-                                    className="w-full flex items-start gap-3 p-2 hover:bg-slate-800 rounded-md transition-colors text-left group"
-                                  >
-                                    <div className="p-1.5 bg-emerald-500/10 text-emerald-400 rounded-md group-hover:bg-emerald-500 group-hover:text-white transition-colors mt-0.5">
-                                      <Upload className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                      <div className="text-xs font-semibold text-slate-200 group-hover:text-white transition-colors">匯入名單 (.csv)</div>
-                                      <div className="text-[9px] text-slate-500 mt-0.5 leading-tight">格式: 姓名,等級(季打/零打)</div>
-                                    </div>
-                                  </button>
-
-                                  <div className="h-px bg-slate-800 my-1 mx-2" />
-
-                                  {/* 清空休息區 */}
-                                  <button
-                                    onClick={() => {
-                                      clearBench();
-                                      setIsSettingsOpen(false);
-                                    }}
-                                    className="w-full flex items-center gap-3 p-2 hover:bg-slate-800 rounded-md transition-colors text-left group text-red-400 hover:text-red-300"
-                                  >
-                                    <div className="p-1.5 bg-red-500/10 rounded-md group-hover:bg-red-500 group-hover:text-white transition-colors">
-                                      <UserX className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                      <div className="text-xs font-semibold">清空休息區</div>
-                                      <div className="text-[9px] text-slate-500 mt-0.5 leading-none">讓休息中球員全部早退</div>
-                                    </div>
-                                  </button>
-                                </div>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      )}
                     </div>
                   </div>
 
@@ -3683,8 +3936,8 @@ export default function App() {
                       <div className="relative flex-1">
                         <input
                           type="text"
-                          placeholder="搜尋會員..."
-                          className="w-full h-10 pl-9 pr-10 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-slate-200"
+                          placeholder="搜尋球員..."
+                          className="w-full h-10 pl-9 pr-10 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base lg:text-sm text-slate-200"
                           value={memberSearchTerm}
                           onChange={e => setMemberSearchTerm(e.target.value)}
                         />
@@ -3702,30 +3955,7 @@ export default function App() {
                   )}
 
                   {currentUser?.role === 'admin' && (
-                    <div className="flex items-center gap-2 h-10">
-                      <div className="relative flex-1">
-                        <input
-                          type="text"
-                          placeholder="新會員姓名"
-                          maxLength={10}
-                          className="w-full h-10 pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-slate-200"
-                          value={newMemberName}
-                          onChange={e => setNewMemberName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && newMemberName) createMember(newMemberName);
-                          }}
-                        />
-                        <UserPlus className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                      </div>
-                      <button
-                        onClick={() => createMember(newMemberName)}
-                        disabled={!newMemberName.trim()}
-                        className={`h-10 px-3 bg-indigo-600 text-white text-xs font-semibold rounded-lg transition-all shrink-0 flex items-center justify-center
-                          ${!newMemberName.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-500'}`}
-                      >
-                        新增會員
-                      </button>
-                    </div>
+                    <AddMemberBar onCreateMember={createMember} />
                   )}
                 </div>
                 
@@ -3740,20 +3970,18 @@ export default function App() {
                 <div className="flex-1 px-6 py-2 space-y-2 bg-slate-950 overflow-y-auto">
                   {notCheckedInMembers.length === 0 ? (
                     <div className="text-center py-8 text-slate-600 text-sm">
-                      {memberSearchTerm ? '找不到符合的會員' : '尚未新增會員名單'}
+                      {memberSearchTerm ? '找不到符合的球員' : '尚未新增球員名單'}
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 gap-2">
                       {notCheckedInMembers.map(member => (
                         <div key={member.id} className="group flex items-center justify-between py-2 rounded-lg border border-transparent">
-                          <div className="flex items-center gap-2 min-w-0 pl-1.5">
-                            <PlayerAvatar identifier={member.name} className="w-5.5 h-5.5 shrink-0 rounded-full" />
+                          <div className="flex items-center gap-2.5 min-w-0 pl-1.5">
+                            <PlayerAvatar identifier={member.name} identity={member.identity} className="w-5.5 h-5.5 shrink-0 rounded-full" />
+                            <span className={`inline-flex items-center justify-center w-[50px] py-0.5 rounded-md text-[10px] font-bold shrink-0 ${IDENTITIES[member.identity].bg} ${IDENTITIES[member.identity].color}`}>
+                              {IDENTITIES[member.identity].label}
+                            </span>
                             <span className="text-sm text-slate-300 font-medium truncate">{member.name}</span>
-                            <div className="scale-90 origin-left">
-                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${SKILL_LEVELS[member.level].bg} ${SKILL_LEVELS[member.level].color} ${SKILL_LEVELS[member.level].border}`}>
-                                {SKILL_LEVELS[member.level].label}
-                              </span>
-                            </div>
                           </div>
                           
                           <div className="flex items-center justify-end gap-1.5 shrink-0">
@@ -3769,7 +3997,7 @@ export default function App() {
                               <button
                                 onClick={() => removeMember(member.id)}
                                 className="h-9 w-9 flex items-center justify-center text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                title="刪除此會員"
+                                title="刪除此球員"
                               >
                                 <X className="w-4 h-4" />
                               </button>
@@ -3938,11 +4166,22 @@ export default function App() {
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl max-w-sm w-full shadow-2xl relative flex flex-col text-center">
             {/* 圖標 (Icon) */}
             <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 bg-indigo-500/10 text-indigo-400">
-              {customDialog.type === 'confirm' ? (
-                <Info className="w-6 h-6 text-indigo-400" />
-              ) : (
-                <AlertTriangle className="w-6 h-6 text-indigo-400" />
-              )}
+              {(() => {
+                if (customDialog.type === 'confirm') {
+                  return <Info className="w-6 h-6" />;
+                }
+                const variant = customDialog.variant || 'warning';
+                if (variant === 'success') {
+                  return <CheckCircle2 className="w-6 h-6" />;
+                }
+                if (variant === 'error') {
+                  return <XCircle className="w-6 h-6" />;
+                }
+                if (variant === 'info') {
+                  return <Info className="w-6 h-6" />;
+                }
+                return <AlertTriangle className="w-6 h-6" />;
+              })()}
             </div>
 
             {customDialog.title && (
@@ -4046,7 +4285,7 @@ export default function App() {
                   <input
                     type="text"
                     placeholder="例如：快樂週三羽球團"
-                    className="w-full h-10 px-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-200 text-xs placeholder-slate-700 transition-all"
+                    className="w-full h-10 px-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-200 text-base lg:text-xs placeholder-slate-700 transition-all"
                     value={editSpaceName}
                     onChange={e => setEditSpaceName(e.target.value)}
                     required
@@ -4110,7 +4349,7 @@ export default function App() {
                       autoComplete="new-password"
                       placeholder={editHasPasscode ? "設定管理密碼 (4-10 位)" : "管理密碼已停用"}
                       disabled={!editHasPasscode}
-                      className={`w-full h-9 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
+                      className={`w-full h-9 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-base lg:text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
                         editHasPasscode 
                           ? 'border-slate-800 focus:ring-indigo-500 opacity-100' 
                           : 'border-slate-900/50 opacity-30 cursor-not-allowed select-none'
@@ -4181,7 +4420,7 @@ export default function App() {
                       autoComplete="new-password"
                       placeholder={editHasSpacePasscode ? "設定空間存取密碼 (4-10 位)" : "空間密碼已停用"}
                       disabled={!editHasSpacePasscode}
-                      className={`w-full h-9 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
+                      className={`w-full h-9 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-base lg:text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
                         editHasSpacePasscode 
                           ? 'border-slate-800 focus:ring-indigo-500 opacity-100' 
                           : 'border-slate-900/50 opacity-30 cursor-not-allowed select-none'
@@ -4279,7 +4518,7 @@ export default function App() {
             
             <p className="text-xs text-slate-300 bg-red-500/5 border border-red-500/15 p-3 rounded-xl text-left leading-relaxed mb-4">
               <span className="text-red-400 font-bold">⚠️ 警告：此操作無法復原！</span><br />
-              這將永久移除球團「{spaceMetadata?.name}」及其所有場地配置、排隊記錄與會員名冊。
+              這將永久移除球團「{spaceMetadata?.name}」及其所有場地配置、排隊記錄與球員名冊。
             </p>
 
             <div className="space-y-4 text-left">
@@ -4290,7 +4529,7 @@ export default function App() {
                 <input
                   type="text"
                   placeholder="請在此輸入球團 ID"
-                  className="w-full h-11 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center font-mono text-slate-200 text-sm placeholder-slate-700 transition-all"
+                  className="w-full h-11 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center font-mono text-slate-200 text-base lg:text-sm placeholder-slate-700 transition-all"
                   value={deleteInputId}
                   onChange={e => setDeleteInputId(e.target.value)}
                   autoFocus
@@ -4317,6 +4556,92 @@ export default function App() {
                 >
                   我同意，永久刪除
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 批次匯入球員名單彈窗 */}
+      {isImportModalOpen && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]">
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl max-w-md w-full shadow-2xl relative flex flex-col max-h-[90dvh]">
+            {/* 關閉按鈕 */}
+            <button
+              onClick={() => {
+                setIsImportModalOpen(false);
+                setImportText('');
+              }}
+              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-all"
+              title="關閉"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <h3 className="text-base font-bold text-white mb-4">批次匯入球員名單</h3>
+
+            <div className="flex-1 overflow-y-auto space-y-6 pr-1 font-sans">
+              {/* 方法一：從 CSV 檔案匯入 */}
+              <div className="space-y-2.5">
+                <h4 className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  方法一：上傳 CSV 檔案
+                </h4>
+                <div className="bg-slate-950/50 border border-slate-800/80 rounded-xl p-3.5 space-y-3">
+                  <div className="text-[11px] text-slate-400 space-y-1.5 leading-relaxed">
+                    <p className="font-semibold text-slate-350">檔案格式說明：</p>
+                    <p>1. CSV 檔案必須包含 <code className="text-emerald-400 font-mono">Name</code> 與 <code className="text-emerald-400 font-mono">Identity</code> 兩個欄位（大小寫皆可）。</p>
+                    <p>2. <code className="text-emerald-400 font-mono">Identity</code> 欄位值可為 <code className="text-slate-200">管理員</code>、<code className="text-slate-200">社員</code> 或 <code className="text-slate-200">零打</code>（若留空或填寫其他值，系統將自動預設為 <code className="text-slate-200">社員</code>）。</p>
+                    <p className="text-[10px] text-slate-500 border-t border-slate-900/60 pt-1.5 mt-1 flex items-start gap-1">
+                      <span>💡</span>
+                      <span>Excel 檔可於 Excel 點選「另存新檔」➔ 選擇格式為「CSV」即可匯入。</span>
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      fileInputRef.current?.click();
+                    }}
+                    className="w-full h-9 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <FileInput className="w-3.5 h-3.5" />
+                    選擇 CSV 檔案匯入
+                  </button>
+                </div>
+              </div>
+
+              {/* 方法二：複製貼上文字匯入 */}
+              <div className="space-y-2.5">
+                <h4 className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                  方法二：直接貼上名單
+                </h4>
+                <div className="space-y-2.5">
+                  <div className="text-[11px] text-slate-400 leading-relaxed">
+                    每行輸入一筆資料，格式為「<span className="text-indigo-400 font-semibold">姓名 身份</span>」（用空格分隔，身份可為「管理員」、「社員」或「零打」，空白或其他值將預設為「社員」）。
+                  </div>
+                  <div className="p-0.5">
+                    <div className="bg-slate-950 border border-slate-800 rounded-xl transition-all p-1 pb-1 focus-within:border-transparent focus-within:ring-2 focus-within:ring-indigo-500">
+                      <textarea
+                        placeholder="範例：&#10;Hank 管理員&#10;Vincent 社員&#10;Alfred 零打"
+                        value={importText}
+                        onChange={(e) => setImportText(e.target.value)}
+                        className="w-full h-28 bg-transparent border-0 outline-none resize-none text-xs text-slate-200 font-mono px-2 pt-2 pb-1 scrollbar-track-transparent"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (importText.trim()) {
+                        handleTextareaImport(importText);
+                      }
+                    }}
+                    disabled={!importText.trim()}
+                    className={`w-full h-9 text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5
+                      ${importText.trim() ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : 'bg-indigo-600/30 text-white/30 cursor-not-allowed'}`}
+                  >
+                    確定貼上匯入
+                  </button>
+                </div>
               </div>
             </div>
           </div>
