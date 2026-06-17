@@ -482,6 +482,8 @@ npm run dev     # 啟動 dev server (port 3000)
   - **無閃爍跳轉**：將清除 `currentUser`、`spaceId` 與 `spaceMetadata` 等狀態全部集中至路由 Hash 監聽器，避免在跳轉中短暫出現「身份選擇」或「空團主畫面」殘影。
 - **防止行動端對焦放大 (Viewport Zoom Prevention)**：為避免 iOS Safari 及行動版瀏覽器在使用者點選輸入框（如密碼、姓名、搜尋框等）時自動放大畫面而破壞 RWD 佈局，全站所有互動式 `<input>` 元素在行動端的字體大小皆強制設定為至少 `text-base` (16px)，並在寬螢幕裝置上（透過 `lg:text-sm` 或 `lg:text-xs` 等）縮回對應的桌面端尺寸。
 - **失效空間自動清除機制**：若使用者點選「最近造訪的球團」或透過網址直接進入已被刪除（不存於 Firebase）的球團空間，當系統判定該空間不存在並呈現「球團空間不存在」的錯誤面板時，會主動自使用者的 `recentSpaces` 及 `localStorage` 中將該 `spaceId` 紀錄移除，確保返回大廳時該失效連結不會再次出現在最近造訪列表中。
+- **輸入法組字 Enter 防誤觸機制 (IME Composition Guard)**：為防範使用者使用注音、拼音等中文輸入法組字選詞時，按下 Enter 鍵確認候選字而誤觸發「新增球員」或「提交驗證」的行為，所有文字/密碼輸入框在 `onKeyDown` 階段皆會偵測並阻斷 `e.nativeEvent.isComposing`（組字中）的鍵盤事件，僅允許在正常已組完字詞的狀態下使用 Enter 進行快速提交。
+
 
 
 

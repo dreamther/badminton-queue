@@ -72,6 +72,7 @@ const AddMemberBar: React.FC<AddMemberBarProps> = ({ onCreateMember }) => {
           value={name}
           onChange={e => setName(e.target.value)}
           onKeyDown={(e) => {
+            if (e.nativeEvent.isComposing) return;
             if (e.key === 'Enter') handleAdd();
           }}
         />
@@ -2948,7 +2949,10 @@ export default function App() {
                 className="w-full h-12 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center font-mono text-slate-200 placeholder-slate-700"
                 value={spacePasscodeInput}
                 onChange={e => setSpacePasscodeInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleVerifySpacePasscode()}
+                onKeyDown={e => {
+                  if (e.nativeEvent.isComposing) return;
+                  if (e.key === 'Enter') handleVerifySpacePasscode();
+                }}
                 autoFocus
               />
 
@@ -3137,7 +3141,10 @@ export default function App() {
                   className="w-full h-11 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center font-mono text-slate-200 text-base placeholder-slate-700"
                   value={passcodeInput}
                   onChange={e => setPasscodeInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleVerifyPasscode()}
+                  onKeyDown={e => {
+                    if (e.nativeEvent.isComposing) return;
+                    if (e.key === 'Enter') handleVerifyPasscode();
+                  }}
                   autoFocus
                 />
 
