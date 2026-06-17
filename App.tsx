@@ -801,12 +801,16 @@ export default function App() {
   }, [currentUser, members, players]);
 
   // --- 衍生計算資料 (Memo) ---
-  const currentMemberName = useMemo(() => {
+  const currentUserMember = useMemo(() => {
     if (currentUser?.role === 'player') {
-      return members.find(m => m.id === currentUser.memberId)?.name;
+      return members.find(m => m.id === currentUser.memberId) || null;
     }
     return null;
   }, [currentUser, members]);
+
+  const currentMemberName = useMemo(() => {
+    return currentUserMember?.name || null;
+  }, [currentUserMember]);
 
   const queue = useMemo(() => {
     const playerMap = new Map(players.map(p => [p.id, p]));
@@ -3336,11 +3340,11 @@ export default function App() {
                     {currentUser?.role === 'admin' ? (
                       <span className="text-sm">🏸</span>
                     ) : (
-                      <UserCheck className="w-3.5 h-3.5 text-indigo-400" />
+                      <UserCheck className={`w-3.5 h-3.5 ${currentUserMember ? IDENTITIES[currentUserMember.identity].iconColor : 'text-indigo-400'}`} />
                     )}
                   </div>
                   <span className="text-xs text-slate-300 font-medium whitespace-nowrap hidden min-[375px]:inline-block">
-                    {currentUser?.role === 'admin' ? '團主' : members.find(m => m.id === currentUser?.memberId)?.name || '球員'}
+                    {currentUser?.role === 'admin' ? '團主' : currentUserMember?.name || '球員'}
                   </span>
                   <ChevronDown className="w-3 h-3 text-slate-500" />
                 </button>
@@ -3349,11 +3353,17 @@ export default function App() {
                   <div className="absolute right-0 mt-2 w-52 bg-slate-900 border border-slate-800 rounded-xl shadow-xl py-1 z-50 animate-in fade-in slide-in-from-top-2">
                     <div className="px-3 py-2 border-b border-slate-800/60 flex items-baseline gap-1.5 bg-slate-950/20">
                       <p className="text-[10px] text-slate-500 font-medium shrink-0">
-                        {!currentUser ? '未登入' : (currentUser.role === 'admin' ? '團主' : '球員')}
+                        {!currentUser 
+                          ? '未登入' 
+                          : currentUser.role === 'admin' 
+                            ? '團主' 
+                            : currentUserMember 
+                              ? IDENTITIES[currentUserMember.identity].label 
+                              : '球員'}
                       </p>
                       {currentUser && (
                         <p className="text-xs font-bold text-slate-300 truncate flex-1">
-                          {currentUser.role === 'admin' ? '管理員' : members.find(m => m.id === currentUser.memberId)?.name || ''}
+                          {currentUser.role === 'admin' ? '管理員' : currentUserMember?.name || ''}
                         </p>
                       )}
                     </div>
