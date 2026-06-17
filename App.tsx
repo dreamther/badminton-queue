@@ -59,7 +59,6 @@ const AddMemberBar: React.FC<AddMemberBarProps> = ({ onCreateMember }) => {
     if (!trimmed) return;
     await onCreateMember(trimmed, identity);
     setName('');
-    setIdentity('beginner');
   };
 
   return (
