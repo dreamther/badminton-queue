@@ -3358,33 +3358,20 @@ export default function App() {
                       )}
                     </div>
                     
-                    {currentUser?.role === 'admin' && (
-                      <div className="py-1">
+                    <div className="py-1">
+                      {currentUser?.role === 'admin' && (
                         <button
                           onClick={() => {
                             setIsSpaceSettingsOpen(true);
                             setIsProfileMenuOpen(false);
                           }}
-                          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-indigo-400/90 hover:text-indigo-300/75 hover:bg-indigo-500/10 transition-colors group/settings"
+                          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800 transition-colors group/settings"
                         >
-                          <Settings className="w-4 h-4 text-indigo-500/70 group-hover/settings:text-indigo-300/75 transition-colors" />
+                          <Settings className="w-4 h-4 text-slate-500 group-hover/settings:text-slate-300 transition-colors" />
                           球團空間設定
                         </button>
-                        <button
-                          onClick={() => {
-                            resetSession();
-                            setIsProfileMenuOpen(false);
-                          }}
-                          className="flex w-full items-center gap-2 px-3 py-2 text-xs text-red-400/90 hover:text-red-400 hover:bg-red-500/10 transition-colors group"
-                        >
-                          <Power className="w-4 h-4 text-red-500/70 group-hover:text-red-400 transition-colors" />
-                          結束本日打球
-                        </button>
-                        <div className="h-px bg-slate-800/60 my-1 mx-2" />
-                      </div>
-                    )}
-                    
-                    <div className="py-1">
+                      )}
+                      
                       {currentUser?.role === 'player' && players.some(p => p.name === currentMemberName) && (
                         <button
                           onClick={async () => {
@@ -3481,6 +3468,24 @@ export default function App() {
                         返回大廳
                       </button>
                     </div>
+
+                    {currentUser?.role === 'admin' && (
+                      <>
+                        <div className="h-px bg-slate-800/60 my-1 mx-2" />
+                        <div className="py-1">
+                          <button
+                            onClick={() => {
+                              resetSession();
+                              setIsProfileMenuOpen(false);
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-red-400 hover:bg-red-500/10 transition-colors group"
+                          >
+                            <Power className="w-4 h-4 text-slate-500 group-hover:text-red-400 transition-colors" />
+                            結束本日打球
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
