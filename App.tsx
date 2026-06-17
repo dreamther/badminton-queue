@@ -68,7 +68,7 @@ const AddMemberBar: React.FC<AddMemberBarProps> = ({ onCreateMember }) => {
           type="text"
           placeholder="新球員名稱"
           maxLength={10}
-          className="w-full h-10 pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-slate-200 placeholder-slate-500"
+          className="w-full h-10 pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base lg:text-sm text-slate-200 placeholder-slate-500"
           value={name}
           onChange={e => setName(e.target.value)}
           onKeyDown={(e) => {
@@ -2432,7 +2432,7 @@ export default function App() {
                     <input
                       type="text"
                       placeholder="例如：happy-badminton"
-                      className="w-full h-12 pl-4 pr-12 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-600 text-slate-200 transition-all font-mono"
+                      className="w-full h-12 pl-4 pr-12 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-600 text-slate-200 text-base transition-all font-mono"
                       value={joinSpaceIdInput}
                       onChange={e => setJoinSpaceIdInput(e.target.value)}
                     />
@@ -2525,7 +2525,7 @@ export default function App() {
                     <input
                       type="text"
                       placeholder="例如：快樂週三羽球團"
-                      className="w-full h-11 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-200 text-sm placeholder-slate-700 transition-all"
+                      className="w-full h-11 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-200 text-base lg:text-sm placeholder-slate-700 transition-all"
                       value={newSpaceName}
                       onChange={e => setNewSpaceName(e.target.value)}
                       required
@@ -2538,7 +2538,7 @@ export default function App() {
                     <input
                       type="text"
                       placeholder="例如：happy-badminton"
-                      className="w-full h-11 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-200 text-sm font-mono placeholder-slate-700 transition-all"
+                      className="w-full h-11 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-200 text-base lg:text-sm font-mono placeholder-slate-700 transition-all"
                       value={newSpaceId}
                       onChange={e => handleSpaceIdInputChange(e.target.value)}
                       required
@@ -2659,7 +2659,7 @@ export default function App() {
                       autoComplete="new-password"
                       placeholder={hasPasscode ? "請設定管理密碼 (4-10 位)" : "管理密碼已停用"}
                       disabled={!hasPasscode}
-                      className={`w-full h-10 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
+                      className={`w-full h-10 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-base lg:text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
                         hasPasscode 
                           ? 'border-slate-800 focus:ring-indigo-500 opacity-100' 
                           : 'border-slate-900/50 opacity-30 cursor-not-allowed select-none'
@@ -2735,7 +2735,7 @@ export default function App() {
                       autoComplete="new-password"
                       placeholder={hasSpacePasscode ? "請設定空間存取密碼 (4-10 位)" : "空間密碼已停用"}
                       disabled={!hasSpacePasscode}
-                      className={`w-full h-10 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
+                      className={`w-full h-10 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-base lg:text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
                         hasSpacePasscode 
                           ? 'border-slate-800 focus:ring-indigo-500 opacity-100' 
                           : 'border-slate-900/50 opacity-30 cursor-not-allowed select-none'
@@ -3041,7 +3041,7 @@ export default function App() {
                 <input
                   type="text"
                   placeholder="搜尋名字..."
-                  className="w-full h-10 pl-9 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-slate-200"
+                  className="w-full h-10 pl-9 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base lg:text-sm text-slate-200"
                   value={loginSearchTerm}
                   onChange={e => setLoginSearchTerm(e.target.value)}
                   autoFocus
@@ -3120,7 +3120,7 @@ export default function App() {
                   type="password"
                   autoComplete="current-password"
                   placeholder="請輸入管理密碼"
-                  className="w-full h-11 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center font-mono text-slate-200 placeholder-slate-700"
+                  className="w-full h-11 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center font-mono text-slate-200 text-base placeholder-slate-700"
                   value={passcodeInput}
                   onChange={e => setPasscodeInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleVerifyPasscode()}
@@ -3172,7 +3172,7 @@ export default function App() {
             <input
               type="text"
               placeholder="搜尋休息區..."
-              className="w-full h-10 pl-9 pr-10 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-slate-500 text-sm"
+              className="w-full h-10 pl-9 pr-10 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-slate-500 text-base lg:text-sm"
               value={restAreaSearchTerm}
               onChange={e => setRestAreaSearchTerm(e.target.value)}
               autoFocus
@@ -3916,7 +3916,7 @@ export default function App() {
                         <input
                           type="text"
                           placeholder="搜尋球員..."
-                          className="w-full h-10 pl-9 pr-10 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-slate-200"
+                          className="w-full h-10 pl-9 pr-10 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base lg:text-sm text-slate-200"
                           value={memberSearchTerm}
                           onChange={e => setMemberSearchTerm(e.target.value)}
                         />
@@ -4264,7 +4264,7 @@ export default function App() {
                   <input
                     type="text"
                     placeholder="例如：快樂週三羽球團"
-                    className="w-full h-10 px-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-200 text-xs placeholder-slate-700 transition-all"
+                    className="w-full h-10 px-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-200 text-base lg:text-xs placeholder-slate-700 transition-all"
                     value={editSpaceName}
                     onChange={e => setEditSpaceName(e.target.value)}
                     required
@@ -4328,7 +4328,7 @@ export default function App() {
                       autoComplete="new-password"
                       placeholder={editHasPasscode ? "設定管理密碼 (4-10 位)" : "管理密碼已停用"}
                       disabled={!editHasPasscode}
-                      className={`w-full h-9 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
+                      className={`w-full h-9 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-base lg:text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
                         editHasPasscode 
                           ? 'border-slate-800 focus:ring-indigo-500 opacity-100' 
                           : 'border-slate-900/50 opacity-30 cursor-not-allowed select-none'
@@ -4399,7 +4399,7 @@ export default function App() {
                       autoComplete="new-password"
                       placeholder={editHasSpacePasscode ? "設定空間存取密碼 (4-10 位)" : "空間密碼已停用"}
                       disabled={!editHasSpacePasscode}
-                      className={`w-full h-9 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
+                      className={`w-full h-9 px-3 bg-slate-950 border rounded-xl focus:outline-none focus:ring-2 text-slate-200 text-base lg:text-xs transition-all duration-[1000ms] ease-in-out font-mono ${
                         editHasSpacePasscode 
                           ? 'border-slate-800 focus:ring-indigo-500 opacity-100' 
                           : 'border-slate-900/50 opacity-30 cursor-not-allowed select-none'
@@ -4508,7 +4508,7 @@ export default function App() {
                 <input
                   type="text"
                   placeholder="請在此輸入球團 ID"
-                  className="w-full h-11 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center font-mono text-slate-200 text-sm placeholder-slate-700 transition-all"
+                  className="w-full h-11 px-4 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center font-mono text-slate-200 text-base lg:text-sm placeholder-slate-700 transition-all"
                   value={deleteInputId}
                   onChange={e => setDeleteInputId(e.target.value)}
                   autoFocus

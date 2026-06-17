@@ -480,6 +480,8 @@ npm run dev     # 啟動 dev server (port 3000)
   - **倒數與進度條**：設定 5 秒倒數，倒數條使用 CSS 動畫 (`shrink-progress`) 從 100% 平滑縮減至 0%，避免 React 掛載時的過渡動畫 bug，同時提供手動跳過按鈕。
   - **RWD 結構對齊**：卡片寬度與內邊距 (`p-6 xs:p-7 sm:p-8 rounded-2xl max-w-sm w-full mx-auto`) 完全對齊「身份選擇」卡片，並且在外層加入響應式安全間距與 `overflow-y-auto` 防護，確保在小尺寸行動裝置上維持舒適邊距。
   - **無閃爍跳轉**：將清除 `currentUser`、`spaceId` 與 `spaceMetadata` 等狀態全部集中至路由 Hash 監聽器，避免在跳轉中短暫出現「身份選擇」或「空團主畫面」殘影。
+- **防止行動端對焦放大 (Viewport Zoom Prevention)**：為避免 iOS Safari 及行動版瀏覽器在使用者點選輸入框（如密碼、姓名、搜尋框等）時自動放大畫面而破壞 RWD 佈局，全站所有互動式 `<input>` 元素在行動端的字體大小皆強制設定為至少 `text-base` (16px)，並在寬螢幕裝置上（透過 `lg:text-sm` 或 `lg:text-xs` 等）縮回對應的桌面端尺寸。
+
 
 ### 11.3 語音播報規範與架構
 
