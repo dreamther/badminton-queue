@@ -1,6 +1,6 @@
 # 羽球排隊助手 — 專案規格書 (spec.md)
 
-> **最後更新**：2026-06-16
+> **最後更新**：2026-06-17
 > 本文件記錄專案的架構、流程與功能，供後續開發者快速理解並確保一致性。
 
 ---
@@ -223,6 +223,7 @@ interface CurrentUser {
 | 新增球員     | 輸入姓名、選擇身份後新增      | `createMember()`                             | admin        |
 | CSV 批次匯入 | 上傳 .csv 檔案批量新增球員    | `parseCsvAndImport()`, `handleBatchImport()` | admin        |
 | 搜尋球員     | 關鍵字即時篩選                | `filteredMembers` (useMemo)                  | 全部         |
+| 球員排序     | 支援新舊、姓名 A-Z (英文優先)、身份排序 | `memberSortKey`, `isSortMenuOpen`  | admin        |
 | 報到         | 將球員加入今日球員（休息區）  | `checkInMember()`                            | admin / 本人 |
 | 刪除球員     | 從球員列表永久移除            | `removeMember()`                             | admin        |
 | 名單重置     | 清空尚未報到的球員            | Settings dropdown                            | admin        |
@@ -460,17 +461,18 @@ npm run dev     # 啟動 dev server (port 3000)
 - **響應式設計**：
   - 行動版：使用底部 Tab 切換主要視圖；休息區改用懸浮按鈕 (FAB) 觸發 Bottom Sheet。
   - 桌面版：左側 Sidebar 固定顯示報到/排隊，右側為場地 grid (`sm:grid-cols-2 2xl:grid-cols-3`)。
-- **Profile Dropdown**：使用 `useRef` + `mousedown` 的 click-outside 機制關閉，不使用 `onBlur`。球員身分選單新增「早退」按鈕，其文字與 hover 配色完全對齊「切換身分」樣式 (`text-slate-300 hover:text-white hover:bg-slate-800`，搭配 `text-slate-500` 的 `UserX` 圖示)。
+- **Profile Dropdown**：使用 `useRef` + `mousedown` 的 click-outside 機制關閉，不使用 `onBlur`。球員身分選單新增「早退」按鈕，其文字與 hover 配色完全對齊「切換身分」樣式 (`text-slate-300 hover:text-white hover:bg-slate-800`，搭配 `text-slate-500` 的 `UserX` 圖示)。此外，團主登入時下拉選單中的「結束本日打球」移至底部 Danger Zone 獨立區域並加上分割線，Hover 時轉為紅色警告配色 (`hover:text-red-400 hover:bg-red-500/10`)；「球團空間設定」按鈕文字與 icon 則統一為一般 Slate 灰白，簡化雜亂的紫色與紅色組合。頭像與標題也會同步對應團主或球員當下的身份及其代表色（管理員-玫瑰紅、社員-水藍、零打-紫藍）。
 - **Action Bubble**：移除頂部選取資訊橫幅，改在被點選球員卡片/欄位右上角呈現懸浮動作泡泡（`bubble-container`）。
   - 排隊區/場地區選取時顯示：休息 (`Coffee`) 與 早退 (`UserX`)；休息區僅顯示早退 (`UserX`)。
   - 泡泡配色統一為深藍紫色系（靛藍色 `bg-indigo-600 hover:bg-indigo-500 border-indigo-400` 與 `shadow-indigo-500/40`）。
   - 具有雙向淡入淡出及彈跳動效（使用常態渲染及 CSS 轉場控制）。
   - 點擊卡片外部或點選其他未選取球員即可取消選取（切換分頁 Tabs 時除外）。
 - **排隊區清空按鈕**：清空按鈕採用與全站主色系相符的靛藍色（`text-indigo-400 bg-indigo-500/10 border-indigo-500/20`），且 hover 時以背景色填滿（`hover:text-white hover:bg-indigo-600 hover:border-indigo-600`）搭配 `transition-all`。
-- **自訂對話框 (Dialogs)**：全站所有的對話框與警示框（除刪除球團外）均採用統一的 `indigo` 靛藍色系風格，包括自訂 Promise-based Alert / Confirm、進階安全設定、私密空間密碼驗證等，以維持整體視覺的和諧一致。
+- **自訂對話框 (Dialogs)**：全站所有的對話框與警示框（除刪除球團外）均採用統一的 `indigo` 靛藍色系風格，包括自訂 Promise-based Alert / Confirm、進階安全設定、私密空間密碼驗證等，以維持整體視覺的和諧一致。另外，Promise-based Alert / Confirm 支援四種變體（success-勾勾、error-叉叉、info/confirm-資訊、warning-警告），圖標容器與圖標顏色皆統一為靛藍色系 (`bg-indigo-500/10` 與 `text-indigo-400`)，消除視覺雜亂感。
 - **Switch 開關設計**：全站所有 iOS 風格的 Switch 開關啟用狀態統一為 `bg-indigo-600` 靛藍色。
 - **設定表單極簡化**：空間設定彈窗標題採用純文字，移了旋轉 settings icon 及副標題，以最大程度節省行動端畫面的垂直空間。
 - **Toast 提示規範**：調用 `showToast(msg)`，移除寫死的 Check 打勾圖示，改為純文字並於訊息開頭前置相對應、符合情境的 Emoji（例如 `🔑`、`❌`、`🔊`、`🗑️`、`✨`、`🔗`），以求簡潔且避免語意衝突。
+- **團主登入分頁優化**：團主 (admin) 登入（包括手動登入或頁面重整自動還原狀態）時，若場地區與排隊區皆空無一人，系統預設主動將 activeTab 切換至「報到區 (members)」以利第一時間報到；若有任何活動球員，則保留預設視圖。
 - **刪除確認對話框 (GitHub 風格)**：為避免誤觸永久刪除球團，要求手動輸入 `spaceId` 解鎖按鈕。該 Modal 包含紅色的 Icon（`bg-red-500/10 text-red-400`）、紅色底框的警告標語橫幅以及亮紅色的確認刪除按鈕，作為破壞性操作的強烈警示；其餘如視窗邊框與輸入 Focus 框仍保持與全站一致的深色及靛藍色。
 - **刪除跳轉退訂防護**：執行球團刪除時，需先切換路由回到大廳並等待 100ms 讓實時監聽器完成退訂，最後才呼叫 `deleteSpace` API，以防範 Firestore「文檔不存在」的報錯事件短暫閃現。
 - **早退掰掰畫面 (Goodbye Screen)**：球員點擊早退或被移出時，會切換至獨立的早退卡片畫面。
@@ -534,7 +536,7 @@ Name,Identity
 李大華,零打
 ```
 
-- **Identity** 欄位值僅能為 `社員` 或 `零打`（若留空或為其他值，預設為 `社員`）。
+- **Identity** 欄位值僅能為 `管理員`、`社員` 或 `零打`（若留空或為其他值，預設為 `社員`）。
 
 #### 11.4.2 從貼上文字匯入
 每行格式為 `姓名 身份`（用空格區分）：
@@ -544,7 +546,7 @@ Alfred 社員
 Mars 零打
 ```
 
-- **身份** 欄位值僅能為 `社員` 或 `零打`（若留空或為其他值，預設為 `社員`）。
+- **身份** 欄位值僅能為 `管理員`、`社員` 或 `零打`（若留空或為其他值，預設為 `社員`）。
 
 ---
 
