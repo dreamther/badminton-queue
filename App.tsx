@@ -523,7 +523,15 @@ export default function App() {
             const savedUserStr = localStorage.getItem(savedUserKey);
             if (savedUserStr) {
               const savedUser = JSON.parse(savedUserStr);
-              if (savedUser.role === 'player') {
+              if (savedUser.role === 'admin') {
+                // 團主若在場地與排隊皆無人的情況下登入，預設切換至報到區
+                const sessionCourts = session.courts || [];
+                const isCourtsEmpty = sessionCourts.every((c: any) => !c.playerIds || c.playerIds.every((id: any) => id === null));
+                const isQueueEmpty = !mappedPlayers.some((p: any) => p.status === 'queued');
+                if (isCourtsEmpty && isQueueEmpty) {
+                  setActiveTab('members');
+                }
+              } else if (savedUser.role === 'player') {
                 // 為了避免聲音通道鎖定，自動還原的球員一律預設為關閉播報，由其點擊喇叭開啟
                 setIsAutoAnnounce(false);
               }
@@ -1830,7 +1838,15 @@ export default function App() {
       setCurrentUser(user);
       localStorage.setItem(`badminton_current_user_${spaceId}`, JSON.stringify(user));
       setIsAutoAnnounce(false); // 團主登入預設關閉播報，需主動點擊解鎖
-      setActiveTab(window.innerWidth >= 1024 ? 'queue' : 'courts');
+      
+      const isCourtsEmpty = courts.every(c => !c.playerIds || c.playerIds.every(id => id === null));
+      const isQueueEmpty = !players.some(p => p.status === 'queued');
+      if (isCourtsEmpty && isQueueEmpty) {
+        setActiveTab('members');
+      } else {
+        setActiveTab(window.innerWidth >= 1024 ? 'queue' : 'courts');
+      }
+      
       showToast("✨ 已成功切換為團主模式");
       return;
     }
@@ -1841,7 +1857,14 @@ export default function App() {
       setCurrentUser(user);
       localStorage.setItem(`badminton_current_user_${spaceId}`, JSON.stringify(user));
       setIsAutoAnnounce(false); // 團主登入預設關閉播報，需主動點擊解鎖
-      setActiveTab(window.innerWidth >= 1024 ? 'queue' : 'courts');
+      
+      const isCourtsEmpty = courts.every(c => !c.playerIds || c.playerIds.every(id => id === null));
+      const isQueueEmpty = !players.some(p => p.status === 'queued');
+      if (isCourtsEmpty && isQueueEmpty) {
+        setActiveTab('members');
+      } else {
+        setActiveTab(window.innerWidth >= 1024 ? 'queue' : 'courts');
+      }
       return;
     }
 
@@ -1871,7 +1894,15 @@ export default function App() {
       setPasscodePromptOpen(false);
       setFailedAttempts(0);
       setIsShaking(false);
-      setActiveTab(window.innerWidth >= 1024 ? 'queue' : 'courts');
+      
+      const isCourtsEmpty = courts.every(c => !c.playerIds || c.playerIds.every(id => id === null));
+      const isQueueEmpty = !players.some(p => p.status === 'queued');
+      if (isCourtsEmpty && isQueueEmpty) {
+        setActiveTab('members');
+      } else {
+        setActiveTab(window.innerWidth >= 1024 ? 'queue' : 'courts');
+      }
+      
       showToast("🔑 密碼驗證成功！進入管理模式。");
     } else {
       const nextAttempts = failedAttempts + 1;
