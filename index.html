@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Badminton Court Queue</title>
+    <title>羽球排隊助手</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏸</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -24,6 +25,13 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #475569;
       }
+      /* Custom scrollbar with transparent track */
+      .scrollbar-track-transparent::-webkit-scrollbar-track {
+        background: transparent !important;
+      }
+      .scrollbar-track-transparent {
+        scrollbar-color: #334155 transparent !important;
+      }
       * {
         scrollbar-width: thin;
         scrollbar-color: #334155 #0f172a;
@@ -31,6 +39,13 @@
       /* Safe area spacing helpers */
       .pb-safe {
         padding-bottom: env(safe-area-inset-bottom);
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      .animate-tab-fade {
+        animation: fadeIn 0.3s ease-out forwards;
       }
     </style>
   <link rel="stylesheet" href="/index.css">

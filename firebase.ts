@@ -10,7 +10,6 @@ import {
   query, 
   orderBy, 
   deleteDoc,
-  serverTimestamp,
   type Unsubscribe
 } from 'firebase/firestore';
 import { Player, Court, Member } from './types';
@@ -68,7 +67,7 @@ export interface SessionState {
   courts: Court[];
   queueSlots: (string | null)[];
   isWarmupDone: boolean;
-  announceMode: 'admin' | 'all'; // 語音播報設定：僅團主裝置 | 全裝置
+  allowPlayerAnnounce?: boolean; // 語音播報設定：是否允許球員端觸發團主裝置播音
   lastAnnouncement?: {
     text: string;
     timestamp: number;
@@ -146,7 +145,7 @@ export async function createSpace(
     })),
     queueSlots: [],
     isWarmupDone: false,
-    announceMode: 'admin',
+    allowPlayerAnnounce: true,
     updatedAt: Date.now()
   };
 
@@ -306,7 +305,7 @@ export function subscribeToSession(
         courts: [],
         queueSlots: [],
         isWarmupDone: false,
-        announceMode: 'admin',
+        allowPlayerAnnounce: true,
         updatedAt: Date.now()
       };
     };
@@ -366,12 +365,12 @@ export async function updateSession(spaceId: string, updates: Partial<SessionSta
 }
 
 // ==========================================
-// 會員名冊 (Members Collection) 操作
+// 球員名冊 (Members Collection) 操作
 // ==========================================
 
 /**
- * 訂閱會員清單變動 (Real-time Members Sync)
- * 由於會員名單變動頻率低，使用低頻同步或在有變更時通知
+ * 訂閱球員清單變動 (Real-time Members Sync)
+ * 由於球員名單變動頻率低，使用低頻同步或在有變更時通知
  */
 export function subscribeToMembers(
   spaceId: string,
@@ -381,7 +380,7 @@ export function subscribeToMembers(
 
   if (isFirebaseEnabled && db) {
     const membersColRef = collection(db, 'spaces', cleanId, 'members');
-    // 會員按時間降序排列
+    // 球員按時間降序排列
     const q = query(membersColRef, orderBy('createdAt', 'desc'));
     return onSnapshot(q, (snap) => {
       const list: Member[] = [];
@@ -390,7 +389,7 @@ export function subscribeToMembers(
       });
       onUpdate(list);
     }, (err) => {
-      console.error("訂閱會員名冊出錯:", err);
+      console.error("訂閱球員名冊出錯:", err);
     });
   } else {
     // Mock 模式
@@ -422,7 +421,7 @@ export function subscribeToMembers(
 }
 
 /**
- * 新增會員
+ * 新增球員
  */
 export async function addMember(spaceId: string, member: Member): Promise<void> {
   const cleanId = spaceId.trim().toLowerCase();
@@ -440,7 +439,7 @@ export async function addMember(spaceId: string, member: Member): Promise<void> 
 }
 
 /**
- * 批次新增會員 (例如 CSV 匯入)
+ * 批次新增球員 (例如 CSV 匯入)
  */
 export async function addMembersBatch(spaceId: string, newMembers: Member[]): Promise<void> {
   const cleanId = spaceId.trim().toLowerCase();
@@ -464,7 +463,7 @@ export async function addMembersBatch(spaceId: string, newMembers: Member[]): Pr
 }
 
 /**
- * 更新會員等級
+ * 更新球員身份
  */
 export async function updateMember(spaceId: string, memberId: string, updates: Partial<Member>): Promise<void> {
   const cleanId = spaceId.trim().toLowerCase();
@@ -482,7 +481,7 @@ export async function updateMember(spaceId: string, memberId: string, updates: P
 }
 
 /**
- * 刪除會員
+ * 刪除球員
  */
 export async function deleteMember(spaceId: string, memberId: string): Promise<void> {
   const cleanId = spaceId.trim().toLowerCase();
@@ -496,5 +495,38 @@ export async function deleteMember(spaceId: string, memberId: string): Promise<v
     const updatedList = list.filter(m => m.id !== memberId);
     localStorage.setItem(`mock_members_${cleanId}`, JSON.stringify(updatedList));
     window.dispatchEvent(new CustomEvent(`mock_members_update_${cleanId}`, { detail: updatedList }));
+  }
+}
+
+/**
+ * 刪除球團空間 (包含空間 metadata 與 session 狀態)
+ */
+export async function deleteSpace(spaceId: string): Promise<void> {
+  const cleanId = spaceId.trim().toLowerCase();
+  if (!cleanId) throw new Error("空間 ID 不可為空");
+
+  if (isFirebaseEnabled && db) {
+    // 1. 刪除 spaces/{spaceId}/state/session
+    const sessionDocRef = doc(db, 'spaces', cleanId, 'state', 'session');
+    await deleteDoc(sessionDocRef);
+
+    // 2. 刪除 spaces/{spaceId}
+    const spaceDocRef = doc(db, 'spaces', cleanId);
+    await deleteDoc(spaceDocRef);
+  } else {
+    // Mock 模式
+    // 1. 從 mock_spaces 移除
+    const spaces = JSON.parse(localStorage.getItem('mock_spaces') || '{}');
+    delete spaces[cleanId];
+    localStorage.setItem('mock_spaces', JSON.stringify(spaces));
+
+    // 2. 移除 session 與 members 儲存
+    localStorage.removeItem(`mock_session_${cleanId}`);
+    localStorage.removeItem(`mock_members_${cleanId}`);
+
+    // 3. 發送自訂事件通知
+    window.dispatchEvent(
+      new CustomEvent(`mock_space_metadata_update_${cleanId}`, { detail: null })
+    );
   }
 }
